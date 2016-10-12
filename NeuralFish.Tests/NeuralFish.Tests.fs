@@ -8,37 +8,78 @@ type GeneratorMsg =
   | GetData of AsyncReplyChannel<float>
   | Die
 
-let fakeSensorData dataVector =
+let fakeDataGenerator buffer =
   let generator = MailboxProcessor<GeneratorMsg>.Start(fun inbox ->
-    let rec loop dataVector =
+    let rec loop buffer =
       async {
         let! msg = inbox.Receive ()
-        let getData dataVector =
-          if dataVector |> List.isEmpty then
+        let getData buffer =
+          if buffer |> List.isEmpty then
             0.0
           else
-          dataVector |> List.head
+            buffer |> List.head
 
         match msg with
         | GetData replyChannel ->
-          getData dataVector
+          getData buffer
           |> replyChannel.Reply
-          return! loop dataVector
+          return! loop (buffer |> List.tail)
         | Die ->
           return ()
       }
-    loop dataVector
+    loop buffer
   )
   (fun () -> GetData |> generator.PostAndReply)
 
-let sigmoid = (fun x -> 1.0 / (1.0 + exp(-1.0 * x)))
+type TestHookMsg =
+  | SendDataToBuffer of float
+  | WaitForData of AsyncReplyChannel<float>
+  | Die of AsyncReplyChannel<int>
+
+// let testHook x = printfn "%A" x
+
+let testHook () =
+  let generator = MailboxProcessor<TestHookMsg>.Start(fun inbox ->
+    let rec loop dataBuffer counter replybuffer =
+      async {
+        let! msg = inbox.Receive ()
+        match msg with
+        | SendDataToBuffer dataValue ->
+          if (replybuffer |> List.isEmpty) then
+            let dataBuffer = dataValue :: dataBuffer
+            return! loop dataBuffer counter List.empty
+          else
+            let counter = counter + 1
+            replybuffer |> List.iter (fun (replyChannel : AsyncReplyChannel<float>) -> replyChannel.Reply dataValue)
+            return! loop dataBuffer counter List.empty
+        | Die replyChannel ->
+          replyChannel.Reply counter
+          replybuffer |> List.iter (fun (replyChannel : AsyncReplyChannel<float>) -> replyChannel.Reply 0.0)
+          return ()
+        | WaitForData replyChannel ->
+          if (dataBuffer |> List.isEmpty) then
+            let replybuffer = replyChannel :: replybuffer
+            return! loop dataBuffer counter replybuffer
+          else
+            let dataValue =  dataBuffer |> List.head
+            dataValue |> replyChannel.Reply
+            replybuffer |> List.iter (fun (replyChannel : AsyncReplyChannel<float>) -> replyChannel.Reply dataValue)
+            let dataBuffer = dataBuffer |> List.tail
+            return! loop dataBuffer counter replybuffer
+      }
+    loop [] 0 []
+  )
+
+  let hookFunction = (fun data -> SendDataToBuffer data |> generator.Post)
+  (hookFunction, generator)
+
+let sigmoid = (fun x -> 1.0 / (1.0 + exp(-x)))
 
 [<Test>]
-let ``test`` () =
-  let assertion (actuatorOutput : float) =
-    actuatorOutput |> should be (greaterThan 0.0)
+let ``When the Sensor receives the sync message, the neural circuit should activate causing the actuator to output some value`` () =
+  let (testHook, testHookMailbox) = testHook ()
 
-  let actuator = createNeuronInstance <| createActuator assertion
+  let actuator = createNeuronInstance <| createActuator testHook
   let neuron =
     let activationFunction = sigmoid
     let bias = 10.0
@@ -46,9 +87,81 @@ let ``test`` () =
     |> connectNodeTo actuator
     |> createNeuronInstance
   let sensor =
-    let syncFunction = fakeSensorData(List.empty)
+    let syncFunction = fakeDataGenerator([1.0])
     createSensor syncFunction
     |> connectNodeToNeuron 20.0 neuron
     |> createNeuronInstance
 
   Sync |> sensor.Post
+  WaitForData
+  |> testHookMailbox.PostAndReply
+  |> (should be (greaterThan 0.0))
+
+  let testAssertionCount = Die |> testHookMailbox.PostAndReply
+
+  testAssertionCount |> should equal 1
+
+[<Test>]
+let ``The NeuralFish should be able to solve the XNOR problem with predefined weights`` () =
+  //(class.coursera.org/ml/lecture/48)
+  let (testHook, testHookMailbox) = testHook ()
+
+  let actuator = createNeuronInstance <| createActuator testHook
+  let neuron_a3_1 =
+    let activationFunction = sigmoid
+    let bias = -10.0
+    createNeuron activationFunction bias
+    |> connectNodeTo actuator
+    |> createNeuronInstance
+  let neuron_a2_2 =
+    let activationFunction = sigmoid
+    let bias = 10.0
+    createNeuron activationFunction bias
+    |> connectNodeToNeuron 20.0 neuron_a3_1
+    |> createNeuronInstance
+  let neuron_a2_1 =
+    let activationFunction = sigmoid
+    let bias = -30.0
+    createNeuron activationFunction bias
+    |> connectNodeToNeuron 20.0 neuron_a3_1
+    |> createNeuronInstance
+  let sensor_x1 =
+    let syncFunction = fakeDataGenerator([0.0; 0.0; 1.0; 1.0])
+    createSensor syncFunction
+    |> connectNodeToNeuron 20.0 neuron_a2_1
+    |> connectNodeToNeuron -20.0 neuron_a2_2
+    |> createNeuronInstance
+  let sensor_x2 =
+    let syncFunction = fakeDataGenerator([0.0; 1.0; 0.0; 1.0])
+    createSensor syncFunction
+    |> connectNodeToNeuron 20.0 neuron_a2_1
+    |> connectNodeToNeuron -20.0 neuron_a2_2
+    |> createNeuronInstance
+
+  Sync |> sensor_x1.Post
+  Sync |> sensor_x2.Post
+  WaitForData
+  |> testHookMailbox.PostAndReply
+  |> (should be (greaterThan 0.99))
+
+  Sync |> sensor_x1.Post
+  Sync |> sensor_x2.Post
+  WaitForData
+  |> testHookMailbox.PostAndReply
+  |> (should be (greaterThan 0.01))
+
+  Sync |> sensor_x1.Post
+  Sync |> sensor_x2.Post
+  WaitForData
+  |> testHookMailbox.PostAndReply
+  |> (should be (greaterThan 0.01))
+
+  Sync |> sensor_x1.Post
+  Sync |> sensor_x2.Post
+  WaitForData
+  |> testHookMailbox.PostAndReply
+  |> (should be (greaterThan 0.99))
+
+  let testAssertionCount = Die |> testHookMailbox.PostAndReply
+
+  testAssertionCount |> should equal 4
