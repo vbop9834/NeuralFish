@@ -23,7 +23,7 @@ type NeuronProperties =
   {
     bias: float
     activationFunction: float -> float
-    inbound_connections: NeuronConnection seq
+    barrierThreshold: int
     outbound_connections: NeuronConnection seq
   }
 
@@ -35,8 +35,8 @@ type SensorProperties =
 
 type ActuatorProperties =
   {
-    inbound_connections: NeuronConnection seq
-    outbound_connections: NeuronConnection seq
+    barrierThreshold: int
+    outputHook: float -> unit
   }
 
 type NeuronType =
@@ -44,9 +44,51 @@ type NeuronType =
   | Sensor of SensorProperties
   | Actuator of ActuatorProperties
 
-let createNeuron neuronType =
-  let isBarrierSatisifed outputConnections barrier =
-    (outputConnections |> Seq.length) = (barrier |> Seq.length)
+let createNeuron activationFunction bias =
+  {
+    bias = bias
+    activationFunction = activationFunction
+    barrierThreshold = 0
+    outbound_connections = Seq.empty
+  } |> Neuron
+let createSensor syncFunction =
+  {
+    syncFunction = syncFunction
+    outbound_connections = Seq.empty
+  } |> Sensor
+let createActuator outputHook =
+  {
+    barrierThreshold = 0
+    outputHook = outputHook
+  } |> Actuator
+
+let connectNodeToNeuron weight toNode fromNode  =
+  let addConnection connectionSet connection =
+    connectionSet |> Seq.append (Seq.singleton connection)
+
+  match fromNode with
+    | Neuron props ->
+      let neuronConnection =
+        {
+          weight = weight
+          neuron = toNode
+        }
+      Neuron <|  { props with outbound_connections = neuronConnection |> addConnection props.outbound_connections }
+    | Sensor props ->
+      let neuronConnection =
+        {
+          weight = 0.0
+          neuron = toNode
+        }
+      Sensor <|  { props with outbound_connections = neuronConnection |> addConnection props.outbound_connections }
+    | Actuator props -> fromNode
+
+let connectNodeTo toNode fromNode =
+  fromNode |> connectNodeToNeuron 0.0 toNode
+
+let createNeuronInstance neuronType =
+  let isBarrierSatisifed barrierThreshold barrier =
+    barrierThreshold = (barrier |> Seq.length)
   let sendSynapseToNeurons (outputNeurons : NeuronConnection seq ) outputValue =
     let sendSynapseToNeuron outputValue outputNeuronConnection =
       { value = outputValue; weight = outputNeuronConnection.weight }
@@ -83,13 +125,13 @@ let createNeuron neuronType =
           | Actuator props ->
             barrier
             |> Seq.sum
-            |> sendSynapseToNeurons props.outbound_connections
+            |> props.outputHook
           | Sensor _ ->
               return! loop barrier
         | ReceiveInput package ->
           match neuronType with
           | Neuron props ->
-            if barrier |> isBarrierSatisifed props.outbound_connections then
+            if barrier |> isBarrierSatisifed props.barrierThreshold then
               Activate |> inbox.Post
               return! loop Seq.empty
             else
@@ -98,7 +140,7 @@ let createNeuron neuronType =
                 |> Seq.append (Seq.singleton (package.weight * package.value))
               return! loop barrier
           | Actuator props ->
-            if barrier |> isBarrierSatisifed props.outbound_connections then
+            if barrier |> isBarrierSatisifed props.barrierThreshold then
               Activate |> inbox.Post
               return! loop Seq.empty
             else
