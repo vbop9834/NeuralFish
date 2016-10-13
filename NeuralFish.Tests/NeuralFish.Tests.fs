@@ -2,7 +2,8 @@ module NeuralFish.Tests
 
 open NUnit.Framework
 open FsUnit
-open NeuralFish
+open NeuralFish.Core
+open NeuralFish.Types
 
 type GeneratorMsg =
   | GetData of AsyncReplyChannel<float seq>
@@ -78,11 +79,11 @@ let sigmoid = (fun x -> 1.0 / (1.0 + exp(-x)))
 let ``When the Sensor receives the sync message, the neural circuit should activate causing the actuator to output some value`` () =
   let (testHook, testHookMailbox) = testHook ()
 
-  let actuator = createNeuronInstance <| createActuator testHook
+  let actuator = createNeuronInstance <| createActuator testHook 0
   let neuron =
     let activationFunction = fun x -> x
     let bias = 10.0
-    createNeuron activationFunction bias
+    createNeuron activationFunction 0 bias
     |> connectNodeToActuator actuator
     |> createNeuronInstance
   let sensor =
@@ -94,7 +95,7 @@ let ``When the Sensor receives the sync message, the neural circuit should activ
     let weights =
       [20.0; 20.0; 20.0; 20.0; 20.0]
       |> List.toSeq
-    createSensor syncFunction
+    createSensor syncFunction 0
     |> connectSensorToNode weights neuron
     |> createNeuronInstance
 
@@ -112,34 +113,34 @@ let ``The NeuralFish should be able to solve the XNOR problem with predefined we
   //(class.coursera.org/ml/lecture/48)
   let (testHook, testHookMailbox) = testHook ()
 
-  let actuator = createNeuronInstance <| createActuator testHook
+  let actuator = createNeuronInstance <| createActuator testHook 0
   let neuron_a3_1 =
     let activationFunction = sigmoid
     let bias = -10.0
-    createNeuron activationFunction bias
+    createNeuron activationFunction 0 bias
     |> connectNodeToActuator actuator
     |> createNeuronInstance
   let neuron_a2_2 =
     let activationFunction = sigmoid
     let bias = 10.0
-    createNeuron activationFunction bias
+    createNeuron activationFunction 0 bias
     |> connectNodeToNeuron 20.0 neuron_a3_1
     |> createNeuronInstance
   let neuron_a2_1 =
     let activationFunction = sigmoid
     let bias = -30.0
-    createNeuron activationFunction bias
+    createNeuron activationFunction 0 bias
     |> connectNodeToNeuron 20.0 neuron_a3_1
     |> createNeuronInstance
   let sensor_x1 =
     let syncFunction = fakeDataGenerator([[0.0]; [0.0]; [1.0]; [1.0]])
-    createSensor syncFunction
+    createSensor syncFunction 0
     |> connectNodeToNeuron 20.0 neuron_a2_1
     |> connectNodeToNeuron -20.0 neuron_a2_2
     |> createNeuronInstance
   let sensor_x2 =
     let syncFunction = fakeDataGenerator([[0.0]; [1.0]; [0.0]; [1.0]])
-    createSensor syncFunction
+    createSensor syncFunction 0
     |> connectNodeToNeuron 20.0 neuron_a2_1
     |> connectNodeToNeuron -20.0 neuron_a2_2
     |> createNeuronInstance

@@ -1,7 +1,6 @@
-module NeuralFish
+module NeuralFish.Core
 
-//value*weight
-type Synapse = int*float*float
+open NeuralFish.Types
 
 let synapseDotProduct synapses =
   let rec loop synapses =
@@ -9,48 +8,6 @@ let synapseDotProduct synapses =
     | [] -> 0.0
     | (_,value,weight)::tail -> value*weight + (loop tail)
   synapses |> Seq.toList |> loop
-
-type NeuronActions =
-  | Sync
-  | ReceiveInput of Synapse
-  | IncrementBarrierThreshold of AsyncReplyChannel<unit>
-
-type NeuronInstance = MailboxProcessor<NeuronActions>
-
-type NeuronConnection =
-  {
-    neuron: NeuronInstance
-    weight: float
-  }
-
-type NeuronProperties =
-  {
-    id: int
-    bias: float
-    activationFunction: float -> float
-    outbound_connections: NeuronConnection seq
-  }
-
-type SensorProperties =
-  {
-    id: int
-    syncFunction: unit -> float seq
-    outbound_connections:  NeuronConnection seq
-  }
-
-type ActuatorProperties =
-  {
-    id: int
-    outputHook: float -> unit
-  }
-
-type NeuronType =
-  | Neuron of NeuronProperties
-  | Sensor of SensorProperties
-  | Actuator of ActuatorProperties
-
-type NeuronIdGeneratorMsg =
-  | GetNeuronId of AsyncReplyChannel<int>
 
 let private neuronIdGenerator =
   let generator = MailboxProcessor<NeuronIdGeneratorMsg>.Start(fun inbox ->
@@ -66,31 +23,35 @@ let private neuronIdGenerator =
   )
   (fun () -> GetNeuronId |> generator.PostAndReply)
 
-let createNeuron activationFunction bias =
+let createNeuron activationFunction activationFunctionId bias =
   {
     id = neuronIdGenerator()
     bias = bias
     activationFunction = activationFunction
+    activationFunctionId = activationFunctionId
     outbound_connections = Seq.empty
   } |> Neuron
-let createSensor syncFunction =
+let createSensor syncFunction syncFunctionId =
   {
     id = neuronIdGenerator()
     syncFunction = syncFunction
+    syncFunctionId = syncFunctionId
     outbound_connections = Seq.empty
   } |> Sensor
-let createActuator outputHook =
+let createActuator outputHook outputHookId =
   {
     id = neuronIdGenerator()
     outputHook = outputHook
+    outputHookId = outputHookId
   } |> Actuator
 
-let private addNodeToConnections weight toNode outbound_connections =
+let private addNodeToConnections weight toNode nodeId outbound_connections =
   let addConnection connectionSet connection =
     IncrementBarrierThreshold |> connection.neuron.PostAndReply
     connectionSet |> Seq.append (Seq.singleton connection)
   let neuronConnection =
     {
+      nodeId = nodeId
       weight = weight
       neuron = toNode
     }
@@ -100,10 +61,10 @@ let connectNodeToNeuron weight toNode fromNode  =
 
   match fromNode with
     | Neuron props ->
-      let newOutboundConnections = addNodeToConnections weight toNode props.outbound_connections
+      let newOutboundConnections = addNodeToConnections weight toNode props.id props.outbound_connections
       Neuron <| { props with outbound_connections = newOutboundConnections  }
     | Sensor props ->
-      let newOutboundConnections = addNodeToConnections weight toNode props.outbound_connections
+      let newOutboundConnections = addNodeToConnections weight toNode props.id props.outbound_connections
       Sensor <| { props with outbound_connections = newOutboundConnections }
     | Actuator props -> fromNode
 
@@ -116,7 +77,7 @@ let connectSensorToNode weights toNode fromNode =
         else
           let weight = weights |> Seq.head
           let weights = weights |> Seq.tail
-          let newOutboundConnections = addNodeToConnections weight toNode connections
+          let newOutboundConnections = addNodeToConnections weight toNode props.id connections
           getConnectionsFromWeights weights newOutboundConnections
       let newOutboundConnections = getConnectionsFromWeights weights props.outbound_connections
       Sensor <| { props with outbound_connections = newOutboundConnections }
