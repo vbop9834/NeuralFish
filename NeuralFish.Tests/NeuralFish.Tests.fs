@@ -5,20 +5,19 @@ open FsUnit
 open NeuralFish
 
 type GeneratorMsg =
-  | GetData of AsyncReplyChannel<float>
+  | GetData of AsyncReplyChannel<float seq>
   | Die
 
-let fakeDataGenerator buffer =
+let fakeDataGenerator (buffer : (float seq) list) =
   let generator = MailboxProcessor<GeneratorMsg>.Start(fun inbox ->
     let rec loop buffer =
       async {
         let! msg = inbox.Receive ()
         let getData buffer =
           if buffer |> List.isEmpty then
-            0.0
+            Seq.empty
           else
             buffer |> List.head
-
         match msg with
         | GetData replyChannel ->
           getData buffer
@@ -81,21 +80,28 @@ let ``When the Sensor receives the sync message, the neural circuit should activ
 
   let actuator = createNeuronInstance <| createActuator testHook
   let neuron =
-    let activationFunction = sigmoid
+    let activationFunction = fun x -> x
     let bias = 10.0
     createNeuron activationFunction bias
-    |> connectNodeTo actuator
+    |> connectNodeToActuator actuator
     |> createNeuronInstance
   let sensor =
-    let syncFunction = fakeDataGenerator([1.0])
+    let syncFunction =
+        let data =
+          [1.0; 1.0; 1.0; 1.0; 1.0]
+          |> List.toSeq
+        fakeDataGenerator([data])
+    let weights =
+      [20.0; 20.0; 20.0; 20.0; 20.0]
+      |> List.toSeq
     createSensor syncFunction
-    |> connectNodeToNeuron 20.0 neuron
+    |> connectSensorToNode weights neuron
     |> createNeuronInstance
 
   Sync |> sensor.Post
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should be (greaterThan 0.0))
+  |> (should equal 110)
 
   let testAssertionCount = Die |> testHookMailbox.PostAndReply
 
@@ -111,7 +117,7 @@ let ``The NeuralFish should be able to solve the XNOR problem with predefined we
     let activationFunction = sigmoid
     let bias = -10.0
     createNeuron activationFunction bias
-    |> connectNodeTo actuator
+    |> connectNodeToActuator actuator
     |> createNeuronInstance
   let neuron_a2_2 =
     let activationFunction = sigmoid
@@ -126,13 +132,13 @@ let ``The NeuralFish should be able to solve the XNOR problem with predefined we
     |> connectNodeToNeuron 20.0 neuron_a3_1
     |> createNeuronInstance
   let sensor_x1 =
-    let syncFunction = fakeDataGenerator([0.0; 0.0; 1.0; 1.0])
+    let syncFunction = fakeDataGenerator([[0.0]; [0.0]; [1.0]; [1.0]])
     createSensor syncFunction
     |> connectNodeToNeuron 20.0 neuron_a2_1
     |> connectNodeToNeuron -20.0 neuron_a2_2
     |> createNeuronInstance
   let sensor_x2 =
-    let syncFunction = fakeDataGenerator([0.0; 1.0; 0.0; 1.0])
+    let syncFunction = fakeDataGenerator([[0.0]; [1.0]; [0.0]; [1.0]])
     createSensor syncFunction
     |> connectNodeToNeuron 20.0 neuron_a2_1
     |> connectNodeToNeuron -20.0 neuron_a2_2
@@ -148,13 +154,13 @@ let ``The NeuralFish should be able to solve the XNOR problem with predefined we
   Sync |> sensor_x2.Post
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should be (greaterThan 0.01))
+  |> (should be (lessThan 0.01))
 
   Sync |> sensor_x1.Post
   Sync |> sensor_x2.Post
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should be (greaterThan 0.01))
+  |> (should be (lessThan 0.01))
 
   Sync |> sensor_x1.Post
   Sync |> sensor_x2.Post

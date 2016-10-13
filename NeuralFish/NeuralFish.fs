@@ -12,7 +12,6 @@ let synapseDotProduct synapses =
 
 type NeuronActions =
   | Sync
-  | Activate
   | ReceiveInput of Synapse
   | IncrementBarrierThreshold of AsyncReplyChannel<unit>
 
@@ -35,7 +34,7 @@ type NeuronProperties =
 type SensorProperties =
   {
     id: int
-    syncFunction: unit -> float
+    syncFunction: unit -> float seq
     outbound_connections:  NeuronConnection seq
   }
 
@@ -58,7 +57,6 @@ let private neuronIdGenerator =
     let rec loop currentNumber =
       async {
         let! msg = inbox.Receive ()
-
         match msg with
         | GetNeuronId replyChannel ->
           currentNumber |> replyChannel.Reply
@@ -67,7 +65,6 @@ let private neuronIdGenerator =
     loop 0
   )
   (fun () -> GetNeuronId |> generator.PostAndReply)
-
 
 let createNeuron activationFunction bias =
   {
@@ -88,31 +85,44 @@ let createActuator outputHook =
     outputHook = outputHook
   } |> Actuator
 
-let connectNodeToNeuron weight toNode fromNode  =
+let private addNodeToConnections weight toNode outbound_connections =
   let addConnection connectionSet connection =
     IncrementBarrierThreshold |> connection.neuron.PostAndReply
     connectionSet |> Seq.append (Seq.singleton connection)
+  let neuronConnection =
+    {
+      weight = weight
+      neuron = toNode
+    }
+  neuronConnection |> addConnection outbound_connections
+
+let connectNodeToNeuron weight toNode fromNode  =
 
   match fromNode with
     | Neuron props ->
-      let neuronConnection =
-        {
-          weight = weight
-          neuron = toNode
-        }
-      let newOutboundConnections = neuronConnection |> addConnection props.outbound_connections
+      let newOutboundConnections = addNodeToConnections weight toNode props.outbound_connections
       Neuron <| { props with outbound_connections = newOutboundConnections  }
     | Sensor props ->
-      let neuronConnection =
-        {
-          weight = 0.0
-          neuron = toNode
-        }
-      let newOutboundConnections = neuronConnection |> addConnection props.outbound_connections
-      Sensor <| { props with outbound_connections = newOutboundConnections  }
+      let newOutboundConnections = addNodeToConnections weight toNode props.outbound_connections
+      Sensor <| { props with outbound_connections = newOutboundConnections }
     | Actuator props -> fromNode
 
-let connectNodeTo toNode fromNode =
+let connectSensorToNode weights toNode fromNode =
+  match fromNode with
+    | Sensor props ->
+      let rec getConnectionsFromWeights weights connections =
+        if (weights |> Seq.isEmpty) then
+          connections
+        else
+          let weight = weights |> Seq.head
+          let weights = weights |> Seq.tail
+          let newOutboundConnections = addNodeToConnections weight toNode connections
+          getConnectionsFromWeights weights newOutboundConnections
+      let newOutboundConnections = getConnectionsFromWeights weights props.outbound_connections
+      Sensor <| { props with outbound_connections = newOutboundConnections }
+    | _ -> connectNodeToNeuron (weights |> Seq.head) toNode fromNode
+
+let connectNodeToActuator toNode fromNode =
   fromNode |> connectNodeToNeuron 0.0 toNode
 
 let createNeuronInstance neuronType =
@@ -156,8 +166,23 @@ let createNeuronInstance neuronType =
           | Actuator _ ->
             return! loop barrier barrierThreshold
           | Sensor props ->
-            let outputVal = props.syncFunction()
-            (props.id, outputVal) |> sendSynapseToNeurons props.outbound_connections
+            let rec processSensorSync connections dataStream =
+              let sendSynapseToNeuron outboundNeuronConnection (nodeId, outputValue)  =
+                printfn "Output %A to node %A with weight %A" outputValue nodeId outboundNeuronConnection.weight
+                (nodeId, outputValue, outboundNeuronConnection.weight)
+                |> ReceiveInput
+                |> outboundNeuronConnection.neuron.Post
+              if (connections |> Seq.isEmpty) then
+                ()
+              else
+                let data = dataStream |> Seq.head
+                let dataStream = (dataStream |> Seq.tail) |> Seq.append(Seq.singleton data)
+                let connection = connections |> Seq.head
+                let tailConnections = connections |> Seq.tail
+                (props.id, data) |> sendSynapseToNeuron connection
+                processSensorSync tailConnections dataStream
+            props.syncFunction()
+            |> processSensorSync props.outbound_connections
             return! loop barrier barrierThreshold
         | ReceiveInput package ->
           match neuronType with
