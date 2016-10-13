@@ -2,6 +2,9 @@ module NeuralFish.Core
 
 open NeuralFish.Types
 
+let synchronize (_, (sensor : NeuronInstance)) =
+  Sync |> sensor.Post
+
 let synapseDotProduct synapses =
   let rec loop synapses =
     match synapses with
@@ -57,18 +60,17 @@ let private addNodeToConnections weight toNode nodeId outbound_connections =
     }
   neuronConnection |> addConnection outbound_connections
 
-let connectNodeToNeuron weight toNode fromNode  =
-
+let connectNodeToNeuron weight (nodeId, toNode) fromNode  =
   match fromNode with
     | Neuron props ->
-      let newOutboundConnections = addNodeToConnections weight toNode props.id props.outbound_connections
+      let newOutboundConnections = addNodeToConnections weight toNode nodeId props.outbound_connections
       Neuron <| { props with outbound_connections = newOutboundConnections  }
     | Sensor props ->
-      let newOutboundConnections = addNodeToConnections weight toNode props.id props.outbound_connections
+      let newOutboundConnections = addNodeToConnections weight toNode nodeId props.outbound_connections
       Sensor <| { props with outbound_connections = newOutboundConnections }
     | Actuator props -> fromNode
 
-let connectSensorToNode weights toNode fromNode =
+let connectSensorToNode weights (nodeId, toNode) fromNode =
   match fromNode with
     | Sensor props ->
       let rec getConnectionsFromWeights weights connections =
@@ -81,12 +83,20 @@ let connectSensorToNode weights toNode fromNode =
           getConnectionsFromWeights weights newOutboundConnections
       let newOutboundConnections = getConnectionsFromWeights weights props.outbound_connections
       Sensor <| { props with outbound_connections = newOutboundConnections }
-    | _ -> connectNodeToNeuron (weights |> Seq.head) toNode fromNode
+    | _ -> connectNodeToNeuron (weights |> Seq.head) (nodeId, toNode) fromNode
 
 let connectNodeToActuator toNode fromNode =
   fromNode |> connectNodeToNeuron 0.0 toNode
 
 let createNeuronInstance neuronType =
+  let getNodeIdFromProps neuronType =
+    match neuronType with
+      | Neuron props ->
+        props.id
+      | Sensor props ->
+        props.id
+      | Actuator props ->
+        props.id
   let isBarrierSatisifed barrierThreshold barrier =
     barrierThreshold = (barrier |> Seq.length)
   let sendSynapseToNeurons (outputNeurons : NeuronConnection seq ) partialSynapse =
@@ -115,7 +125,7 @@ let createNeuronInstance neuronType =
     | Sensor _ ->
         barrier
 
-  NeuronInstance.Start(fun inbox ->
+  let neuronInstance = NeuronInstance.Start(fun inbox ->
     let rec loop barrier barrierThreshold =
       async {
         let! msg = inbox.Receive ()
@@ -175,3 +185,5 @@ let createNeuronInstance neuronType =
       }
     loop Seq.empty 0
   )
+
+  (neuronType, (neuronType |> getNodeIdFromProps, neuronInstance))
