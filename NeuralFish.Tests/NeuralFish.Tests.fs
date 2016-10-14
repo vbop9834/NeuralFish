@@ -11,11 +11,14 @@ open NeuralFish.Tests.TestHelper
 let ``When the Sensor receives the sync message, the neural circuit should activate causing the actuator to output some value`` () =
   let (testHook, testHookMailbox) = testHook ()
 
-  let _, actuator = createNeuronInstance <| createActuator testHook 0
+  let getNodeId = getNumberGenerator()
+
+  let _, actuator = createNeuronInstance <| createActuator (getNodeId()) testHook 0
   let _, neuron =
     let activationFunction = fun x -> x
     let bias = 10.0
-    createNeuron activationFunction 0 bias
+    let id = getNodeId()
+    createNeuron id activationFunction 0 bias
     |> connectNodeToActuator actuator
     |> createNeuronInstance
   let _, sensor =
@@ -27,7 +30,8 @@ let ``When the Sensor receives the sync message, the neural circuit should activ
     let weights =
       [20.0; 20.0; 20.0; 20.0; 20.0]
       |> List.toSeq
-    createSensor syncFunction 0
+    let id = getNodeId()
+    createSensor id syncFunction 0
     |> connectSensorToNode weights neuron
     |> createNeuronInstance
 
@@ -44,35 +48,44 @@ let ``When the Sensor receives the sync message, the neural circuit should activ
 let ``The NeuralFish should be able to solve the XNOR problem with predefined weights`` () =
   //(class.coursera.org/ml/lecture/48)
   let (testHook, testHookMailbox) = testHook ()
+  let getNodeId = getNumberGenerator()
 
-  let _, actuator = createNeuronInstance <| createActuator testHook 0
+  let _, actuator =
+    let id = getNodeId()
+    createNeuronInstance <| createActuator id testHook 0
   let _, neuron_a3_1 =
+
     let activationFunction = sigmoid
     let bias = -10.0
-    createNeuron activationFunction 0 bias
+    let id = getNodeId()
+    createNeuron id activationFunction 0 bias
     |> connectNodeToActuator actuator
     |> createNeuronInstance
   let _, neuron_a2_2 =
     let activationFunction = sigmoid
     let bias = 10.0
-    createNeuron activationFunction 0 bias
+    let id = getNodeId()
+    createNeuron id activationFunction 0 bias
     |> connectNodeToNeuron 20.0 neuron_a3_1
     |> createNeuronInstance
   let _, neuron_a2_1 =
     let activationFunction = sigmoid
     let bias = -30.0
-    createNeuron activationFunction 0 bias
+    let id = getNodeId()
+    createNeuron id activationFunction 0 bias
     |> connectNodeToNeuron 20.0 neuron_a3_1
     |> createNeuronInstance
   let _, sensor_x1 =
     let syncFunction = fakeDataGenerator([[0.0]; [0.0]; [1.0]; [1.0]])
-    createSensor syncFunction 0
+    let id = getNodeId()
+    createSensor id syncFunction 0
     |> connectNodeToNeuron 20.0 neuron_a2_1
     |> connectNodeToNeuron -20.0 neuron_a2_2
     |> createNeuronInstance
   let _, sensor_x2 =
     let syncFunction = fakeDataGenerator([[0.0]; [1.0]; [0.0]; [1.0]])
-    createSensor syncFunction 0
+    let id = getNodeId()
+    createSensor id syncFunction 0
     |> connectNodeToNeuron 20.0 neuron_a2_1
     |> connectNodeToNeuron -20.0 neuron_a2_2
     |> createNeuronInstance

@@ -72,3 +72,17 @@ let testHook () =
   (hookFunction, generator)
 
 let sigmoid = (fun x -> 1.0 / (1.0 + exp(-x)))
+
+let getNumberGenerator () =
+  let generator = MailboxProcessor<NeuronIdGeneratorMsg>.Start(fun inbox ->
+    let rec loop currentNumber =
+      async {
+        let! msg = inbox.Receive ()
+        match msg with
+        | GetNeuronId replyChannel ->
+          currentNumber |> replyChannel.Reply
+          return! loop (currentNumber+1)
+      }
+    loop 0
+  )
+  (fun () -> GetNeuronId |> generator.PostAndReply)

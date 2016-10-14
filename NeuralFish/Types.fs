@@ -1,44 +1,60 @@
 module NeuralFish.Types
 
-//value*weight
-type Synapse = int*float*float
+type NeuronId = int
+
+type ActivationFunctionId = int
+type SyncFunctionId = int
+type OutputHookId = int
+
+type Bias = float
+type Weight = float
+type NeuronOutput = float
+
+type ActivationFunction = NeuronOutput -> NeuronOutput
+type SyncFunction = unit -> NeuronOutput seq
+type OutputHookFunction = NeuronOutput -> unit
+
+type Synapse = NeuronId*NeuronOutput*Weight
 
 type NeuronActions =
   | Sync
   | ReceiveInput of Synapse
   | IncrementBarrierThreshold of AsyncReplyChannel<unit>
+  | AddOutboundConnection of MailboxProcessor<NeuronActions>*NeuronId*Weight
 
 type NeuronInstance = MailboxProcessor<NeuronActions>
 
 type NeuronConnection =
   {
-    nodeId: int
+    nodeId: NeuronId
     neuron: NeuronInstance
-    weight: float
+    weight: Weight
   }
+
+type NeuronConnections = NeuronConnection seq
 
 type NeuronProperties =
   {
-    id: int
-    bias: float
-    activationFunction: float -> float
-    activationFunctionId: int
-    outbound_connections: NeuronConnection seq
+    id: NeuronId
+    bias: Bias
+    activationFunction: ActivationFunction
+    activationFunctionId: ActivationFunctionId
+    outbound_connections: NeuronConnections
   }
 
 type SensorProperties =
   {
-    id: int
-    syncFunction: unit -> float seq
-    syncFunctionId: int
-    outbound_connections:  NeuronConnection seq
+    id: NeuronId
+    syncFunction: SyncFunction
+    syncFunctionId: SyncFunctionId
+    outbound_connections:  NeuronConnections
   }
 
 type ActuatorProperties =
   {
-    id: int
-    outputHook: float -> unit
-    outputHookId: int
+    id: NeuronId
+    outputHook: OutputHookFunction
+    outputHookId: OutputHookId
   }
 
 type NeuronType =
@@ -47,4 +63,4 @@ type NeuronType =
   | Actuator of ActuatorProperties
 
 type NeuronIdGeneratorMsg =
-  | GetNeuronId of AsyncReplyChannel<int>
+  | GetNeuronId of AsyncReplyChannel<NeuronId>

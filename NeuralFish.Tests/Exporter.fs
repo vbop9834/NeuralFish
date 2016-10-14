@@ -6,6 +6,8 @@ open NeuralFish.Core
 open NeuralFish.Types
 open NeuralFish.Exporter
 
+open NeuralFish.Tests.TestHelper
+
 let assertNodeRecordsContainsNode (nodeRecords : Map<int, NodeRecord>) neuronType =
   let getNodeRecord nodeId = nodeRecords |> Map.find nodeId
   let assertRecordConnectionIsIdenticalTo  (nodeRecordConnections : NodeRecordConnections) (nodeConnection : NeuronConnection) =
@@ -53,15 +55,18 @@ let assertNodeRecordsContainsNode (nodeRecords : Map<int, NodeRecord>) neuronTyp
 [<Test>]
 let ``Should be able to export a simple neural network to a map of node records`` () =
   let testHook = (fun x -> printfn "Actuator output %f" x)
+  let getNodeId = getNumberGenerator()
   let syncFunctionId = 9001
   let testHookId = 9000
+  let id = getNodeId()
   let (actuatorProps, actuator) =
-      createActuator testHook testHookId
+      createActuator id testHook testHookId
       |> createNeuronInstance
   let (neuronProps, neuron) =
     let activationFunction = fun x -> x
     let bias = 10.0
-    createNeuron activationFunction 0 bias
+    let id = getNodeId()
+    createNeuron id activationFunction 0 bias
     |> connectNodeToActuator actuator
     |> createNeuronInstance
   let (sensorProps, sensor) =
@@ -69,7 +74,8 @@ let ``Should be able to export a simple neural network to a map of node records`
     let weights =
       [20.0; 20.0; 20.0; 20.0; 20.0]
       |> List.toSeq
-    createSensor syncFunction 0
+    let id = getNodeId()
+    createSensor id syncFunction 0
     |> connectSensorToNode weights neuron
     |> createNeuronInstance
 
@@ -77,5 +83,5 @@ let ``Should be able to export a simple neural network to a map of node records`
   let nodeRecords =
     nodes
     |> List.toSeq
-    |> buildFlatNodeList
+    |> constructNodeRecords
   nodes |> List.iter (assertNodeRecordsContainsNode nodeRecords)
