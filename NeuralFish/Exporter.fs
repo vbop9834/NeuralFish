@@ -3,12 +3,12 @@ module NeuralFish.Exporter
 open NeuralFish.Core
 open NeuralFish.Types
 
-
 let constructNodeRecords (liveNeurons : Map<NeuronId,NeuronInstance>) : NodeRecords =
-  let generateNodeRecord _ (liveNeuron : NeuronInstance) : NodeRecord =
-    GetNodeRecord |> liveNeuron.PostAndReply
+  let generateNodeRecord _ (liveNeuron : NeuronInstance) : Async<NodeRecord> =
+     GetNodeRecord |> liveNeuron.PostAndAsyncReply
   liveNeurons
   |> Map.map generateNodeRecord
+  |> Map.map (fun _ asyncthingy -> asyncthingy |> Async.RunSynchronously)
 
 type private NeuronIdGeneratorMsg =
   | GetIntId of AsyncReplyChannel<int>
