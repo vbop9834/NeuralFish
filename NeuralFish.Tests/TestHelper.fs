@@ -34,9 +34,8 @@ type TestHookMsg =
   | WaitForData of AsyncReplyChannel<float>
   | Die of AsyncReplyChannel<int>
 
-// let testHook x = printfn "%A" x
 
-let testHook () =
+let getTestHook () =
   let generator = MailboxProcessor<TestHookMsg>.Start(fun inbox ->
     let rec loop dataBuffer counter replybuffer =
       async {
@@ -73,16 +72,19 @@ let testHook () =
 
 let sigmoid = (fun x -> 1.0 / (1.0 + exp(-x)))
 
+type NeuronIdGeneratorMsg =
+  | GetIntId of AsyncReplyChannel<int>
+
 let getNumberGenerator () =
   let generator = MailboxProcessor<NeuronIdGeneratorMsg>.Start(fun inbox ->
     let rec loop currentNumber =
       async {
         let! msg = inbox.Receive ()
         match msg with
-        | GetNeuronId replyChannel ->
+        | GetIntId replyChannel ->
           currentNumber |> replyChannel.Reply
           return! loop (currentNumber+1)
       }
     loop 0
   )
-  (fun () -> GetNeuronId |> generator.PostAndReply)
+  (fun () -> GetIntId |> generator.PostAndReply)

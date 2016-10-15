@@ -14,24 +14,13 @@ type ActivationFunction = NeuronOutput -> NeuronOutput
 type SyncFunction = unit -> NeuronOutput seq
 type OutputHookFunction = NeuronOutput -> unit
 
+type NeuronConnectionId = System.Guid
+
 type Synapse = NeuronId*NeuronOutput*Weight
 
-type NeuronActions =
-  | Sync
-  | ReceiveInput of Synapse
-  | IncrementBarrierThreshold of AsyncReplyChannel<unit>
-  | AddOutboundConnection of MailboxProcessor<NeuronActions>*NeuronId*Weight
+type IncomingSynapses = Map<NeuronConnectionId, Synapse>
 
-type NeuronInstance = MailboxProcessor<NeuronActions>
-
-type NeuronConnection =
-  {
-    nodeId: NeuronId
-    neuron: NeuronInstance
-    weight: Weight
-  }
-
-type NeuronConnections = NeuronConnection seq
+type InactiveNeuronConnection = NeuronId*Weight
 
 type NeuronProperties =
   {
@@ -39,7 +28,6 @@ type NeuronProperties =
     bias: Bias
     activationFunction: ActivationFunction
     activationFunctionId: ActivationFunctionId
-    outbound_connections: NeuronConnections
   }
 
 type SensorProperties =
@@ -47,7 +35,6 @@ type SensorProperties =
     id: NeuronId
     syncFunction: SyncFunction
     syncFunctionId: SyncFunctionId
-    outbound_connections:  NeuronConnections
   }
 
 type ActuatorProperties =
@@ -62,5 +49,21 @@ type NeuronType =
   | Sensor of SensorProperties
   | Actuator of ActuatorProperties
 
-type NeuronIdGeneratorMsg =
-  | GetNeuronId of AsyncReplyChannel<NeuronId>
+type NeuronActions =
+  | Sync
+  | ReceiveInput of NeuronConnectionId*Synapse
+  | AddOutboundConnection of (MailboxProcessor<NeuronActions>*NeuronId*Weight)*AsyncReplyChannel<unit>
+  | AddInboundConnection of NeuronConnectionId*AsyncReplyChannel<unit>
+  | GetNeuronTypeAndOutboundConnections of AsyncReplyChannel<NeuronType*seq<NeuronId*Weight>>
+
+type NeuronInstance = MailboxProcessor<NeuronActions>
+
+type NeuronConnection =
+  {
+    Neuron: NeuronInstance
+    NodeId: NeuronId
+    Weight: Weight
+  }
+
+type NeuronConnections = Map<NeuronConnectionId,NeuronConnection>
+type InboundNeuronConnections = NeuronConnectionId seq

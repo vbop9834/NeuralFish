@@ -3,3 +3,8 @@
 #load "Types.fs"
 #load "NeuralFish.fs"
 #load "Exporter.fs"
+
+open NeuralFish.Types
+open NeuralFish.Core
+
+let testHook x = printfn "%f" x
