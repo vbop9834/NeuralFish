@@ -1,13 +1,14 @@
 module NeuralFish.Tests.NeuralNet
 
-open NUnit.Framework
+open Xunit
 open FsUnit
+open FsUnit.Xunit
 
 open NeuralFish.Core
 open NeuralFish.Types
 open NeuralFish.Tests.TestHelper
 
-[<Test; Timeout(5000)>]
+[<Fact>]
 let ``When the Sensor receives the sync message, the neural circuit should activate causing the actuator to output some value`` () =
   //Test setup
   let (testHook, testHookMailbox) = getTestHook ()
@@ -55,13 +56,13 @@ let ``When the Sensor receives the sync message, the neural circuit should activ
   synchronize sensor
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should equal 110)
+  |> (should equal 110.0)
 
   let testAssertionCount = Die |> testHookMailbox.PostAndReply
 
   testAssertionCount |> should equal 1
 
-[<Test; Timeout(5000)>]
+[<Fact>]
 let ``The NeuralFish should be able to solve the XNOR problem with predefined weights`` () =
   //(class.coursera.org/ml/lecture/48)
   let (testHook, testHookMailbox) = getTestHook ()

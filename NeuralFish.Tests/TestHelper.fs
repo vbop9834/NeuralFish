@@ -19,9 +19,10 @@ let fakeDataGenerator (buffer : (float seq) list) =
             buffer |> List.head
         match msg with
         | GetData replyChannel ->
-          getData buffer
-          |> replyChannel.Reply
-          return! loop (buffer |> List.tail)
+          let data = buffer |> List.head
+          data |> replyChannel.Reply
+          let newBuffer = (data :: (buffer |> List.tail |> List.rev)) |> List.rev
+          return! loop newBuffer
         | Die ->
           return ()
       }

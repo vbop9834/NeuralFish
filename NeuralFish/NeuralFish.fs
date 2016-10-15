@@ -10,7 +10,6 @@ let synapseDotProduct synapses =
     match synapses with
     | [] -> 0.0
     | (_,value,weight)::tail -> value*weight + (loop tail)
-  printfn "computed %A" synapses
   synapses |> Map.toList |> List.map snd |> loop
 
 let createNeuron id activationFunction activationFunctionId bias =
@@ -67,7 +66,6 @@ let createNeuronInstance neuronType =
   let addBias bias outputVal =
     outputVal + bias
   let activateNeuron (barrier : IncomingSynapses) (outboundConnections : NeuronConnections) neuronType =
-    printfn "activated %A" neuronType
     match neuronType with
     | Neuron props ->
       barrier
@@ -89,75 +87,79 @@ let createNeuronInstance neuronType =
   let neuronInstance = NeuronInstance.Start(fun inbox ->
     let rec loop barrier (inboundConnections : InboundNeuronConnections) (outboundConnections : NeuronConnections) =
       async {
-        let! msg = inbox.Receive ()
-        match msg with
-        | Sync ->
-          match neuronType with
-          | Neuron _ ->
-            return! loop barrier inboundConnections outboundConnections
-          | Actuator _ ->
-            return! loop barrier inboundConnections outboundConnections
-          | Sensor props ->
-            let rec processSensorSync dataStream connectionId connection =
-              let sendSynapseToNeuron (neuron : NeuronInstance) neuronConnectionId weight outputValue =
-                (neuronConnectionId, (props.id, outputValue, weight))
-                |> ReceiveInput
-                |> neuron.Post
-
-              let data = dataStream |> Seq.head
-              data |> sendSynapseToNeuron connection.Neuron connectionId connection.Weight
-            outboundConnections
-            |> Map.iter (processSensorSync <| props.syncFunction())
-            return! loop barrier inboundConnections outboundConnections
-        | ReceiveInput (neuronConnectionId, package) ->
-          let updatedBarrier : IncomingSynapses =
-            barrier
-            |> Map.add neuronConnectionId package
-          printfn "Inbound is: %A" <| List.ofSeq inboundConnections
-          printfn "Barrier is: %A" updatedBarrier
-          match neuronType with
-          | Neuron props ->
-            if updatedBarrier |> isBarrierSatisifed inboundConnections then
-              printfn "Barrier activated"
-              neuronType |> activateNeuron updatedBarrier outboundConnections
-              return! loop Map.empty inboundConnections outboundConnections
-            else
-              return! loop updatedBarrier inboundConnections outboundConnections
-          | Actuator props ->
-            if updatedBarrier |> isBarrierSatisifed inboundConnections then
-              neuronType |> activateNeuron updatedBarrier outboundConnections
-              return! loop Map.empty inboundConnections outboundConnections
-            else
-              return! loop updatedBarrier inboundConnections outboundConnections
-          | Sensor _ ->
-            //Sensors use the sync msg
-            return! loop Map.empty inboundConnections outboundConnections
-        | AddOutboundConnection ((toNode,nodeId,weight),replyChannel) ->
-          let neuronConnectionId = System.Guid.NewGuid()
-          let updatedOutboundConnections =
-            let outboundConnection =
-             {
-              NodeId = nodeId
-              Neuron = toNode
-              Weight = weight
-             }
-            outboundConnections |> Map.add neuronConnectionId outboundConnection
-
-          (neuronConnectionId, replyChannel) |> AddInboundConnection |> toNode.Post
-
-          return! loop barrier inboundConnections updatedOutboundConnections
-        | AddInboundConnection (neuronConnectionId,replyChannel) ->
-          let updatedInboundConnections =
-            inboundConnections |> Seq.append(Seq.singleton neuronConnectionId)
-          replyChannel.Reply()
-          return! loop barrier updatedInboundConnections outboundConnections
-        | GetNeuronTypeAndOutboundConnections replyChannel ->
-          outboundConnections
-          |> Map.map (fun key neuronConnection -> neuronConnection |> createInactiveNeuronConnection)
-          |> Map.toSeq |> Seq.map snd
-          |> (fun outboundConnections -> neuronType, outboundConnections)
-          |> replyChannel.Reply
+        let! someMsg = inbox.TryReceive 20000
+        match someMsg with
+        | None ->
           return! loop barrier inboundConnections outboundConnections
+        | Some msg ->
+          match msg with
+          | Sync ->
+            match neuronType with
+            | Neuron _ ->
+              return! loop barrier inboundConnections outboundConnections
+            | Actuator _ ->
+              return! loop barrier inboundConnections outboundConnections
+            | Sensor props ->
+              let rec processSensorSync dataStream connectionId connection =
+                let sendSynapseToNeuron (neuron : NeuronInstance) neuronConnectionId weight outputValue =
+                  (neuronConnectionId, (props.id, outputValue, weight))
+                  |> ReceiveInput
+                  |> neuron.Post
+
+                let data = dataStream |> Seq.head
+                data |> sendSynapseToNeuron connection.Neuron connectionId connection.Weight
+              outboundConnections
+              |> Map.iter (processSensorSync <| props.syncFunction())
+              return! loop barrier inboundConnections outboundConnections
+          | ReceiveInput (neuronConnectionId, package) ->
+            let updatedBarrier : IncomingSynapses =
+              barrier
+              |> Map.add neuronConnectionId package
+            match neuronType with
+            | Neuron props ->
+              if updatedBarrier |> isBarrierSatisifed inboundConnections then
+                neuronType |> activateNeuron updatedBarrier outboundConnections
+                return! loop Map.empty inboundConnections outboundConnections
+              else
+                return! loop updatedBarrier inboundConnections outboundConnections
+            | Actuator props ->
+              if updatedBarrier |> isBarrierSatisifed inboundConnections then
+                neuronType |> activateNeuron updatedBarrier outboundConnections
+                return! loop Map.empty inboundConnections outboundConnections
+              else
+                return! loop updatedBarrier inboundConnections outboundConnections
+            | Sensor _ ->
+              //Sensors use the sync msg
+              return! loop Map.empty inboundConnections outboundConnections
+          | AddOutboundConnection ((toNode,nodeId,weight),replyChannel) ->
+              let neuronConnectionId = System.Guid.NewGuid()
+              let updatedOutboundConnections =
+                let outboundConnection =
+                 {
+                  NodeId = nodeId
+                  Neuron = toNode
+                  Weight = weight
+                 }
+                outboundConnections |> Map.add neuronConnectionId outboundConnection
+
+              (neuronConnectionId, replyChannel)
+              |> AddInboundConnection
+              |> toNode.Post
+
+              return! loop barrier inboundConnections updatedOutboundConnections
+            | AddInboundConnection (neuronConnectionId,replyChannel) ->
+              let updatedInboundConnections =
+                inboundConnections |> Seq.append(Seq.singleton neuronConnectionId)
+              replyChannel.Reply()
+              return! loop barrier updatedInboundConnections outboundConnections
+            | GetNeuronTypeAndOutboundConnections replyChannel ->
+              outboundConnections
+              |> Map.map (fun key neuronConnection -> neuronConnection |> createInactiveNeuronConnection)
+              |> Map.toSeq |> Seq.map snd
+              |> (fun outboundConnections -> neuronType, outboundConnections)
+              |> replyChannel.Reply
+              return! loop barrier inboundConnections outboundConnections
+
       }
     loop Map.empty Seq.empty Map.empty
   )

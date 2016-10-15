@@ -37,12 +37,8 @@ Target "Deploy" (fun _ ->
 
 Target "Test" (fun _ ->
     !! (buildDir + "/*.Tests.dll")
-    |> NUnit3 (fun p ->
-        { p with
-            Labels = LabelsLevel.All
-            TimeOut = TimeSpan.FromMinutes 20.})
+    |> xUnit2 (fun p -> { p with HtmlOutputPath = Some (buildDir @@ "xunit.html") })
 )
-
 // Build order
 "Clean"
   ==> "Build"
