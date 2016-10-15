@@ -11,41 +11,49 @@ open NeuralFish.Exporter
 open NeuralFish.Tests.TestHelper
 
 let assertNodeRecordsContainsNode (nodeRecords : Map<int, NodeRecord>) (neuronId, (liveNeuron : NeuronInstance)) =
-  let neuronType,outboundConnections = GetNeuronTypeAndOutboundConnections |> liveNeuron.PostAndReply
+  let liveNeuronNodeRecord = GetNodeRecord |> liveNeuron.PostAndReply
   let getNodeRecord nodeId = nodeRecords |> Map.find nodeId
-  let assertRecordConnectionIsIdenticalTo  (nodeRecordConnections : NodeRecordConnections) (nodeId, weight) =
-    nodeRecordConnections
-    |> should contain (nodeId, weight)
+  let assertRecordConnectionIsIdenticalTo  (nodeRecordConnections : NodeRecordConnections)  =
+    (fun nodeRecordConnectionId (nodeId, weight) ->
+      nodeRecordConnections
+      |> Map.containsKey nodeRecordConnectionId
+      |> should equal true
 
-  match neuronType with
-    | NeuronType.Neuron props ->
+      let (generatedTargetNodeId, generatedWeight) = nodeRecordConnections |> Map.find nodeRecordConnectionId
+      generatedWeight |> should equal weight
+      generatedTargetNodeId |> should equal nodeId
+    )
+
+
+  match liveNeuronNodeRecord.NodeType with
+    | NodeRecordType.Neuron ->
       let nodeRecord =
-        props.id
+        liveNeuronNodeRecord.NodeId
         |> getNodeRecord
 
       nodeRecord.ActivationFunctionId |> should not' (equal None)
-      nodeRecord.ActivationFunctionId.Value |> should equal props.activationFunctionId
+      nodeRecord.ActivationFunctionId.Value |> should equal liveNeuronNodeRecord.ActivationFunctionId.Value
       nodeRecord.Bias |>  should not' (equal None)
-      nodeRecord.Bias.Value |> should equal props.bias
+      nodeRecord.Bias.Value |> should equal liveNeuronNodeRecord.Bias.Value
       nodeRecord.NodeType |> should equal NodeRecordType.Neuron
 
-      outboundConnections
-      |> Seq.iter (assertRecordConnectionIsIdenticalTo nodeRecord.OutboundConnections)
+      liveNeuronNodeRecord.OutboundConnections
+      |> Map.iter (assertRecordConnectionIsIdenticalTo nodeRecord.OutboundConnections)
 
-    | NeuronType.Sensor props ->
+    | NodeRecordType.Sensor ->
       let nodeRecord =
-        props.id
+        liveNeuronNodeRecord.NodeId
         |> getNodeRecord
 
       nodeRecord.ActivationFunctionId |> should equal Option.None
       nodeRecord.Bias |> should equal Option.None
       nodeRecord.NodeType |> should equal NodeRecordType.Sensor
 
-      outboundConnections
-      |> Seq.iter (assertRecordConnectionIsIdenticalTo nodeRecord.OutboundConnections)
-    | NeuronType.Actuator props ->
+      liveNeuronNodeRecord.OutboundConnections
+      |> Map.iter (assertRecordConnectionIsIdenticalTo nodeRecord.OutboundConnections)
+    | NodeRecordType.Actuator ->
       let nodeRecord =
-        props.id
+        liveNeuronNodeRecord.NodeId
         |> getNodeRecord
 
       nodeRecord.ActivationFunctionId |> should equal Option.None
@@ -321,9 +329,6 @@ let ``Should be able to solve the XNOR problem with predefined weights, convert 
       let id = (fst sensor_x2)
       (id, neuralNetwork|> Map.find id)
     (sensor_x1, sensor_x2)
-  let stet =
-    sensorX1
-    |> fun (_,mailbox) -> GetNeuronTypeAndOutboundConnections |> mailbox.PostAndReply
 
   synchronize sensorX1
   synchronize sensorX2

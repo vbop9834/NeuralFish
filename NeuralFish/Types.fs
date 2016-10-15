@@ -1,5 +1,9 @@
 module NeuralFish.Types
 
+exception NodeRecordTypeException of string
+exception NeuronInstanceException of string
+exception NoBiasInRecordForNeuronException of string
+
 type NeuronId = int
 
 type ActivationFunctionId = int
@@ -22,26 +26,42 @@ type IncomingSynapses = Map<NeuronConnectionId, Synapse>
 
 type InactiveNeuronConnection = NeuronId*Weight
 
+type NodeRecordType =
+  | Neuron
+  | Sensor
+  | Actuator
+
+type NodeRecordConnections = Map<NeuronConnectionId,InactiveNeuronConnection>
+
+type NodeRecord =
+  {
+    NodeId: NeuronId
+    NodeType: NodeRecordType
+    OutboundConnections: NodeRecordConnections
+    Bias: Bias option
+    ActivationFunctionId: ActivationFunctionId option
+    SyncFunctionId: ActivationFunctionId option
+    OutputHookId: OutputHookId option
+  }
+
+type NodeRecords = Map<NeuronId,NodeRecord>
+
 type NeuronProperties =
   {
-    id: NeuronId
-    bias: Bias
-    activationFunction: ActivationFunction
-    activationFunctionId: ActivationFunctionId
+    ActivationFunction: ActivationFunction
+    Record: NodeRecord
   }
 
 type SensorProperties =
   {
-    id: NeuronId
-    syncFunction: SyncFunction
-    syncFunctionId: SyncFunctionId
+    SyncFunction: SyncFunction
+    Record: NodeRecord
   }
 
 type ActuatorProperties =
   {
-    id: NeuronId
-    outputHook: OutputHookFunction
-    outputHookId: OutputHookId
+    OutputHook: OutputHookFunction
+    Record: NodeRecord
   }
 
 type NeuronType =
@@ -54,7 +74,7 @@ type NeuronActions =
   | ReceiveInput of NeuronConnectionId*Synapse
   | AddOutboundConnection of (MailboxProcessor<NeuronActions>*NeuronId*Weight)*AsyncReplyChannel<unit>
   | AddInboundConnection of NeuronConnectionId*AsyncReplyChannel<unit>
-  | GetNeuronTypeAndOutboundConnections of AsyncReplyChannel<NeuronType*seq<NeuronId*Weight>>
+  | GetNodeRecord of AsyncReplyChannel<NodeRecord>
 
 type NeuronInstance = MailboxProcessor<NeuronActions>
 
