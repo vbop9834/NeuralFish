@@ -106,8 +106,8 @@ let createNeuronInstance neuronType =
       |> sendSynapseToNeurons outboundConnections
     | Actuator props ->
       barrier
-      |> Map.map(fun connectionId (neuronId,value,weight) -> value)
-      |> Map.toSeq |> Seq.map snd |> Seq.sum
+      |> Map.toSeq
+      |> Seq.sumBy (fun (_,(_,value,weight)) -> value)
       |> props.OutputHook
     | Sensor _ ->
       ()
