@@ -1,0 +1,28 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.31101.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "NeuralFish", "NeuralFish\NeuralFish.fsproj", "{6A08190B-3F6B-48DA-BF89-0BA43C5DF67C}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "NeuralFish.Tests", "NeuralFish.Tests\NeuralFish.Tests.fsproj", "{299C9037-BFC6-44A2-A172-2CC1C5A9B656}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6A08190B-3F6B-48DA-BF89-0BA43C5DF67C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6A08190B-3F6B-48DA-BF89-0BA43C5DF67C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6A08190B-3F6B-48DA-BF89-0BA43C5DF67C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6A08190B-3F6B-48DA-BF89-0BA43C5DF67C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{299C9037-BFC6-44A2-A172-2CC1C5A9B656}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{299C9037-BFC6-44A2-A172-2CC1C5A9B656}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{299C9037-BFC6-44A2-A172-2CC1C5A9B656}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{299C9037-BFC6-44A2-A172-2CC1C5A9B656}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
