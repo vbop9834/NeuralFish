@@ -1,5 +1,7 @@
 source https://www.nuget.org/api/v2
 nuget FAKE
-nuget FSharp.Core
+nuget FSharp.Core redirects: FsUnit, FsUnit.XUnit
 nuget Xunit
 nuget Xunit.runner.console
+nuget FsUnit
+nuget FsUnit.XUnit
