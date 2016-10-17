@@ -113,6 +113,14 @@ let ``Should be able to export a simple neural network to a map of node records`
   neuron |> assertNodeRecordsContainsNode nodeRecords
   sensor |> assertNodeRecordsContainsNode nodeRecords
 
+  [
+    sensor
+    neuron
+    actuator
+  ]
+  |> Map.ofList
+  |> killNeuralNetwork
+
 [<Fact>]
 let ``Should be able to construct a simple neural network from a map of node records`` () =
   let (testHook, testHookMailbox) = getTestHook ()
@@ -202,6 +210,14 @@ let ``Should be able to construct a simple neural network from a map of node rec
   WaitForData
   |> testHookMailbox.PostAndReply
   |> (should equal 110.0)
+
+  [
+    sensor
+    neuron
+    actuator
+  ]
+  |> Map.ofList
+  |> killNeuralNetwork
 
   let testAssertionCount = Die |> testHookMailbox.PostAndReply
 
@@ -353,6 +369,17 @@ let ``Should be able to solve the XNOR problem with predefined weights, convert 
   WaitForData
   |> testHookMailbox.PostAndReply
   |> (should be (greaterThan 0.99))
+
+  [
+    sensor_x1
+    sensor_x2
+    neuron_a2_1
+    neuron_a2_2
+    neuron_a3_1
+    actuator
+  ]
+  |> Map.ofList
+  |> killNeuralNetwork
 
   let testAssertionCount = Die |> testHookMailbox.PostAndReply
 

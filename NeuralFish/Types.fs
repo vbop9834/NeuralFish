@@ -75,6 +75,7 @@ type NeuronActions =
   | AddOutboundConnection of (MailboxProcessor<NeuronActions>*NeuronId*Weight)*AsyncReplyChannel<unit>
   | AddInboundConnection of NeuronConnectionId*AsyncReplyChannel<unit>
   | GetNodeRecord of AsyncReplyChannel<NodeRecord>
+  | Die of AsyncReplyChannel<unit>
 
 type NeuronInstance = MailboxProcessor<NeuronActions>
 
@@ -87,3 +88,5 @@ type NeuronConnection =
 
 type NeuronConnections = Map<NeuronConnectionId,NeuronConnection>
 type InboundNeuronConnections = NeuronConnectionId seq
+
+type NeuralNetwork = Map<NeuronId, NeuronInstance>

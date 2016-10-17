@@ -3,7 +3,7 @@ module NeuralFish.Exporter
 open NeuralFish.Core
 open NeuralFish.Types
 
-let constructNodeRecords (liveNeurons : Map<NeuronId,NeuronInstance>) : NodeRecords =
+let constructNodeRecords (liveNeurons : NeuralNetwork) : NodeRecords =
   let generateNodeRecord _ (liveNeuron : NeuronInstance) : Async<NodeRecord> =
      GetNodeRecord |> liveNeuron.PostAndAsyncReply
   liveNeurons
@@ -13,7 +13,7 @@ let constructNodeRecords (liveNeurons : Map<NeuronId,NeuronInstance>) : NodeReco
 type private NeuronIdGeneratorMsg =
   | GetIntId of AsyncReplyChannel<int>
 
-let constructNeuralNetwork (activationFunctions : Map<ActivationFunctionId,ActivationFunction>)  (syncFunctions : Map<SyncFunctionId,SyncFunction>) (outputHooks : Map<OutputHookId,OutputHookFunction>) (nodeRecords : NodeRecords) : Map<NeuronId,NeuronInstance> =
+let constructNeuralNetwork (activationFunctions : Map<ActivationFunctionId,ActivationFunction>)  (syncFunctions : Map<SyncFunctionId,SyncFunction>) (outputHooks : Map<OutputHookId,OutputHookFunction>) (nodeRecords : NodeRecords) : NeuralNetwork =
   let createNeuronFromRecord nodeId (nodeRecord : NodeRecord) =
     let (neuronId, neuronInstance) =
       match nodeRecord.NodeType with
