@@ -58,6 +58,14 @@ let ``When the Sensor receives the sync message, the neural circuit should activ
   |> testHookMailbox.PostAndReply
   |> (should equal 110.0)
 
+  [
+    sensor
+    neuron
+    actuator
+  ]
+  |> Map.ofList
+  |> killNeuralNetwork
+
   let testAssertionCount = Die |> testHookMailbox.PostAndReply
 
   testAssertionCount |> should equal 1
@@ -140,6 +148,17 @@ let ``The NeuralFish should be able to solve the XNOR problem with predefined we
   WaitForData
   |> testHookMailbox.PostAndReply
   |> (should be (greaterThan 0.99))
+
+  [
+    sensor_x1
+    sensor_x2
+    neuron_a2_1
+    neuron_a2_2
+    neuron_a3_1
+    actuator
+  ]
+  |> Map.ofList
+  |> killNeuralNetwork
 
   let testAssertionCount = Die |> testHookMailbox.PostAndReply
 

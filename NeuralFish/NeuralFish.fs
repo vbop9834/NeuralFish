@@ -2,6 +2,26 @@ module NeuralFish.Core
 
 open NeuralFish.Types
 
+let killNeuralNetwork (liveNeurons : NeuralNetwork) =
+  let rec waitOnNeuralNetwork neuralNetworkToWaitOn : NeuralNetwork =
+    let checkIfNeuralNetworkIsActive (neuralNetwork : NeuralNetwork) =
+      //returns true if active
+      neuralNetwork
+      |> Map.forall(fun i neuron -> printfn "Neuron %A still has %A" i neuron.CurrentQueueLength;  neuron.CurrentQueueLength <> 0)
+    if neuralNetworkToWaitOn |> checkIfNeuralNetworkIsActive then
+      System.Threading.Thread.Sleep(500)
+      waitOnNeuralNetwork neuralNetworkToWaitOn
+    else
+      neuralNetworkToWaitOn
+  let killNeuralNetwork (neuralNetworkToKill : NeuralNetwork) =
+    neuralNetworkToKill
+    |> Map.toArray
+    |> Array.Parallel.iter(fun (_,neuron) -> Die |> neuron.PostAndReply)
+
+  liveNeurons
+  |> waitOnNeuralNetwork
+  |> killNeuralNetwork
+
 let synchronize (_, (sensor : NeuronInstance)) =
   Sync |> sensor.Post
 
@@ -197,6 +217,9 @@ let createNeuronInstance neuronType =
                   { props.Record with OutboundConnections = outboundNodeRecordConnections }
                 | Actuator props -> props.Record
               nodeRecord |> replyChannel.Reply
+              return! loop barrier inboundConnections outboundConnections
+            | Die replyChannel ->
+              Die replyChannel |> inbox.Post
               return! loop barrier inboundConnections outboundConnections
 
       }
