@@ -87,3 +87,5 @@ type NeuronConnection =
 
 type NeuronConnections = Map<NeuronConnectionId,NeuronConnection>
 type InboundNeuronConnections = NeuronConnectionId seq
+
+type NeuralNetwork = Map<NeuronId, NeuronInstance>
