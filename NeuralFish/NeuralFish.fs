@@ -7,9 +7,10 @@ let killNeuralNetwork (liveNeurons : NeuralNetwork) =
     let checkIfNeuralNetworkIsActive (neuralNetwork : NeuralNetwork) =
       //returns true if active
       neuralNetwork
-      |> Map.forall(fun i neuron -> printfn "Neuron %A still has %A" i neuron.CurrentQueueLength;  neuron.CurrentQueueLength <> 0)
+      |> Map.forall(fun i neuron -> neuron.CurrentQueueLength <> 0)
     if neuralNetworkToWaitOn |> checkIfNeuralNetworkIsActive then
-      System.Threading.Thread.Sleep(500)
+      //200 milliseconds of sleep seems plenty while waiting on the NN
+      System.Threading.Thread.Sleep(200)
       waitOnNeuralNetwork neuralNetworkToWaitOn
     else
       neuralNetworkToWaitOn
@@ -219,7 +220,7 @@ let createNeuronInstance neuronType =
               nodeRecord |> replyChannel.Reply
               return! loop barrier inboundConnections outboundConnections
             | Die replyChannel ->
-              Die replyChannel |> inbox.Post
+              replyChannel.Reply()
               return! loop barrier inboundConnections outboundConnections
 
       }
