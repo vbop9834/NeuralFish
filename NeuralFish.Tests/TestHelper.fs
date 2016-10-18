@@ -43,11 +43,11 @@ let getTestHook () =
         let! msg = inbox.Receive ()
         match msg with
         | SendDataToBuffer dataValue ->
+          let counter = counter + 1
           if (replybuffer |> List.isEmpty) then
             let dataBuffer = dataValue :: dataBuffer
             return! loop dataBuffer counter List.empty
           else
-            let counter = counter + 1
             replybuffer |> List.iter (fun (replyChannel : AsyncReplyChannel<float>) -> replyChannel.Reply dataValue)
             return! loop dataBuffer counter List.empty
         | Die replyChannel ->
