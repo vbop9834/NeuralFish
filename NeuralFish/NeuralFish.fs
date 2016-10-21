@@ -193,11 +193,11 @@ let createNeuronInstance neuronType =
             match neuronType with
             | Neuron props ->
               if updatedBarrier |> isBarrierSatisifed inboundConnections then
-                sprintf "Barrier is satisifed for Node %A" props.Record.NodeId |> infoLog
+                sprintf "Barrier not satisfied for Node %A. Received %A from %A" props.Record.NodeId package neuronConnectionId |> infoLog
                 neuronType |> activateNeuron updatedBarrier outboundConnections
                 return! loop Map.empty inboundConnections outboundConnections
               else
-                sprintf "Node %A not activated. Received %A from %A" props.Record.NodeId package neuronConnectionId |> infoLog
+                sprintf "Barrier not satisfied for Node %A. Received %A from %A" props.Record.NodeId package neuronConnectionId |> infoLog
                 return! loop updatedBarrier inboundConnections outboundConnections
             | Actuator props ->
               if updatedBarrier |> isBarrierSatisifed inboundConnections then

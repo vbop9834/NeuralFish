@@ -169,3 +169,79 @@ let ``The NeuralFish should be able to solve the XNOR problem with predefined we
   let testAssertionCount = Die |> testHookMailbox.PostAndReply
 
   testAssertionCount |> should equal 4
+
+[<Fact>]
+let ``Should be able to handle recurrent neural connections`` () =
+  //Test setup
+  let (testHook, testHookMailbox) = getTestHook ()
+  let getNodeId = getNumberGenerator()
+  let actuatorId = getNodeId()
+  let outputHookId = 9001
+
+  //Create Neurons
+  let actuator =
+    let layer = 3
+    createActuator actuatorId layer testHook outputHookId
+    |> createNeuronInstance
+  let neuron =
+    let activationFunctionId = 0
+    let activationFunction = id
+    let bias = 10.0
+    let nodeId = getNodeId()
+    let layer = 2
+    createNeuron nodeId layer activationFunction activationFunctionId bias
+    |> createNeuronInstance
+
+  let sensor =
+    let syncFunctionId = 0
+    let syncFunction =
+        let data =
+          [1.0; 1.0; 1.0; 1.0; 1.0]
+          |> List.toSeq
+        fakeDataGenerator([data])
+    let id = getNodeId()
+    createSensor id syncFunction syncFunctionId
+    |> createNeuronInstance
+
+  //Connect Neurons
+  let weights =
+    [
+      20.0
+      20.0
+      20.0
+      20.0
+      20.0
+    ] |> List.toSeq
+
+  sensor |> connectSensorToNode neuron weights
+  neuron |> connectNodeToActuator actuator
+  neuron |> connectNodeToNeuron neuron 20.0
+
+  //Synchronize and Assert!
+  //Since there is a recurrent connection then the output will
+  synchronize sensor
+  WaitForData
+  |> testHookMailbox.PostAndReply
+  |> (should equal 110.0)
+
+  synchronize sensor
+  WaitForData
+  |> testHookMailbox.PostAndReply
+  |> (should equal 2310.0)
+
+  synchronize sensor
+  WaitForData
+  |> testHookMailbox.PostAndReply
+  |> (should equal 46310.0)
+
+  [
+    sensor
+    neuron
+    actuator
+  ]
+  |> Map.ofList
+  |> killNeuralNetwork
+
+  let testAssertionCount = Die |> testHookMailbox.PostAndReply
+
+  testAssertionCount |> should equal 3

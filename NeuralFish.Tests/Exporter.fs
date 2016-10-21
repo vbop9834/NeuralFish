@@ -392,3 +392,66 @@ let ``Should be able to solve the XNOR problem with predefined weights, convert 
   let testAssertionCount = Die |> testHookMailbox.PostAndReply
 
   testAssertionCount |> should equal 8
+
+[<Fact>]
+let ``Should be able to export a recurrent neural network to a map of node records`` () =
+  let testHook = (fun x -> printfn "Actuator output %f" x)
+  let getNodeId = getNumberGenerator()
+  let getNeuronConnectionId = getNumberGenerator()
+  let syncFunctionId = 9001
+  let outputHookId = 9000
+  let activationFunctionId = 777
+
+  let actuatorId = getNodeId()
+  let actuator =
+    let layer = 3
+    createActuator actuatorId layer testHook outputHookId
+    |> createNeuronInstance
+
+  let neuronId = getNodeId()
+  let neuron =
+    let activationFunction = id
+    let bias = 10.0
+    let layer = 2
+    createNeuron neuronId layer activationFunction activationFunctionId bias
+    |> createNeuronInstance
+
+  let sensorId = getNodeId()
+  let syncFunction = (fun () -> Seq.empty)
+  let sensor =
+    createSensor sensorId syncFunction syncFunctionId
+    |> createNeuronInstance
+
+  neuron |> connectNodeToActuator actuator
+
+  let weights =
+    [
+      20.0
+      20.0
+      20.0
+      20.0
+      20.0
+    ] |> List.toSeq
+  sensor |> connectSensorToNode neuron weights
+  neuron |> connectNodeToNeuron neuron 20.0
+
+  let nodeRecords =
+    let addNeuronToMap (neuronId, neuronInstance) =
+      Map.add neuronId neuronInstance
+    Map.empty
+    |> addNeuronToMap actuator
+    |> addNeuronToMap neuron
+    |> addNeuronToMap sensor
+    |> constructNodeRecords
+
+  actuator |> assertNodeRecordsContainsNode nodeRecords
+  neuron |> assertNodeRecordsContainsNode nodeRecords
+  sensor |> assertNodeRecordsContainsNode nodeRecords
+
+  [
+    sensor
+    neuron
+    actuator
+  ]
+  |> Map.ofList
+  |> killNeuralNetwork
