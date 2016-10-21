@@ -4,7 +4,7 @@ open NeuralFish.Core
 open NeuralFish.Types
 
 let constructNodeRecords (liveNeurons : NeuralNetwork) : NodeRecords =
-  let generateNodeRecord _ (liveNeuron : NeuronInstance) : Async<NodeRecord> =
+  let generateNodeRecord _ (_,(liveNeuron : NeuronInstance)) : Async<NodeRecord> =
      GetNodeRecord |> liveNeuron.PostAndAsyncReply
   liveNeurons
   |> Map.map generateNodeRecord
@@ -23,7 +23,7 @@ let constructNeuralNetwork (activationFunctions : Map<ActivationFunctionId,Activ
         if (nodeRecord.Bias |> Option.isNone) then
           raise (NodeRecordTypeException <| sprintf "Neuron with id %A does not have a Bias" nodeRecord.NodeId)
         let activationFunction = activationFunctions |> Map.find nodeRecord.ActivationFunctionId.Value
-        createNeuron nodeId activationFunction nodeRecord.ActivationFunctionId.Value nodeRecord.Bias.Value
+        createNeuron nodeId nodeRecord.Layer activationFunction nodeRecord.ActivationFunctionId.Value nodeRecord.Bias.Value
         |> createNeuronInstance
       | NodeRecordType.Sensor ->
         if (nodeRecord.SyncFunctionId |> Option.isNone) then
@@ -35,22 +35,22 @@ let constructNeuralNetwork (activationFunctions : Map<ActivationFunctionId,Activ
         if (nodeRecord.OutputHookId |> Option.isNone) then
           raise (NodeRecordTypeException <| sprintf "Actuator with id %A does not have a Output Hook function id" nodeRecord.NodeId)
         let outputHook = outputHooks |> Map.find nodeRecord.OutputHookId.Value
-        createActuator nodeId outputHook nodeRecord.OutputHookId.Value
+        createActuator nodeId nodeRecord.Layer outputHook nodeRecord.OutputHookId.Value
         |> createNeuronInstance
     neuronInstance
 
-  let connectNeurons (liveNeurons : Map<NeuronId,NeuronInstance>) =
-    let connectNode fromNodeId (fromNode : NeuronInstance) =
+  let connectNeurons (liveNeurons : Map<NeuronId,NeuronLayerId*NeuronInstance>) =
+    let connectNode fromNodeId (_,(fromNode : NeuronInstance)) =
       let processRecordConnections node =
         let findNeuronAndAddToOutboundConnections (fromNodeId : NeuronId) (targetNodeId : NeuronId) (weight : Weight) =
           if not <| (liveNeurons |> Map.containsKey targetNodeId) then
             raise (NeuronInstanceException <| sprintf "Trying to connect and can't find a neuron with id %A" targetNodeId)
-          let targetNeuron =
+          let targetLayer, targetNeuron =
             liveNeurons
             |> Map.find targetNodeId
 
           //Set connection in live neuron
-          (fun r -> ((targetNeuron,targetNodeId,weight),r) |> NeuronActions.AddOutboundConnection)
+          (fun r -> ((targetNeuron,targetNodeId,targetLayer,weight),r) |> NeuronActions.AddOutboundConnection)
           |> fromNode.PostAndReply
 
         node.OutboundConnections

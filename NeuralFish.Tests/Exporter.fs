@@ -10,7 +10,7 @@ open NeuralFish.Exporter
 
 open NeuralFish.Tests.TestHelper
 
-let assertNodeRecordsContainsNode (nodeRecords : Map<int, NodeRecord>) (neuronId, (liveNeuron : NeuronInstance)) =
+let assertNodeRecordsContainsNode (nodeRecords : NodeRecords) (neuronId, (_, liveNeuron : NeuronInstance)) =
   let liveNeuronNodeRecord = GetNodeRecord |> liveNeuron.PostAndReply
   let getNodeRecord nodeId = nodeRecords |> Map.find nodeId
   let assertRecordConnectionIsIdenticalTo  (nodeRecordConnections : NodeRecordConnections)  =
@@ -24,7 +24,6 @@ let assertNodeRecordsContainsNode (nodeRecords : Map<int, NodeRecord>) (neuronId
       generatedTargetNodeId |> should equal nodeId
     )
 
-
   match liveNeuronNodeRecord.NodeType with
     | NodeRecordType.Neuron ->
       let nodeRecord =
@@ -36,6 +35,7 @@ let assertNodeRecordsContainsNode (nodeRecords : Map<int, NodeRecord>) (neuronId
       nodeRecord.Bias |>  should not' (equal None)
       nodeRecord.Bias.Value |> should equal liveNeuronNodeRecord.Bias.Value
       nodeRecord.NodeType |> should equal NodeRecordType.Neuron
+      nodeRecord.Layer |> should equal liveNeuronNodeRecord.Layer
 
       liveNeuronNodeRecord.OutboundConnections
       |> Map.iter (assertRecordConnectionIsIdenticalTo nodeRecord.OutboundConnections)
@@ -48,6 +48,7 @@ let assertNodeRecordsContainsNode (nodeRecords : Map<int, NodeRecord>) (neuronId
       nodeRecord.ActivationFunctionId |> should equal Option.None
       nodeRecord.Bias |> should equal Option.None
       nodeRecord.NodeType |> should equal NodeRecordType.Sensor
+      nodeRecord.Layer |> should equal 1
 
       liveNeuronNodeRecord.OutboundConnections
       |> Map.iter (assertRecordConnectionIsIdenticalTo nodeRecord.OutboundConnections)
@@ -60,6 +61,7 @@ let assertNodeRecordsContainsNode (nodeRecords : Map<int, NodeRecord>) (neuronId
       nodeRecord.Bias |> should equal Option.None
       nodeRecord.NodeType |> should equal NodeRecordType.Actuator
       nodeRecord.OutboundConnections |> Seq.isEmpty |> should equal true
+      nodeRecord.Layer |> should equal liveNeuronNodeRecord.Layer
 
 [<Fact>]
 let ``Should be able to export a simple neural network to a map of node records`` () =
@@ -72,14 +74,16 @@ let ``Should be able to export a simple neural network to a map of node records`
 
   let actuatorId = getNodeId()
   let actuator =
-      createActuator actuatorId testHook outputHookId
-      |> createNeuronInstance
+    let layer = 3
+    createActuator actuatorId layer testHook outputHookId
+    |> createNeuronInstance
 
   let neuronId = getNodeId()
   let neuron =
     let activationFunction = id
     let bias = 10.0
-    createNeuron neuronId activationFunction activationFunctionId bias
+    let layer = 2
+    createNeuron neuronId layer activationFunction activationFunctionId bias
     |> createNeuronInstance
 
   let sensorId = getNodeId()
@@ -140,12 +144,14 @@ let ``Should be able to construct a simple neural network from a map of node rec
 
   //Create Neurons
   let actuator =
-    createActuator actuatorId testHook outputHookId
+    let layer = 3
+    createActuator actuatorId layer testHook outputHookId
     |> createNeuronInstance
   let neuron =
     let bias = 10.0
     let id = getNodeId()
-    createNeuron id activationFunction activationFunctionId bias
+    let layer = 2
+    createNeuron id layer activationFunction activationFunctionId bias
     |> createNeuronInstance
   let sensor =
     let id = getNodeId()
@@ -198,11 +204,14 @@ let ``Should be able to construct a simple neural network from a map of node rec
     Map.empty
     |> Map.add outputHookId testHook
 
+  let neuralNetwork =
+   nodeRecords
+   |> constructNeuralNetwork activationFunctions syncFunctions outputHooks
   let sensor =
     let sensorId = (fst sensor)
+    let layer = 1
     (sensorId,
-     nodeRecords
-     |> constructNeuralNetwork activationFunctions syncFunctions outputHooks
+     neuralNetwork
      |> Map.find sensorId)
 
   synchronize sensor
@@ -211,12 +220,7 @@ let ``Should be able to construct a simple neural network from a map of node rec
   |> testHookMailbox.PostAndReply
   |> (should equal 110.0)
 
-  [
-    sensor
-    neuron
-    actuator
-  ]
-  |> Map.ofList
+  neuralNetwork
   |> killNeuralNetwork
 
   let testAssertionCount = Die |> testHookMailbox.PostAndReply
@@ -240,21 +244,25 @@ let ``Should be able to solve the XNOR problem with predefined weights, convert 
 
   let actuator =
     let id = getNodeId()
-    createNeuronInstance <| createActuator id testHook outputHookId
+    let layer = 4
+    createNeuronInstance <| createActuator id layer testHook outputHookId
   let neuron_a3_1 =
     let bias = -10.0
     let id = getNodeId()
-    createNeuron id activationFunction 0 bias
+    let layer = 3
+    createNeuron id layer activationFunction 0 bias
     |> createNeuronInstance
   let neuron_a2_2 =
     let bias = 10.0
     let id = getNodeId()
-    createNeuron id activationFunction activationFunctionId bias
+    let layer = 2
+    createNeuron id layer activationFunction activationFunctionId bias
     |> createNeuronInstance
   let neuron_a2_1 =
     let bias = -30.0
     let id = getNodeId()
-    createNeuron id activationFunction activationFunctionId bias
+    let layer = 2
+    createNeuron id layer activationFunction activationFunctionId bias
     |> createNeuronInstance
   let sensor_x1 =
     let id = getNodeId()
@@ -340,10 +348,10 @@ let ``Should be able to solve the XNOR problem with predefined weights, convert 
       |> constructNeuralNetwork activationFunctions syncFunctions outputHooks
     let sensorIdX1 =
       let id = (fst sensor_x1)
-      (id, neuralNetwork|> Map.find id)
+      (id,1, neuralNetwork|> Map.find id)
     let sensorIdX2 =
       let id = (fst sensor_x2)
-      (id, neuralNetwork|> Map.find id)
+      (id,1, neuralNetwork|> Map.find id)
     (sensor_x1, sensor_x2)
 
   synchronize sensorX1
@@ -384,3 +392,66 @@ let ``Should be able to solve the XNOR problem with predefined weights, convert 
   let testAssertionCount = Die |> testHookMailbox.PostAndReply
 
   testAssertionCount |> should equal 8
+
+[<Fact>]
+let ``Should be able to export a recurrent neural network to a map of node records`` () =
+  let testHook = (fun x -> printfn "Actuator output %f" x)
+  let getNodeId = getNumberGenerator()
+  let getNeuronConnectionId = getNumberGenerator()
+  let syncFunctionId = 9001
+  let outputHookId = 9000
+  let activationFunctionId = 777
+
+  let actuatorId = getNodeId()
+  let actuator =
+    let layer = 3
+    createActuator actuatorId layer testHook outputHookId
+    |> createNeuronInstance
+
+  let neuronId = getNodeId()
+  let neuron =
+    let activationFunction = id
+    let bias = 10.0
+    let layer = 2
+    createNeuron neuronId layer activationFunction activationFunctionId bias
+    |> createNeuronInstance
+
+  let sensorId = getNodeId()
+  let syncFunction = (fun () -> Seq.empty)
+  let sensor =
+    createSensor sensorId syncFunction syncFunctionId
+    |> createNeuronInstance
+
+  neuron |> connectNodeToActuator actuator
+
+  let weights =
+    [
+      20.0
+      20.0
+      20.0
+      20.0
+      20.0
+    ] |> List.toSeq
+  sensor |> connectSensorToNode neuron weights
+  neuron |> connectNodeToNeuron neuron 20.0
+
+  let nodeRecords =
+    let addNeuronToMap (neuronId, neuronInstance) =
+      Map.add neuronId neuronInstance
+    Map.empty
+    |> addNeuronToMap actuator
+    |> addNeuronToMap neuron
+    |> addNeuronToMap sensor
+    |> constructNodeRecords
+
+  actuator |> assertNodeRecordsContainsNode nodeRecords
+  neuron |> assertNodeRecordsContainsNode nodeRecords
+  sensor |> assertNodeRecordsContainsNode nodeRecords
+
+  [
+    sensor
+    neuron
+    actuator
+  ]
+  |> Map.ofList
+  |> killNeuralNetwork
