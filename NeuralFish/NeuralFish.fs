@@ -2,6 +2,11 @@ module NeuralFish.Core
 
 open NeuralFish.Types
 
+let mutable InfoLogging = true
+let infoLog (message : string) =
+  if (InfoLogging) then
+    System.Console.WriteLine(message)
+
 let killNeuralNetwork (liveNeurons : NeuralNetwork) =
   let rec waitOnNeuralNetwork neuralNetworkToWaitOn : NeuralNetwork =
     let checkIfNeuralNetworkIsActive (neuralNetwork : NeuralNetwork) =
@@ -115,6 +120,11 @@ let createNeuronInstance neuronType =
   let activateNeuron (barrier : IncomingSynapses) (outboundConnections : NeuronConnections) neuronType =
     match neuronType with
     | Neuron props ->
+      let logNeuronOutput nodeId activationFunctionId bias outputValue =
+        sprintf "Neuron %A is outputting %A after activation %A and bias %A" nodeId outputValue activationFunctionId bias
+        |> infoLog
+        outputValue
+
       let someBias =
         match props.Record.Bias with
         | Some bias -> bias
@@ -124,11 +134,17 @@ let createNeuronInstance neuronType =
       |> synapseDotProduct
       |> addBias someBias
       |> props.ActivationFunction
+      |> logNeuronOutput props.Record.NodeId props.Record.ActivationFunctionId props.Record.Bias
       |> sendSynapseToNeurons outboundConnections
     | Actuator props ->
+      let logActuatorOutput nodeId outputHookId outputValue =
+        sprintf "Actuator %A is outputting %A with output hook %A" nodeId outputValue outputHookId
+        |> infoLog
+        outputValue
       barrier
       |> Map.toSeq
       |> Seq.sumBy (fun (_,(_,value,weight)) -> value)
+      |> logActuatorOutput props.Record.NodeId props.Record.OutputHookId
       |> props.OutputHook
     | Sensor _ ->
       ()
@@ -142,6 +158,7 @@ let createNeuronInstance neuronType =
         let! someMsg = inbox.TryReceive 20000
         match someMsg with
         | None ->
+          "Neuron did not receive message in 20 seconds. Looping mailbox" |> infoLog
           return! loop barrier inboundConnections outboundConnections
         | Some msg ->
           match msg with
@@ -159,6 +176,7 @@ let createNeuronInstance neuronType =
                   |> neuron.Post
 
                 let data = dataStream |> Seq.head
+                sprintf "Sending %A to connection %A with a weight of %A" data connectionId connection.Weight |> infoLog
                 data |> sendSynapseToNeuron connection.Neuron connectionId connection.Weight
               outboundConnections
               |> Map.iter (processSensorSync <| props.SyncFunction())
@@ -170,15 +188,19 @@ let createNeuronInstance neuronType =
             match neuronType with
             | Neuron props ->
               if updatedBarrier |> isBarrierSatisifed inboundConnections then
+                sprintf "Barrier is satisifed for Node %A" props.Record.NodeId |> infoLog
                 neuronType |> activateNeuron updatedBarrier outboundConnections
                 return! loop Map.empty inboundConnections outboundConnections
               else
+                sprintf "Node %A not activated. Received %A from %A" props.Record.NodeId package neuronConnectionId |> infoLog
                 return! loop updatedBarrier inboundConnections outboundConnections
             | Actuator props ->
               if updatedBarrier |> isBarrierSatisifed inboundConnections then
+                sprintf "Barrier is satisifed for Node %A" props.Record.NodeId |> infoLog
                 neuronType |> activateNeuron updatedBarrier outboundConnections
                 return! loop Map.empty inboundConnections outboundConnections
               else
+                sprintf "Node %A not activated. Received %A from %A" props.Record.NodeId package neuronConnectionId |> infoLog
                 return! loop updatedBarrier inboundConnections outboundConnections
             | Sensor _ ->
               //Sensors use the sync msg
@@ -198,11 +220,15 @@ let createNeuronInstance neuronType =
               |> AddInboundConnection
               |> toNode.Post
 
+              sprintf "Node %A is adding Node %A as an outbound connection %A with weight %A" neuronType nodeId neuronConnectionId weight
+              |> infoLog
               return! loop barrier inboundConnections updatedOutboundConnections
             | AddInboundConnection (neuronConnectionId,replyChannel) ->
               let updatedInboundConnections =
                 inboundConnections |> Seq.append(Seq.singleton neuronConnectionId)
               replyChannel.Reply()
+              sprintf "Added inbound neuron connection %A" neuronConnectionId
+              |> infoLog
               return! loop barrier updatedInboundConnections outboundConnections
             | GetNodeRecord replyChannel ->
               let getOutboundNodeRecordConnections () : NodeRecordConnections =
