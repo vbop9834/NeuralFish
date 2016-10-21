@@ -12,7 +12,7 @@ let killNeuralNetwork (liveNeurons : NeuralNetwork) =
     let checkIfNeuralNetworkIsActive (neuralNetwork : NeuralNetwork) =
       //returns true if active
       neuralNetwork
-      |> Map.forall(fun i neuron -> neuron.CurrentQueueLength <> 0)
+      |> Map.forall(fun i (_,neuron) -> neuron.CurrentQueueLength <> 0)
     if neuralNetworkToWaitOn |> checkIfNeuralNetworkIsActive then
       //200 milliseconds of sleep seems plenty while waiting on the NN
       System.Threading.Thread.Sleep(200)
@@ -22,13 +22,13 @@ let killNeuralNetwork (liveNeurons : NeuralNetwork) =
   let killNeuralNetwork (neuralNetworkToKill : NeuralNetwork) =
     neuralNetworkToKill
     |> Map.toArray
-    |> Array.Parallel.iter(fun (_,neuron) -> Die |> neuron.PostAndReply)
+    |> Array.Parallel.iter(fun (_,(_,neuron)) -> Die |> neuron.PostAndReply)
 
   liveNeurons
   |> waitOnNeuralNetwork
   |> killNeuralNetwork
 
-let synchronize (_, (sensor : NeuronInstance)) =
+let synchronize (_, (_,sensor : NeuronInstance)) =
   Sync |> sensor.Post
 
 let synapseDotProduct synapses =
@@ -38,10 +38,11 @@ let synapseDotProduct synapses =
     | (_,value,weight)::tail -> value*weight + (loop tail)
   synapses |> Map.toList |> List.map snd |> loop
 
-let createNeuron id activationFunction activationFunctionId bias =
+let createNeuron id layer activationFunction activationFunctionId bias =
   let record =
     {
       NodeId = id
+      Layer = layer
       NodeType = NodeRecordType.Neuron
       OutboundConnections = Map.empty
       Bias = Some bias
@@ -57,6 +58,7 @@ let createSensor id syncFunction syncFunctionId =
   let record =
     {
       NodeId = id
+      Layer = 1
       NodeType = NodeRecordType.Sensor
       OutboundConnections = Map.empty
       Bias = None
@@ -68,10 +70,11 @@ let createSensor id syncFunction syncFunctionId =
     Record = record
     SyncFunction = syncFunction
   } |> Sensor
-let createActuator id outputHook outputHookId =
+let createActuator id layer outputHook outputHookId =
   let record =
     {
       NodeId = id
+      Layer = layer
       NodeType = NodeRecordType.Actuator
       OutboundConnections = Map.empty
       Bias = None
@@ -84,8 +87,8 @@ let createActuator id outputHook outputHookId =
     OutputHook = outputHook
   } |> Actuator
 
-let connectNodeToNeuron (toNodeId, toNode) weight (fromNodeId, (fromNode : NeuronInstance)) =
-  (fun r -> ((toNode,toNodeId,weight),r) |> NeuronActions.AddOutboundConnection)
+let connectNodeToNeuron (toNodeId, (toNodeLayer, toNode)) weight (fromNodeId, (_,fromNode : NeuronInstance)) =
+  (fun r -> ((toNode,toNodeId,toNodeLayer,weight),r) |> NeuronActions.AddOutboundConnection)
   |> fromNode.PostAndReply
 
 let connectNodeToActuator actuator fromNode  =
@@ -97,14 +100,14 @@ let connectSensorToNode toNode weights sensor =
  weights |> Seq.iter (sensor |> createConnectionsFromWeight toNode )
 
 let createNeuronInstance neuronType =
-  let getNodeIdFromProps neuronType =
+  let nodeId, nodeLayer =
     match neuronType with
       | Neuron props ->
-        props.Record.NodeId
+        props.Record.NodeId, props.Record.Layer
       | Sensor props ->
-        props.Record.NodeId
+        props.Record.NodeId, props.Record.Layer
       | Actuator props ->
-        props.Record.NodeId
+        props.Record.NodeId, props.Record.Layer
   let isBarrierSatisifed (inboundNeuronConnections : InboundNeuronConnections) (barrier : IncomingSynapses) =
     inboundNeuronConnections
     |> Seq.forall(fun connectionId -> barrier |> Map.containsKey connectionId)
@@ -153,7 +156,9 @@ let createNeuronInstance neuronType =
     activeNeuronConnection.NodeId, activeNeuronConnection.Weight
 
   let neuronInstance = NeuronInstance.Start(fun inbox ->
-    let rec loop barrier (inboundConnections : InboundNeuronConnections) (outboundConnections : NeuronConnections) =
+    let rec loop (barrier : AxonHillockBarrier)
+                   (inboundConnections : InboundNeuronConnections)
+                     (outboundConnections : NeuronConnections) =
       async {
         let! someMsg = inbox.TryReceive 20000
         match someMsg with
@@ -205,7 +210,7 @@ let createNeuronInstance neuronType =
             | Sensor _ ->
               //Sensors use the sync msg
               return! loop Map.empty inboundConnections outboundConnections
-          | AddOutboundConnection ((toNode,nodeId,weight),replyChannel) ->
+          | AddOutboundConnection ((toNode,nodeId,outboundLayer,weight),replyChannel) ->
               let neuronConnectionId = System.Guid.NewGuid()
               let updatedOutboundConnections =
                 let outboundConnection =
@@ -219,6 +224,12 @@ let createNeuronInstance neuronType =
               (neuronConnectionId, replyChannel)
               |> AddInboundConnection
               |> toNode.Post
+
+              //queue up blank synapses for recurrent connections
+              if (nodeLayer >= outboundLayer) then
+                (neuronConnectionId, (nodeId,0.0,weight))
+                |> ReceiveInput
+                |> toNode.Post
 
               sprintf "Node %A is adding Node %A as an outbound connection %A with weight %A" neuronType nodeId neuronConnectionId weight
               |> infoLog
@@ -253,4 +264,4 @@ let createNeuronInstance neuronType =
     loop Map.empty Seq.empty Map.empty
   )
 
-  (neuronType |> getNodeIdFromProps, neuronInstance)
+  (nodeId, (nodeLayer, neuronInstance))

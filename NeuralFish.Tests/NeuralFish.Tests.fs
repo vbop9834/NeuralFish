@@ -18,14 +18,16 @@ let ``When the Sensor receives the sync message, the neural circuit should activ
 
   //Create Neurons
   let actuator =
-    createActuator actuatorId testHook outputHookId
+    let layer = 3
+    createActuator actuatorId layer testHook outputHookId
     |> createNeuronInstance
   let neuron =
     let activationFunctionId = 0
     let activationFunction = id
     let bias = 10.0
     let nodeId = getNodeId()
-    createNeuron nodeId activationFunction activationFunctionId bias
+    let layer = 2
+    createNeuron nodeId layer activationFunction activationFunctionId bias
     |> createNeuronInstance
 
   let sensor =
@@ -81,23 +83,27 @@ let ``The NeuralFish should be able to solve the XNOR problem with predefined we
 
   let actuator =
     let id = getNodeId()
-    createNeuronInstance <| createActuator id testHook 0
+    let layer = 4
+    createNeuronInstance <| createActuator id layer testHook 0
   let neuron_a3_1 =
     let activationFunction = sigmoid
     let bias = -10.0
     let id = getNodeId()
-    createNeuron id activationFunction 0 bias
+    let layer = 3
+    createNeuron id layer activationFunction 0 bias
     |> createNeuronInstance
   let neuron_a2_2 =
     let activationFunction = sigmoid
     let bias = 10.0
     let id = getNodeId()
-    createNeuron id activationFunction activationFunctionId bias
+    let layer = 2
+    createNeuron id layer activationFunction activationFunctionId bias
     |> createNeuronInstance
   let neuron_a2_1 =
     let bias = -30.0
     let id = getNodeId()
-    createNeuron id activationFunction activationFunctionId bias
+    let layer = 2
+    createNeuron id layer activationFunction activationFunctionId bias
     |> createNeuronInstance
   let sensor_x1 =
     let syncFunction = fakeDataGenerator([[0.0]; [0.0]; [1.0]; [1.0]])
