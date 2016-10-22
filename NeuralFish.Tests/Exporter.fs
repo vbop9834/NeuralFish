@@ -105,8 +105,6 @@ let ``Should be able to export a simple neural network to a map of node records`
   sensor |> connectSensorToNode neuron weights
 
   let nodeRecords =
-    let addNeuronToMap (neuronId, neuronInstance) =
-      Map.add neuronId neuronInstance
     Map.empty
     |> addNeuronToMap actuator
     |> addNeuronToMap neuron
@@ -181,8 +179,6 @@ let ``Should be able to construct a simple neural network from a map of node rec
 
   //create Node records
   let nodeRecords =
-    let addNeuronToMap (neuronId, neuronInstance) =
-      Map.add neuronId neuronInstance
     Map.empty
     |> addNeuronToMap actuator
     |> addNeuronToMap neuron
@@ -312,8 +308,6 @@ let ``Should be able to solve the XNOR problem with predefined weights, convert 
 
   //create Node records
   let nodeRecords =
-    let addNeuronToMap (neuronId, neuronInstance) =
-      Map.add neuronId neuronInstance
     Map.empty
     |> addNeuronToMap actuator
     |> addNeuronToMap neuron_a2_1
@@ -436,8 +430,6 @@ let ``Should be able to export a recurrent neural network to a map of node recor
   neuron |> connectNodeToNeuron neuron 20.0
 
   let nodeRecords =
-    let addNeuronToMap (neuronId, neuronInstance) =
-      Map.add neuronId neuronInstance
     Map.empty
     |> addNeuronToMap actuator
     |> addNeuronToMap neuron

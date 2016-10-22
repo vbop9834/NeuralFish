@@ -89,3 +89,7 @@ let getNumberGenerator () =
     loop 0
   )
   (fun () -> GetIntId |> generator.PostAndReply)
+
+
+let addNeuronToMap (neuronId, neuronInstance) =
+  Map.add neuronId neuronInstance

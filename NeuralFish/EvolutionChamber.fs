@@ -43,7 +43,7 @@ type Mutation =
 
 type MutationSequence = Mutation seq
 
-let mutateNeuralNetwork (nodeRecords : NodeRecords) (mutations : MutationSequence)   =
+let mutateNeuralNetwork (mutations : MutationSequence) (nodeRecords : NodeRecords)  =
   let random = System.Random()
   let totalNumberOfMutations = mutations |> Seq.length
   let selectRandomMutation _ =
@@ -53,13 +53,19 @@ let mutateNeuralNetwork (nodeRecords : NodeRecords) (mutations : MutationSequenc
       random.NextDouble() * (sqrt (nodeRecords |> Map.toSeq |> Seq.length |> float))
       |> round
       |> int
+    sprintf "Selecting %i number of mutations" numberOfMutations
+    |> infoLog
+
     [0..numberOfMutations]
     |> Seq.map selectRandomMutation
+  sprintf "Pending Mutations %A" pendingMutations |> infoLog
   let rec processMutationSequence pendingMutations nodeRecords =
+    sprintf "Pending Mutations %A" pendingMutations |> infoLog
     if (pendingMutations |> Seq.isEmpty) then
       nodeRecords
     else
       let rec mutate mutation =
+        sprintf "Mutating using %A" mutation |> infoLog
         let selectRandomNode (nodeRecords : NodeRecords) =
           let seqOfNodeRecords = nodeRecords |> Map.toSeq
           let randomNumber =
@@ -78,6 +84,7 @@ let mutateNeuralNetwork (nodeRecords : NodeRecords) (mutations : MutationSequenc
           let addBiasToNeuronAndSaveToRecords (nodeRecord : NodeRecord) =
             let addRandomBiasToNeuron (neuron : NodeRecord) =
               let bias : Bias = random.NextDouble()
+              sprintf "Adding bias %f to neuron %A" bias neuron.NodeId |> infoLog
               { neuron with Bias = Some bias }
             let updatedNodeRecord = nodeRecord |> addRandomBiasToNeuron
             nodeRecords
@@ -88,7 +95,11 @@ let mutateNeuralNetwork (nodeRecords : NodeRecords) (mutations : MutationSequenc
               neuronToAddBias
               |> addBiasToNeuronAndSaveToRecords
             else
-              selectRandomMutation () |> mutate
+              if totalNumberOfMutations = 1 then
+                nodeRecords
+              else
+                sprintf "Neuron %A already has bias %f" neuronToAddBias.NodeId bias |> infoLog
+                selectRandomMutation () |> mutate
           | None ->
             neuronToAddBias
             |> addBiasToNeuronAndSaveToRecords
@@ -109,9 +120,17 @@ let mutateNeuralNetwork (nodeRecords : NodeRecords) (mutations : MutationSequenc
                 neuronToRemoveBias
                 |> removeBiasFromNeuronAndSaveRecords
               else
-                selectRandomMutation () |> mutate
+                if totalNumberOfMutations = 1 then
+                  nodeRecords
+                else
+                  sprintf "Neuron %A already has no bias already" neuronToRemoveBias.NodeId|> infoLog
+                  selectRandomMutation () |> mutate
             | None ->
-              selectRandomMutation () |> mutate
+              if totalNumberOfMutations = 1 then
+                nodeRecords
+              else
+                sprintf "Neuron %A already has no bias already" neuronToRemoveBias.NodeId|> infoLog
+                selectRandomMutation () |> mutate
           // | MutateWeights ->
           // | ResetWeights ->
           // | MutateActivationFunction ->
