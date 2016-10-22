@@ -131,8 +131,7 @@ let createNeuronInstance neuronType =
       let someBias =
         match props.Record.Bias with
         | Some bias -> bias
-        | None ->
-          raise (NoBiasInRecordForNeuronException <| sprintf "Neuron %A does not have a bias" props.Record.NodeId)
+        | None -> 0.0
       barrier
       |> synapseDotProduct
       |> addBias someBias
