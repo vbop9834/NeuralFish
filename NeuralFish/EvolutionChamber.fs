@@ -12,7 +12,7 @@ type Mutation =
   // //1/sqrt(# of weights)
   // //Intensity chosen randomly between -pi/2 and pi/2
   // | ResetWeights
-  // //Choose random neuron AddBias, reset all weights to random values
+  // //Choose random neuron, reset all weights to random values
   // // ranging between -pi/2 and pi/2
   // | MutateActivationFunction
   // //Choose a random neuron A, change activation function to random activation function
