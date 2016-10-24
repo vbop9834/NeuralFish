@@ -7,7 +7,7 @@ open NeuralFish.Exporter
 type Mutation =
   | AddBias
   | RemoveBias
-  // | MutateWeights
+  | MutateWeights
   // //Choose random neuron, perturb each weight with probability of
   // //1/sqrt(# of weights)
   // //Intensity chosen randomly between -pi/2 and pi/2
@@ -45,6 +45,8 @@ type MutationSequence = Mutation seq
 
 let mutateNeuralNetwork (mutations : MutationSequence) (nodeRecords : NodeRecords)  =
   let random = System.Random()
+  let getRandomDoubleBetween minValue maxValue =
+    random.NextDouble() * (maxValue - minValue) + minValue
   let totalNumberOfMutations = mutations |> Seq.length
   let selectRandomMutation _ =
     mutations |> Seq.item (totalNumberOfMutations |> random.Next)
@@ -131,7 +133,34 @@ let mutateNeuralNetwork (mutations : MutationSequence) (nodeRecords : NodeRecord
               else
                 sprintf "Neuron %A already has no bias already" neuronToRemoveBias.NodeId|> infoLog
                 selectRandomMutation () |> mutate
-          // | MutateWeights ->
+        | MutateWeights ->
+          let _, neuronToMutateWeights =
+            nodeRecords 
+            |> Map.filter(fun _ x -> x.NodeType <> NodeRecordType.Actuator)
+            |> selectRandomNode
+          let mutatedNeuron =
+            let probabilityOfWeightMutation = 
+              let totalNumberOfOutboundConnections = neuronToMutateWeights.OutboundConnections |> Map.toSeq |> Seq.length |> float
+              1.0/(sqrt totalNumberOfOutboundConnections)
+            let newOutboundConnections =
+              let calculateProbabilityAndMutateWeight _ inactiveConnection =
+                let mutateWeight ((nodeId, weight) : InactiveNeuronConnection) =
+                  let newWeight = 
+                    let pi = System.Math.PI
+                    let maxValue = pi/2.0
+                    let minValue = -1.0 * pi/2.0
+                    getRandomDoubleBetween minValue maxValue
+                  (nodeId, newWeight)
+                if random.NextDouble() <= probabilityOfWeightMutation then
+                  inactiveConnection |> mutateWeight 
+                else
+                  inactiveConnection 
+              neuronToMutateWeights.OutboundConnections
+              |> Map.map calculateProbabilityAndMutateWeight
+            { neuronToMutateWeights with OutboundConnections = newOutboundConnections }
+
+          nodeRecords
+          |> Map.add mutatedNeuron.NodeId mutatedNeuron
           // | ResetWeights ->
           // | MutateActivationFunction ->
           // | AddInboundConnection ->
