@@ -18,7 +18,7 @@ type Mutation =
   // //Choose a random neuron A, change activation function to random activation function
   // | AddInboundConnection
   // //Choose a random neuron A, node B, and add a connection
-  // | AddOutboundConnection
+  | AddOutboundConnection
   // | AddNeuron
   // //Create a new neuron A, position randomly in NN.
   // //Random Activation Function
@@ -161,25 +161,47 @@ let mutateNeuralNetwork (mutations : MutationSequence) (nodeRecords : NodeRecord
 
           nodeRecords
           |> Map.add mutatedNeuron.NodeId mutatedNeuron
-          // | ResetWeights ->
-          // | MutateActivationFunction ->
-          // | AddInboundConnection ->
-          // | AddOutboundConnection ->
-          // | AddNeuron ->
-          // | OutSplice ->
-          // | InSplice ->
-          // | AddSensorLink ->
-          // | AddActuatorLink ->
-          // | RemoveSensorLink ->
-          // | RemoveActuatorLink ->
-          // | AddSensor ->
-          // | AddActuator ->
-          // | RemoveInboundConnection ->
-          // | RemoveOutboundConnection ->
-          // | RemoveNeuron ->
-          // | DespliceOut ->
-          // | RemoveSensor ->
-          // | RemoveActuator ->
+       // | ResetWeights ->
+//        | MutateActivationFunction ->
+//          let neuronToMutateAF = 
+//            nodeRecords 
+//            |> Map.filter(fun _ x -> x.NodeType = NodeRecordType.Neuron)
+//            |> selectRandomNode
+       // | AddInboundConnection ->
+        | Mutation.AddOutboundConnection ->
+          let _,nodeToAddOutboundConnection = 
+            nodeRecords 
+            |> Map.filter(fun _ x -> x.NodeType <> NodeRecordType.Actuator)
+            |> selectRandomNode
+          let _,nodeToConnectTo =
+            nodeRecords 
+            |> Map.filter(fun _ x -> x.NodeType <> NodeRecordType.Sensor)
+            |> selectRandomNode
+          let addOutboundConnection (toNode : NodeRecord) fromNode = 
+            let newOutboundConnections =
+              fromNode.OutboundConnections
+              |> Map.add (System.Guid.NewGuid()) (toNode.NodeId,1.0)
+            { fromNode with OutboundConnections = newOutboundConnections }
+          let mutatedNode = 
+            nodeToAddOutboundConnection
+            |> addOutboundConnection nodeToConnectTo
+          nodeRecords
+          |> Map.add mutatedNode.NodeId mutatedNode
+       // | AddNeuron ->
+       // | OutSplice ->
+       // | InSplice ->
+       // | AddSensorLink ->
+       // | AddActuatorLink ->
+       // | RemoveSensorLink ->
+       // | RemoveActuatorLink ->
+       // | AddSensor ->
+       // | AddActuator ->
+       // | RemoveInboundConnection ->
+       // | RemoveOutboundConnection ->
+       // | RemoveNeuron ->
+       // | DespliceOut ->
+       // | RemoveSensor ->
+       // | RemoveActuator ->
       pendingMutations
       |> Seq.head
       |> mutate
