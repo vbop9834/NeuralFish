@@ -18,7 +18,7 @@ type ActivationFunction = NeuronOutput -> NeuronOutput
 type SyncFunction = unit -> NeuronOutput seq
 type OutputHookFunction = NeuronOutput -> unit
 
-type NeuronLayerId = int
+type NeuronLayerId = float
 
 type NeuronConnectionId = System.Guid
 

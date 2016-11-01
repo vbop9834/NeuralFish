@@ -16,10 +16,10 @@ type Mutation =
   // // ranging between -pi/2 and pi/2
   // | MutateActivationFunction
   // //Choose a random neuron A, change activation function to random activation function
-  // | AddInboundConnection
+  | AddInboundConnection
   // //Choose a random neuron A, node B, and add a connection
   | AddOutboundConnection
-  // | AddNeuron
+  | AddNeuron
   // //Create a new neuron A, position randomly in NN.
   // //Random Activation Function
   // //Random inbound and outbound
@@ -68,6 +68,11 @@ let mutateNeuralNetwork (mutations : MutationSequence) (nodeRecords : NodeRecord
     else
       let rec mutate mutation =
         sprintf "Mutating using %A" mutation |> infoLog
+        let addOutboundConnection (toNode : NodeRecord) fromNode = 
+          let newOutboundConnections =
+            fromNode.OutboundConnections
+            |> Map.add (System.Guid.NewGuid()) (toNode.NodeId,1.0)
+          { fromNode with OutboundConnections = newOutboundConnections }
         let selectRandomNode (nodeRecords : NodeRecords) =
           let seqOfNodeRecords = nodeRecords |> Map.toSeq
           let randomNumber =
@@ -167,7 +172,7 @@ let mutateNeuralNetwork (mutations : MutationSequence) (nodeRecords : NodeRecord
 //            nodeRecords 
 //            |> Map.filter(fun _ x -> x.NodeType = NodeRecordType.Neuron)
 //            |> selectRandomNode
-       // | AddInboundConnection ->
+        | Mutation.AddInboundConnection 
         | Mutation.AddOutboundConnection ->
           let _,nodeToAddOutboundConnection = 
             nodeRecords 
@@ -177,17 +182,39 @@ let mutateNeuralNetwork (mutations : MutationSequence) (nodeRecords : NodeRecord
             nodeRecords 
             |> Map.filter(fun _ x -> x.NodeType <> NodeRecordType.Sensor)
             |> selectRandomNode
-          let addOutboundConnection (toNode : NodeRecord) fromNode = 
-            let newOutboundConnections =
-              fromNode.OutboundConnections
-              |> Map.add (System.Guid.NewGuid()) (toNode.NodeId,1.0)
-            { fromNode with OutboundConnections = newOutboundConnections }
           let mutatedNode = 
             nodeToAddOutboundConnection
             |> addOutboundConnection nodeToConnectTo
           nodeRecords
           |> Map.add mutatedNode.NodeId mutatedNode
-       // | AddNeuron ->
+        | AddNeuron ->
+          let _,inputNode = 
+            nodeRecords 
+            |> Map.filter(fun _ x -> x.NodeType <> NodeRecordType.Actuator)
+            |> selectRandomNode
+          let _,outputNode =
+            nodeRecords 
+            |> Map.filter(fun _ x -> x.NodeType <> NodeRecordType.Sensor)
+            |> selectRandomNode
+          let blankNewNeuronRecord =
+            let layer = outputNode.Layer
+            let outboundConnections = Map.empty 
+            let nodeId = 0  
+            {
+              Layer = layer
+              NodeId = nodeId
+              NodeType = NodeRecordType.Neuron
+              OutboundConnections = outboundConnections
+              Bias = None
+              ActivationFunctionId = Some 1
+              SyncFunctionId = None
+              OutputHookId = None 
+            }
+          let mutatedNode = 
+            nodeToAddOutboundConnection
+            |> addOutboundConnection nodeToConnectTo
+          nodeRecords
+          |> Map.add mutatedNode.NodeId mutatedNode
        // | OutSplice ->
        // | InSplice ->
        // | AddSensorLink ->
