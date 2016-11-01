@@ -48,7 +48,7 @@ let assertNodeRecordsContainsNode (nodeRecords : NodeRecords) (neuronId, (_, liv
       nodeRecord.ActivationFunctionId |> should equal Option.None
       nodeRecord.Bias |> should equal Option.None
       nodeRecord.NodeType |> should equal NodeRecordType.Sensor
-      nodeRecord.Layer |> should equal 1
+      nodeRecord.Layer |> should equal 0.0
 
       liveNeuronNodeRecord.OutboundConnections
       |> Map.iter (assertRecordConnectionIsIdenticalTo nodeRecord.OutboundConnections)
@@ -74,7 +74,7 @@ let ``Should be able to export a simple neural network to a map of node records`
 
   let actuatorId = getNodeId()
   let actuator =
-    let layer = 3
+    let layer = 3.0
     createActuator actuatorId layer testHook outputHookId
     |> createNeuronInstance
 
@@ -82,7 +82,7 @@ let ``Should be able to export a simple neural network to a map of node records`
   let neuron =
     let activationFunction = id
     let bias = 10.0
-    let layer = 2
+    let layer = 2.0
     createNeuron neuronId layer activationFunction activationFunctionId bias
     |> createNeuronInstance
 
@@ -142,13 +142,13 @@ let ``Should be able to construct a simple neural network from a map of node rec
 
   //Create Neurons
   let actuator =
-    let layer = 3
+    let layer = 3.0
     createActuator actuatorId layer testHook outputHookId
     |> createNeuronInstance
   let neuron =
     let bias = 10.0
     let id = getNodeId()
-    let layer = 2
+    let layer = 2.0
     createNeuron id layer activationFunction activationFunctionId bias
     |> createNeuronInstance
   let sensor =
@@ -205,7 +205,7 @@ let ``Should be able to construct a simple neural network from a map of node rec
    |> constructNeuralNetwork activationFunctions syncFunctions outputHooks
   let sensor =
     let sensorId = (fst sensor)
-    let layer = 1
+    let layer = 1.0
     (sensorId,
      neuralNetwork
      |> Map.find sensorId)
@@ -240,24 +240,24 @@ let ``Should be able to solve the XNOR problem with predefined weights, convert 
 
   let actuator =
     let id = getNodeId()
-    let layer = 4
+    let layer = 4.0
     createNeuronInstance <| createActuator id layer testHook outputHookId
   let neuron_a3_1 =
     let bias = -10.0
     let id = getNodeId()
-    let layer = 3
+    let layer = 3.0
     createNeuron id layer activationFunction 0 bias
     |> createNeuronInstance
   let neuron_a2_2 =
     let bias = 10.0
     let id = getNodeId()
-    let layer = 2
+    let layer = 2.0
     createNeuron id layer activationFunction activationFunctionId bias
     |> createNeuronInstance
   let neuron_a2_1 =
     let bias = -30.0
     let id = getNodeId()
-    let layer = 2
+    let layer = 2.0
     createNeuron id layer activationFunction activationFunctionId bias
     |> createNeuronInstance
   let sensor_x1 =
@@ -398,7 +398,7 @@ let ``Should be able to export a recurrent neural network to a map of node recor
 
   let actuatorId = getNodeId()
   let actuator =
-    let layer = 3
+    let layer = 3.0
     createActuator actuatorId layer testHook outputHookId
     |> createNeuronInstance
 
@@ -406,7 +406,7 @@ let ``Should be able to export a recurrent neural network to a map of node recor
   let neuron =
     let activationFunction = id
     let bias = 10.0
-    let layer = 2
+    let layer = 2.0
     createNeuron neuronId layer activationFunction activationFunctionId bias
     |> createNeuronInstance
 

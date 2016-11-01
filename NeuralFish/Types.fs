@@ -18,6 +18,10 @@ type ActivationFunction = NeuronOutput -> NeuronOutput
 type SyncFunction = unit -> NeuronOutput seq
 type OutputHookFunction = NeuronOutput -> unit
 
+type ActivationFunctions = Map<ActivationFunctionId,ActivationFunction>
+type SyncFunctions = Map<SyncFunctionId,SyncFunction>
+type OutputHookFunctions = Map<OutputHookId, OutputHookFunction>
+
 type NeuronLayerId = float
 
 type NeuronConnectionId = System.Guid

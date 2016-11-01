@@ -18,7 +18,7 @@ let ``When the Sensor receives the sync message, the neural circuit should activ
 
   //Create Neurons
   let actuator =
-    let layer = 3
+    let layer = 3.0
     createActuator actuatorId layer testHook outputHookId
     |> createNeuronInstance
   let neuron =
@@ -26,7 +26,7 @@ let ``When the Sensor receives the sync message, the neural circuit should activ
     let activationFunction = id
     let bias = 10.0
     let nodeId = getNodeId()
-    let layer = 2
+    let layer = 2.0
     createNeuron nodeId layer activationFunction activationFunctionId bias
     |> createNeuronInstance
 
@@ -83,26 +83,26 @@ let ``The NeuralFish should be able to solve the XNOR problem with predefined we
 
   let actuator =
     let id = getNodeId()
-    let layer = 4
+    let layer = 4.0
     createNeuronInstance <| createActuator id layer testHook 0
   let neuron_a3_1 =
     let activationFunction = sigmoid
     let bias = -10.0
     let id = getNodeId()
-    let layer = 3
+    let layer = 3.0
     createNeuron id layer activationFunction 0 bias
     |> createNeuronInstance
   let neuron_a2_2 =
     let activationFunction = sigmoid
     let bias = 10.0
     let id = getNodeId()
-    let layer = 2
+    let layer = 2.0
     createNeuron id layer activationFunction activationFunctionId bias
     |> createNeuronInstance
   let neuron_a2_1 =
     let bias = -30.0
     let id = getNodeId()
-    let layer = 2
+    let layer = 2.0
     createNeuron id layer activationFunction activationFunctionId bias
     |> createNeuronInstance
   let sensor_x1 =
@@ -180,7 +180,7 @@ let ``Should be able to handle recurrent neural connections`` () =
 
   //Create Neurons
   let actuator =
-    let layer = 3
+    let layer = 3.0
     createActuator actuatorId layer testHook outputHookId
     |> createNeuronInstance
   let neuron =
@@ -188,7 +188,7 @@ let ``Should be able to handle recurrent neural connections`` () =
     let activationFunction = id
     let bias = 10.0
     let nodeId = getNodeId()
-    let layer = 2
+    let layer = 2.0
     createNeuron nodeId layer activationFunction activationFunctionId bias
     |> createNeuronInstance
 

@@ -13,7 +13,10 @@ let constructNodeRecords (liveNeurons : NeuralNetwork) : NodeRecords =
 type private NeuronIdGeneratorMsg =
   | GetIntId of AsyncReplyChannel<int>
 
-let constructNeuralNetwork (activationFunctions : Map<ActivationFunctionId,ActivationFunction>)  (syncFunctions : Map<SyncFunctionId,SyncFunction>) (outputHooks : Map<OutputHookId,OutputHookFunction>) (nodeRecords : NodeRecords) : NeuralNetwork =
+let constructNeuralNetwork (activationFunctions : ActivationFunctions)
+  (syncFunctions : SyncFunctions)
+    (outputHooks : OutputHookFunctions)
+      (nodeRecords : NodeRecords) : NeuralNetwork =
   let createNeuronFromRecord nodeId (nodeRecord : NodeRecord) =
     let (neuronId, neuronInstance) =
       match nodeRecord.NodeType with

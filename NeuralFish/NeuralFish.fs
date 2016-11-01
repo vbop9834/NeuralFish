@@ -58,7 +58,7 @@ let createSensor id syncFunction syncFunctionId =
   let record =
     {
       NodeId = id
-      Layer = 1
+      Layer = 0.0
       NodeType = NodeRecordType.Sensor
       OutboundConnections = Map.empty
       Bias = None

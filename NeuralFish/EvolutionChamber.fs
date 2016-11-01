@@ -43,7 +43,12 @@ type Mutation =
 
 type MutationSequence = Mutation seq
 
-let mutateNeuralNetwork (mutations : MutationSequence) (nodeRecords : NodeRecords)  =
+let mutateNeuralNetwork (mutations : MutationSequence)
+  (activationFunctions : ActivationFunctions)
+    (syncFunctions : SyncFunctions)
+      (outputHooks : OutputHookFunctions)
+        (nodeRecords : NodeRecords) =
+
   let random = System.Random()
   let getRandomDoubleBetween minValue maxValue =
     random.NextDouble() * (maxValue - minValue) + minValue
@@ -80,6 +85,14 @@ let mutateNeuralNetwork (mutations : MutationSequence) (nodeRecords : NodeRecord
             |> Seq.length
             |> random.Next
           seqOfNodeRecords
+          |> Seq.item randomNumber
+        let activationFunctionIds = activationFunctions |> Map.toSeq |> Seq.map (fun (id, _) -> id)
+        let selectRandomActivationFunctionId () =
+          let randomNumber =
+              activationFunctionIds
+              |> Seq.length
+              |> random.Next
+          activationFunctionIds
           |> Seq.item randomNumber
 
         match mutation with
@@ -188,33 +201,51 @@ let mutateNeuralNetwork (mutations : MutationSequence) (nodeRecords : NodeRecord
           nodeRecords
           |> Map.add mutatedNode.NodeId mutatedNode
         | AddNeuron ->
-          let _,inputNode = 
+          let _,inboundNode = 
             nodeRecords 
             |> Map.filter(fun _ x -> x.NodeType <> NodeRecordType.Actuator)
             |> selectRandomNode
-          let _,outputNode =
+          let _,outboundNode =
             nodeRecords 
             |> Map.filter(fun _ x -> x.NodeType <> NodeRecordType.Sensor)
             |> selectRandomNode
           let blankNewNeuronRecord =
-            let layer = outputNode.Layer
+            let seqOfNodes =
+              nodeRecords
+              |> Map.toSeq
+            let layer = 
+              let maxLayer =
+                seqOfNodes
+                |> Seq.maxBy(fun (_,nodeRecord) -> nodeRecord.Layer)
+                |> (fun (_,record) -> record.Layer)
+              getRandomDoubleBetween 1.0 maxLayer
+              |> floor
             let outboundConnections = Map.empty 
-            let nodeId = 0  
+            let nodeId =
+              seqOfNodes
+              |> Seq.maxBy(fun (nodeId,_) -> nodeId)
+              |> (fun (nodeId,_) -> nodeId + 1)
+            let activationFunctionId = selectRandomActivationFunctionId ()
+              
             {
               Layer = layer
               NodeId = nodeId
               NodeType = NodeRecordType.Neuron
               OutboundConnections = outboundConnections
               Bias = None
-              ActivationFunctionId = Some 1
+              ActivationFunctionId = Some activationFunctionId
               SyncFunctionId = None
               OutputHookId = None 
             }
-          let mutatedNode = 
-            nodeToAddOutboundConnection
-            |> addOutboundConnection nodeToConnectTo
+          let newNeuronRecordWithOutbound = 
+            blankNewNeuronRecord
+            |> addOutboundConnection outboundNode
+          let inboundNodeWithNewNeuron = 
+            inboundNode
+            |> addOutboundConnection newNeuronRecordWithOutbound
           nodeRecords
-          |> Map.add mutatedNode.NodeId mutatedNode
+          |> Map.add newNeuronRecordWithOutbound.NodeId newNeuronRecordWithOutbound
+          |> Map.add inboundNodeWithNewNeuron.NodeId inboundNodeWithNewNeuron
        // | OutSplice ->
        // | InSplice ->
        // | AddSensorLink ->
