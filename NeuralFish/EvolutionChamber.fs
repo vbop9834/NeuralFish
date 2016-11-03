@@ -31,7 +31,7 @@ type Mutation =
   // | RemoveSensorLink
   // | RemoveActuatorLink
   | AddSensor
-  // | AddActuator
+  | AddActuator
   // | RemoveInboundConnection
   // | RemoveOutboundConnection
   // | RemoveNeuron
@@ -88,6 +88,7 @@ let mutateNeuralNetwork (mutations : MutationSequence)
           |> Seq.item randomNumber
         let activationFunctionIds = activationFunctions |> Map.toSeq |> Seq.map (fun (id, _) -> id)
         let syncFunctionIds = syncFunctions |> Map.toSeq |> Seq.map (fun (id, _) -> id)
+        let outputHookFunctionIds = outputHooks |> Map.toSeq |> Seq.map (fun (id, _) -> id)
         let selectRandomActivationFunctionId () =
           let randomNumber =
               activationFunctionIds
@@ -101,6 +102,13 @@ let mutateNeuralNetwork (mutations : MutationSequence)
             |> Seq.length
             |> random.Next
           syncFunctionIds
+          |> Seq.item randomNumber
+        let selectRandomOutputHookFunctionId () =
+          let randomNumber =
+            outputHookFunctionIds
+            |> Seq.length
+            |> random.Next
+          outputHookFunctionIds
           |> Seq.item randomNumber
 
         match mutation with
@@ -290,7 +298,45 @@ let mutateNeuralNetwork (mutations : MutationSequence)
             |> addOutboundConnection outboundNode
           nodeRecords
           |> Map.add newSensorWithOutbound.NodeId newSensorWithOutbound
-       // | AddActuator ->
+        | AddActuator ->
+          let _,inboundNode =
+            nodeRecords 
+            |> Map.filter(fun _ x -> x.NodeType <> NodeRecordType.Actuator)
+            |> selectRandomNode
+          let blankActuatorRecord =
+            let seqOfNodes =
+              nodeRecords
+              |> Map.toSeq
+            let layer = 
+              let maxLayer =
+                seqOfNodes
+                |> Seq.maxBy(fun (_,nodeRecord) -> nodeRecord.Layer)
+                |> (fun (_,record) -> record.Layer)
+              maxLayer
+              |> round
+            let outboundConnections = Map.empty 
+            let nodeId =
+              seqOfNodes
+              |> Seq.maxBy(fun (nodeId,_) -> nodeId)
+              |> (fun (nodeId,_) -> nodeId + 1)
+            let outputHookId = selectRandomOutputHookFunctionId ()
+              
+            {
+              Layer = layer
+              NodeId = nodeId
+              NodeType = NodeRecordType.Actuator
+              OutboundConnections = outboundConnections
+              Bias = None
+              ActivationFunctionId = None
+              SyncFunctionId = None
+              OutputHookId = Some outputHookId 
+            }
+          let newInboundWithActuatorOutboundConnection = 
+            inboundNode
+            |> addOutboundConnection blankActuatorRecord
+          nodeRecords
+          |> Map.add newInboundWithActuatorOutboundConnection.NodeId newInboundWithActuatorOutboundConnection
+          |> Map.add blankActuatorRecord.NodeId blankActuatorRecord
        // | RemoveInboundConnection ->
        // | RemoveOutboundConnection ->
        // | RemoveNeuron ->
