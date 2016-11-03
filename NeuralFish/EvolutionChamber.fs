@@ -30,7 +30,7 @@ type Mutation =
   // | AddActuatorLink
   // | RemoveSensorLink
   // | RemoveActuatorLink
-  // | AddSensor
+  | AddSensor
   // | AddActuator
   // | RemoveInboundConnection
   // | RemoveOutboundConnection
@@ -87,12 +87,20 @@ let mutateNeuralNetwork (mutations : MutationSequence)
           seqOfNodeRecords
           |> Seq.item randomNumber
         let activationFunctionIds = activationFunctions |> Map.toSeq |> Seq.map (fun (id, _) -> id)
+        let syncFunctionIds = syncFunctions |> Map.toSeq |> Seq.map (fun (id, _) -> id)
         let selectRandomActivationFunctionId () =
           let randomNumber =
               activationFunctionIds
               |> Seq.length
               |> random.Next
           activationFunctionIds
+          |> Seq.item randomNumber
+        let selectRandomSyncFunctionId () =
+          let randomNumber =
+            syncFunctionIds
+            |> Seq.length
+            |> random.Next
+          syncFunctionIds
           |> Seq.item randomNumber
 
         match mutation with
@@ -252,7 +260,36 @@ let mutateNeuralNetwork (mutations : MutationSequence)
        // | AddActuatorLink ->
        // | RemoveSensorLink ->
        // | RemoveActuatorLink ->
-       // | AddSensor ->
+        | AddSensor ->
+          let _,outboundNode =
+            nodeRecords 
+            |> Map.filter(fun _ x -> x.NodeType <> NodeRecordType.Sensor)
+            |> selectRandomNode
+          let blankSensorRecord =
+            let layer = 0.0
+            let outboundConnections = Map.empty 
+            let nodeId =
+              nodeRecords
+              |> Map.toSeq
+              |> Seq.maxBy(fun (nodeId,_) -> nodeId)
+              |> (fun (nodeId,_) -> nodeId + 1)
+            let syncFunctionId = selectRandomSyncFunctionId ()
+              
+            {
+              Layer = layer
+              NodeId = nodeId
+              NodeType = NodeRecordType.Sensor
+              OutboundConnections = outboundConnections
+              Bias = None
+              ActivationFunctionId = None
+              SyncFunctionId = Some syncFunctionId
+              OutputHookId = None 
+            }
+          let newSensorWithOutbound = 
+            blankSensorRecord
+            |> addOutboundConnection outboundNode
+          nodeRecords
+          |> Map.add newSensorWithOutbound.NodeId newSensorWithOutbound
        // | AddActuator ->
        // | RemoveInboundConnection ->
        // | RemoveOutboundConnection ->

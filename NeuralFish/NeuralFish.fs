@@ -30,6 +30,12 @@ let killNeuralNetwork (liveNeurons : NeuralNetwork) =
 
 let synchronize (_, (_,sensor : NeuronInstance)) =
   Sync |> sensor.Post
+  
+let synchronizeNN (neuralNetwork : NeuralNetwork) =
+  let synchronizeMap _ (_,instance) =
+    (None, (None, instance)) |> synchronize
+  neuralNetwork
+  |> Map.iter synchronizeMap
 
 let synapseDotProduct synapses =
   let rec loop synapses =
@@ -162,7 +168,7 @@ let createNeuronInstance neuronType =
         let! someMsg = inbox.TryReceive 20000
         match someMsg with
         | None ->
-          "Neuron did not receive message in 20 seconds. Looping mailbox" |> infoLog
+          sprintf "Neuron %A did not receive message in 20 seconds. Looping mailbox" nodeId |> infoLog
           return! loop barrier inboundConnections outboundConnections
         | Some msg ->
           match msg with

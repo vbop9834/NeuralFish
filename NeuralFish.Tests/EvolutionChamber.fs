@@ -521,3 +521,103 @@ let ``AddNeuron mutation should add a new neuron and connect it randomly in the 
   let testAssertionCount = Die |> testHookMailbox.PostAndReply
 
   testAssertionCount |> should equal 2
+
+[<Fact>]
+let ``AddSensor mutation should add a new sensor and connect it randomly in the neural network`` () =
+  //Test setup
+  let (testHook, testHookMailbox) = getTestHook ()
+  let getNodeId = getNumberGenerator()
+  let actuatorId = getNodeId()
+  let outputHookId = 9001
+  let activationFunctionId = 0
+  let activationFunction = id
+  let syncFunctionId = 0
+  let syncFunction =
+    let data =
+      [1.0; 1.0; 1.0; 1.0; 1.0]
+      |> List.toSeq
+    fakeDataGenerator([data])
+
+  //Create Neurons
+  let actuator =
+    let layer = 3.0
+    createActuator actuatorId layer testHook outputHookId
+    |> createNeuronInstance
+  let neuron =
+    let bias = 0.0
+    let nodeId = getNodeId()
+    let layer = 2.0
+    createNeuron nodeId layer activationFunction activationFunctionId bias
+    |> createNeuronInstance
+
+  let sensor =
+    let id = getNodeId()
+    createSensor id syncFunction syncFunctionId
+    |> createNeuronInstance
+
+  //Connect Neurons
+  let weights =
+    [
+      20.0
+      20.0
+      20.0
+      20.0
+      20.0
+    ] |> List.toSeq
+
+  sensor |> connectSensorToNode neuron weights
+  neuron |> connectNodeToActuator actuator
+
+  //Synchronize and Assert!
+  synchronize sensor
+  WaitForData
+  |> testHookMailbox.PostAndReply
+  |> (should (equalWithin 0.1) 100.0)
+
+  let activationFunctions : ActivationFunctions =
+    Map.empty
+    |> Map.add activationFunctionId activationFunction
+  let syncFunctions =
+    Map.empty
+    |> Map.add syncFunctionId syncFunction
+  let outputHooks =
+    Map.empty
+    |> Map.add outputHookId testHook
+
+  let nodeRecords =
+    Map.empty
+    |> addNeuronToMap actuator
+    |> addNeuronToMap neuron
+    |> addNeuronToMap sensor
+    |> constructNodeRecords
+    |> mutateNeuralNetwork [AddSensor] activationFunctions syncFunctions outputHooks
+
+  [
+    sensor
+    neuron
+    actuator
+  ]
+  |> Map.ofList
+  |> killNeuralNetwork
+
+
+  let neuralNetwork =
+   nodeRecords
+   |> constructNeuralNetwork activationFunctions syncFunctions outputHooks
+
+  nodeRecords
+  |> Map.filter (fun key record -> record.NodeType = NodeRecordType.Sensor)
+  |> Map.toSeq
+  |> Seq.length
+  |> should be (greaterThan 1)
+
+  neuralNetwork |> synchronizeNN
+  WaitForData
+  |> testHookMailbox.PostAndReply
+  |> (should be (greaterThan 0.0))
+
+  neuralNetwork |> killNeuralNetwork
+
+  let testAssertionCount = Die |> testHookMailbox.PostAndReply
+
+  testAssertionCount |> should equal 2
