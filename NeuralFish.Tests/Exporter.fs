@@ -190,7 +190,7 @@ let ``Should be able to construct a simple neural network from a map of node rec
   neuron |> assertNodeRecordsContainsNode nodeRecords
   sensor |> assertNodeRecordsContainsNode nodeRecords
 
-  let activationFunctions : Map<ActivationFunctionId,ActivationFunction> =
+  let activationFunctions : ActivationFunctions =
     Map.empty
     |> Map.add activationFunctionId activationFunction
   let syncFunctions =
@@ -455,3 +455,144 @@ let ``Should be able to export a recurrent neural network to a map of node recor
   ]
   |> Map.ofList
   |> killNeuralNetwork
+
+[<Fact>]
+let ``Should be able to deconstruct then reconstruct recurrent neural network with three neurons`` () =
+  //Test setup
+  let (testHook, testHookMailbox) = getTestHook ()
+  let getNodeId = getNumberGenerator()
+  let actuatorId = getNodeId()
+  let outputHookId = 9001
+  let syncFunctionId = 0
+  let activationFunctionId = 0
+  let activationFunction = id
+  let syncFunction =
+    let data =
+      [1.0; 1.0; 1.0; 1.0; 1.0]
+      |> List.toSeq
+    fakeDataGenerator([data])
+
+  //Create Neurons
+  let actuator =
+    let layer = 3.0
+    createActuator actuatorId layer testHook outputHookId
+    |> createNeuronInstance
+  let neuron_1a =
+    let bias = 10.0
+    let nodeId = getNodeId()
+    let layer = 1.0
+    createNeuron nodeId layer activationFunction activationFunctionId bias
+    |> createNeuronInstance
+
+  let neuron_1b =
+    let bias = 10.0
+    let nodeId = getNodeId()
+    let layer = 1.0
+    createNeuron nodeId layer activationFunction activationFunctionId bias
+    |> createNeuronInstance
+
+  let neuron_2a =
+    let bias = 10.0
+    let nodeId = getNodeId()
+    let layer = 2.0
+    createNeuron nodeId layer activationFunction activationFunctionId bias
+    |> createNeuronInstance
+
+  let sensor =
+    let nodeId = getNodeId()
+    createSensor nodeId syncFunction syncFunctionId
+    |> createNeuronInstance
+
+  //Connect Neurons
+  let weights =
+    [
+      20.0
+      20.0
+      20.0
+      20.0
+      20.0
+    ] |> List.toSeq
+
+  sensor |> connectSensorToNode neuron_1a weights
+  sensor |> connectSensorToNode neuron_1b weights
+  sensor |> connectSensorToNode neuron_2a weights
+  neuron_1a |> connectNodeToActuator actuator
+  neuron_1b |> connectNodeToActuator actuator
+  neuron_1a |> connectNodeToNeuron neuron_1a 20.0
+  neuron_1a |> connectNodeToNeuron neuron_1b 20.0
+  neuron_2a |> connectNodeToNeuron neuron_1b 20.0
+
+  //Synchronize and Assert!
+  //Since there is a recurrent connection then the output will
+  synchronize sensor
+  WaitForData
+  |> testHookMailbox.PostAndReply
+  |> (should equal 220.0)
+
+  synchronize sensor
+  WaitForData
+  |> testHookMailbox.PostAndReply
+  |> (should equal 6820.0)
+
+  synchronize sensor
+  WaitForData
+  |> testHookMailbox.PostAndReply
+  |> (should equal 94820.0)
+
+  let nodeRecords =
+    Map.empty
+    |> addNeuronToMap actuator
+    |> addNeuronToMap neuron_1a
+    |> addNeuronToMap neuron_1b
+    |> addNeuronToMap neuron_2a
+    |> addNeuronToMap sensor
+    |> constructNodeRecords
+
+  actuator |> assertNodeRecordsContainsNode nodeRecords
+  neuron_1a |> assertNodeRecordsContainsNode nodeRecords
+  neuron_1b |> assertNodeRecordsContainsNode nodeRecords
+  neuron_2a |> assertNodeRecordsContainsNode nodeRecords
+  sensor |> assertNodeRecordsContainsNode nodeRecords
+
+  [
+    sensor
+    neuron_1a
+    neuron_1b
+    neuron_2a
+    actuator
+  ]
+  |> Map.ofList
+  |> killNeuralNetwork
+
+  let activationFunctions : ActivationFunctions =
+    Map.empty
+    |> Map.add activationFunctionId activationFunction
+  let syncFunctions =
+    Map.empty
+    |> Map.add syncFunctionId syncFunction
+  let outputHooks =
+    Map.empty
+    |> Map.add outputHookId testHook
+
+  let neuralNetwork =
+    nodeRecords
+    |> constructNeuralNetwork activationFunctions syncFunctions outputHooks
+
+  synchronizeNN neuralNetwork
+  WaitForData
+  |> testHookMailbox.PostAndReply
+  |> (should equal 220.0)
+
+  synchronizeNN neuralNetwork
+  WaitForData
+  |> testHookMailbox.PostAndReply
+  |> (should equal 6820.0)
+
+  synchronizeNN neuralNetwork
+  WaitForData
+  |> testHookMailbox.PostAndReply
+  |> (should equal 94820.0)
+
+  neuralNetwork |> killNeuralNetwork
+
+  Die |> testHookMailbox.PostAndReply
