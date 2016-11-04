@@ -5,6 +5,7 @@ open NeuralFish.Core
 open NeuralFish.Exporter
 
 type Mutation =
+  | MutateActivationFunction
   | AddBias
   | RemoveBias
   | MutateWeights
@@ -112,6 +113,15 @@ let mutateNeuralNetwork (mutations : MutationSequence)
           |> Seq.item randomNumber
 
         match mutation with
+        | MutateActivationFunction ->
+          let _,neuronToMutate =
+            nodeRecords
+            |> Map.filter(fun _ x -> x.NodeType = NodeRecordType.Neuron)
+            |> selectRandomNode
+          let newActivationFunctionId = selectRandomActivationFunctionId ()
+          let mutatedNeuron = { neuronToMutate with ActivationFunctionId = Some newActivationFunctionId }
+          nodeRecords
+          |> Map.add mutatedNeuron.NodeId mutatedNeuron
         | AddBias ->
           let _,neuronToAddBias =
             nodeRecords
