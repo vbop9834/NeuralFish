@@ -114,9 +114,7 @@ let ``AddBias mutation should add a bias to a neuron that has none`` () =
 
   neuralNetwork |> killNeuralNetwork
 
-  let testAssertionCount = Die |> testHookMailbox.PostAndReply
-
-  testAssertionCount |> should equal 2
+  Die |> testHookMailbox.PostAndReply
 
 [<Fact>]
 let ``RemoveBias mutation should remove a bias to a neuron that has some bias`` () =
@@ -219,9 +217,7 @@ let ``RemoveBias mutation should remove a bias to a neuron that has some bias`` 
 
   neuralNetwork |> killNeuralNetwork
 
-  let testAssertionCount = Die |> testHookMailbox.PostAndReply
-
-  testAssertionCount |> should equal 2
+  Die |> testHookMailbox.PostAndReply
 
 [<Fact>]
 let ``MutateWeights mutation should mutate the weights of all outbound connections in a neuron`` () =
@@ -330,9 +326,7 @@ let ``MutateWeights mutation should mutate the weights of all outbound connectio
 
   neuralNetwork |> killNeuralNetwork
 
-  let testAssertionCount = Die |> testHookMailbox.PostAndReply
-
-  testAssertionCount |> should equal 2
+  Die |> testHookMailbox.PostAndReply
 
 [<Fact>]
 let ``AddOutboundConnection mutation should mutate connect a sensor or neuron to a neuron or actuator`` () =
@@ -424,9 +418,7 @@ let ``AddOutboundConnection mutation should mutate connect a sensor or neuron to
 
   neuralNetwork |> killNeuralNetwork
 
-  let testAssertionCount = Die |> testHookMailbox.PostAndReply
-
-  testAssertionCount |> should equal 2
+  Die |> testHookMailbox.PostAndReply
  
 [<Fact>]
 let ``AddNeuron mutation should add a new neuron and connect it randomly in the neural network`` () =
@@ -529,9 +521,7 @@ let ``AddNeuron mutation should add a new neuron and connect it randomly in the 
 
   neuralNetwork |> killNeuralNetwork
 
-  let testAssertionCount = Die |> testHookMailbox.PostAndReply
-
-  testAssertionCount |> should equal 2
+  Die |> testHookMailbox.PostAndReply
 
 [<Fact>]
 let ``AddSensor mutation should add a new sensor and connect it randomly in the neural network`` () =
@@ -629,9 +619,7 @@ let ``AddSensor mutation should add a new sensor and connect it randomly in the 
 
   neuralNetwork |> killNeuralNetwork
 
-  let testAssertionCount = Die |> testHookMailbox.PostAndReply
-
-  testAssertionCount |> should equal 2
+  Die |> testHookMailbox.PostAndReply
 
 [<Fact>]
 let ``AddActuator mutation should add a new actuator and connect it randomly in the neural network`` () =
@@ -728,7 +716,7 @@ let ``AddActuator mutation should add a new actuator and connect it randomly in 
 
   neuralNetwork |> killNeuralNetwork
 
-  Die |> testHookMailbox.PostAndReply |> ignore
+  Die |> testHookMailbox.PostAndReply
 
 
 [<Fact>]
@@ -832,7 +820,7 @@ let ``AddSensorLink mutation should add a sensor connection randomly in the neur
 
   neuralNetwork |> killNeuralNetwork
 
-  Die |> testHookMailbox.PostAndReply |> ignore
+  Die |> testHookMailbox.PostAndReply
 
 [<Fact>]
 let ``AddActuatorLink mutation should add an actuaor connection randomly in the neural network`` () =
@@ -945,7 +933,7 @@ let ``AddActuatorLink mutation should add an actuaor connection randomly in the 
 
   neuralNetwork |> killNeuralNetwork
 
-  Die |> testHookMailbox.PostAndReply |> ignore
+  Die |> testHookMailbox.PostAndReply
 
 [<Fact>]
 let ``MutateActivationFunction mutation should mutate the activation function of a neuron randoly`` () =
@@ -1049,9 +1037,7 @@ let ``MutateActivationFunction mutation should mutate the activation function of
 
   neuralNetwork |> killNeuralNetwork
 
-  let testAssertionCount = Die |> testHookMailbox.PostAndReply
-
-  testAssertionCount |> should equal 2
+  Die |> testHookMailbox.PostAndReply
 
 [<Fact>]
 let ``MinimalMutationSequence should be capable of mutating records and executing correctly`` () =
@@ -1148,6 +1134,4 @@ let ``MinimalMutationSequence should be capable of mutating records and executin
 
   neuralNetwork |> killNeuralNetwork
 
-  let testAssertionCount = Die |> testHookMailbox.PostAndReply
-
-  testAssertionCount |> should equal 2
+  Die |> testHookMailbox.PostAndReply

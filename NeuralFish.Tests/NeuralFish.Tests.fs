@@ -68,9 +68,7 @@ let ``When the Sensor receives the sync message, the neural circuit should activ
   |> Map.ofList
   |> killNeuralNetwork
 
-  let testAssertionCount = Die |> testHookMailbox.PostAndReply
-
-  testAssertionCount |> should equal 1
+  Die |> testHookMailbox.PostAndReply
 
 [<Fact>]
 let ``The NeuralFish should be able to solve the XNOR problem with predefined weights`` () =
@@ -166,9 +164,7 @@ let ``The NeuralFish should be able to solve the XNOR problem with predefined we
   |> Map.ofList
   |> killNeuralNetwork
 
-  let testAssertionCount = Die |> testHookMailbox.PostAndReply
-
-  testAssertionCount |> should equal 4
+  Die |> testHookMailbox.PostAndReply
 
 [<Fact>]
 let ``Should be able to handle recurrent neural connections`` () =
@@ -242,6 +238,4 @@ let ``Should be able to handle recurrent neural connections`` () =
   |> Map.ofList
   |> killNeuralNetwork
 
-  let testAssertionCount = Die |> testHookMailbox.PostAndReply
-
-  testAssertionCount |> should equal 3
+  Die |> testHookMailbox.PostAndReply

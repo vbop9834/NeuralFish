@@ -228,9 +228,7 @@ let ``Should be able to construct a simple neural network from a map of node rec
   neuralNetwork
   |> killNeuralNetwork
 
-  let testAssertionCount = Die |> testHookMailbox.PostAndReply
-
-  testAssertionCount |> should equal 2
+  Die |> testHookMailbox.PostAndReply
 
 [<Fact>]
 let ``Should be able to solve the XNOR problem with predefined weights, convert Neural Network to records, then restore the network and get the same results`` () =
@@ -395,9 +393,7 @@ let ``Should be able to solve the XNOR problem with predefined weights, convert 
 
   neuralNetwork |> killNeuralNetwork
 
-  let testAssertionCount = Die |> testHookMailbox.PostAndReply
-
-  testAssertionCount |> should equal 8
+  Die |> testHookMailbox.PostAndReply
 
 [<Fact>]
 let ``Should be able to export a recurrent neural network to a map of node records`` () =
