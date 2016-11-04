@@ -165,10 +165,10 @@ let createNeuronInstance neuronType =
                    (inboundConnections : InboundNeuronConnections)
                      (outboundConnections : NeuronConnections) =
       async {
-        let! someMsg = inbox.TryReceive 20000
+        let! someMsg = inbox.TryReceive 250
         match someMsg with
         | None ->
-          sprintf "Neuron %A did not receive message in 20 seconds. Looping mailbox" nodeId |> infoLog
+          sprintf "Neuron %A did not receive message in 250 ms. Looping mailbox" nodeId |> infoLog
           return! loop barrier inboundConnections outboundConnections
         | Some msg ->
           match msg with
