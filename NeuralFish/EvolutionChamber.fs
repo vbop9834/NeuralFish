@@ -44,6 +44,21 @@ type Mutation =
 
 type MutationSequence = Mutation seq
 
+let minimalMutationSequence : MutationSequence =
+  [
+    MutateActivationFunction 
+    AddBias
+    RemoveBias
+    MutateWeights
+    AddInboundConnection
+    AddOutboundConnection
+    AddNeuron
+    AddSensor
+    AddActuator
+    AddSensorLink
+    AddActuatorLink
+  ] |> List.toSeq
+
 let mutateNeuralNetwork (mutations : MutationSequence)
   (activationFunctions : ActivationFunctions)
     (syncFunctions : SyncFunctions)
