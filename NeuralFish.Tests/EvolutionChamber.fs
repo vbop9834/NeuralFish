@@ -311,14 +311,17 @@ let ``MutateWeights mutation should mutate the weights of all outbound connectio
     let sensor = 
       nodeRecords
       |> Map.find sensorId
+
+    sensor.OutboundConnections
+    |> Map.exists(fun key (_,weight) -> weight <> 20.0)
+    |> should equal true
+
     let _,(_,weight) =
       sensor.OutboundConnections
       |> Map.toSeq
       |> Seq.head
     weight
 
-  // this has a chance of failing but is not very probable
-  newWeight |> should not' ((equalWithin 0.01) (weights |> Seq.head))
 
   synchronize newSensor
   WaitForData
