@@ -26,7 +26,7 @@ type Mutation =
   // | OutSplice
   // | InSplice
   // //Create a new neuron A and sandwich between two nodes
-  // | AddSensorLink
+  | AddSensorLink
   // | AddActuatorLink
   // | RemoveSensorLink
   // | RemoveActuatorLink
@@ -264,7 +264,21 @@ let mutateNeuralNetwork (mutations : MutationSequence)
           |> Map.add inboundNodeWithNewNeuron.NodeId inboundNodeWithNewNeuron
        // | OutSplice ->
        // | InSplice ->
-       // | AddSensorLink ->
+        | AddSensorLink ->
+          let _,outboundNode =
+            nodeRecords 
+            |> Map.filter(fun _ x -> x.NodeType <> NodeRecordType.Sensor)
+            |> selectRandomNode
+          let _, sensorNode =
+            nodeRecords 
+            |> Map.filter(fun _ x -> x.NodeType = NodeRecordType.Sensor)
+            |> selectRandomNode
+
+          let sensorNodeWithNewOutbound = 
+            sensorNode
+            |> addOutboundConnection outboundNode
+          nodeRecords
+          |> Map.add sensorNodeWithNewOutbound.NodeId sensorNodeWithNewOutbound
        // | AddActuatorLink ->
        // | RemoveSensorLink ->
        // | RemoveActuatorLink ->

@@ -719,3 +719,106 @@ let ``AddActuator mutation should add a new actuator and connect it randomly in 
 
   Die |> testHookMailbox.PostAndReply |> ignore
 
+
+[<Fact>]
+let ``AddSensorLink mutation should add a sensor connection randomly in the neural network`` () =
+  //Test setup
+  let (testHook, testHookMailbox) = getTestHook ()
+  let getNodeId = getNumberGenerator()
+  let actuatorId = getNodeId()
+  let outputHookId = 9001
+  let activationFunctionId = 0
+  let activationFunction = id
+  let syncFunctionId = 0
+  let syncFunction =
+    let data =
+      [1.0; 1.0; 1.0; 1.0; 1.0]
+      |> List.toSeq
+    fakeDataGenerator([data])
+
+  //Create Neurons
+  let actuator =
+    let layer = 3.0
+    createActuator actuatorId layer testHook outputHookId
+    |> createNeuronInstance
+  let neuron =
+    let bias = 0.0
+    let nodeId = getNodeId()
+    let layer = 2.0
+    createNeuron nodeId layer activationFunction activationFunctionId bias
+    |> createNeuronInstance
+
+  let sensor =
+    let id = getNodeId()
+    createSensor id syncFunction syncFunctionId
+    |> createNeuronInstance
+
+  //Connect Neurons
+  let weights =
+    [
+      20.0
+      20.0
+      20.0
+      20.0
+      20.0
+    ]
+  sensor |> connectSensorToNode neuron weights
+  neuron |> connectNodeToActuator actuator
+
+  //Synchronize and Assert!
+  synchronize sensor
+  WaitForData
+  |> testHookMailbox.PostAndReply
+  |> (should (equalWithin 0.1) 100.0)
+
+  let activationFunctions : ActivationFunctions =
+    Map.empty
+    |> Map.add activationFunctionId activationFunction
+  let syncFunctions =
+    Map.empty
+    |> Map.add syncFunctionId syncFunction
+  let outputHooks =
+    Map.empty
+    |> Map.add outputHookId testHook
+
+  let nodeRecords =
+    Map.empty
+    |> addNeuronToMap actuator
+    |> addNeuronToMap neuron
+    |> addNeuronToMap sensor
+    |> constructNodeRecords
+    |> mutateNeuralNetwork [AddSensorLink] activationFunctions syncFunctions outputHooks
+
+  [
+    sensor
+    neuron
+    actuator
+  ]
+  |> Map.ofList
+  |> killNeuralNetwork
+
+  let neuralNetwork =
+   nodeRecords
+   |> constructNeuralNetwork activationFunctions syncFunctions outputHooks
+
+  let _,sensor = 
+    let sensorId = sensor |> fst
+
+    nodeRecords
+    |> Map.toSeq
+    |> Seq.item sensorId
+  let previousWeightLength = weights |> List.length
+
+  sensor.OutboundConnections
+  |> Map.toSeq
+  |> Seq.length
+  |> should be (greaterThan previousWeightLength)
+
+  neuralNetwork |> synchronizeNN
+  WaitForData
+  |> testHookMailbox.PostAndReply
+  |> (should be (greaterThan 0.0))
+
+  neuralNetwork |> killNeuralNetwork
+
+  Die |> testHookMailbox.PostAndReply |> ignore
