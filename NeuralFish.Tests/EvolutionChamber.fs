@@ -112,6 +112,8 @@ let ``AddBias mutation should add a bias to a neuron that has none`` () =
   |> testHookMailbox.PostAndReply
   |> (should equal (addedBias + 100.0))
 
+  neuralNetwork |> killNeuralNetwork
+
   let testAssertionCount = Die |> testHookMailbox.PostAndReply
 
   testAssertionCount |> should equal 2
@@ -214,6 +216,8 @@ let ``RemoveBias mutation should remove a bias to a neuron that has some bias`` 
   WaitForData
   |> testHookMailbox.PostAndReply
   |> (should equal (100.0))
+
+  neuralNetwork |> killNeuralNetwork
 
   let testAssertionCount = Die |> testHookMailbox.PostAndReply
 
@@ -321,6 +325,8 @@ let ``MutateWeights mutation should mutate the weights of all outbound connectio
   |> testHookMailbox.PostAndReply
   |> (should equal newWeight)
 
+  neuralNetwork |> killNeuralNetwork
+
   let testAssertionCount = Die |> testHookMailbox.PostAndReply
 
   testAssertionCount |> should equal 2
@@ -412,6 +418,8 @@ let ``AddOutboundConnection mutation should mutate connect a sensor or neuron to
   WaitForData
   |> testHookMailbox.PostAndReply
   |> (should not' (equal 20.0))
+
+  neuralNetwork |> killNeuralNetwork
 
   let testAssertionCount = Die |> testHookMailbox.PostAndReply
 

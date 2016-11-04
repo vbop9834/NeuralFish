@@ -200,9 +200,18 @@ let ``Should be able to construct a simple neural network from a map of node rec
     Map.empty
     |> Map.add outputHookId testHook
 
+  [
+    sensor
+    neuron
+    actuator
+  ]
+  |> Map.ofList
+  |> killNeuralNetwork
+
   let neuralNetwork =
    nodeRecords
    |> constructNeuralNetwork activationFunctions syncFunctions outputHooks
+
   let sensor =
     let sensorId = (fst sensor)
     let layer = 1.0
@@ -336,10 +345,11 @@ let ``Should be able to solve the XNOR problem with predefined weights, convert 
     Map.empty
     |> Map.add outputHookId testHook
 
+  let neuralNetwork =
+    nodeRecords
+    |> constructNeuralNetwork activationFunctions syncFunctions outputHooks
+
   let sensorX1, sensorX2 =
-    let neuralNetwork =
-      nodeRecords
-      |> constructNeuralNetwork activationFunctions syncFunctions outputHooks
     let sensorIdX1 =
       let id = (fst sensor_x1)
       (id,1, neuralNetwork|> Map.find id)
@@ -382,6 +392,8 @@ let ``Should be able to solve the XNOR problem with predefined weights, convert 
   ]
   |> Map.ofList
   |> killNeuralNetwork
+
+  neuralNetwork |> killNeuralNetwork
 
   let testAssertionCount = Die |> testHookMailbox.PostAndReply
 
