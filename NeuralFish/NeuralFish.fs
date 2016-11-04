@@ -168,7 +168,7 @@ let createNeuronInstance neuronType =
         let! someMsg = inbox.TryReceive 250
         match someMsg with
         | None ->
-          sprintf "Neuron %A did not receive message in 250 ms. Looping mailbox" nodeId |> infoLog
+          // sprintf "Neuron %A did not receive message in 250 ms. Looping mailbox" nodeId |> infoLog
           return! loop barrier inboundConnections outboundConnections
         | Some msg ->
           match msg with
