@@ -179,17 +179,24 @@ let createNeuronInstance neuronType =
             | Actuator _ ->
               return! loop barrier inboundConnections outboundConnections
             | Sensor props ->
-              let rec processSensorSync dataStream connectionId connection =
-                let sendSynapseToNeuron (neuron : NeuronInstance) neuronConnectionId weight outputValue =
-                  (neuronConnectionId, (props.Record.NodeId, outputValue, weight))
-                  |> ReceiveInput
-                  |> neuron.Post
+              let dataStream = props.SyncFunction()
+              let outboundConnectionsSeq = outboundConnections |> Map.toSeq
+              let rec processSensorSync dataStream remainingConnections =
+                if (dataStream |> Seq.isEmpty || remainingConnections |> Seq.isEmpty) then
+                  ()
+                else
+                  let sendSynapseToNeuron (neuron : NeuronInstance) neuronConnectionId weight outputValue =
+                    (neuronConnectionId, (props.Record.NodeId, outputValue, weight))
+                    |> ReceiveInput
+                    |> neuron.Post
 
-                let data = dataStream |> Seq.head
-                sprintf "Sending %A to connection %A with a weight of %A" data connectionId connection.Weight |> infoLog
-                data |> sendSynapseToNeuron connection.Neuron connectionId connection.Weight
-              outboundConnections
-              |> Map.iter (processSensorSync <| props.SyncFunction())
+                  let data = dataStream |> Seq.head
+                  let (connectionId, connection) = remainingConnections |> Seq.head 
+                  sprintf "Sending %A to connection %A with a weight of %A" data connectionId connection.Weight |> infoLog
+                  data |> sendSynapseToNeuron connection.Neuron connectionId connection.Weight
+                  let newDataStream = (dataStream |> Seq.tail)
+                  processSensorSync newDataStream (remainingConnections |> Seq.tail)
+              processSensorSync dataStream outboundConnectionsSeq
               return! loop barrier inboundConnections outboundConnections
           | ReceiveInput (neuronConnectionId, package) ->
             let updatedBarrier : IncomingSynapses =
