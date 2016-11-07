@@ -223,14 +223,7 @@ let createNeuronInstance neuronType =
               //Sensors use the sync msg
               return! loop Map.empty inboundConnections outboundConnections
           | AddOutboundConnection ((toNode,nodeId,outboundLayer,weight),replyChannel) ->
-              let neuronConnectionId =
-                if (outboundConnections |> Map.isEmpty) then
-                  1
-                else
-                  outboundConnections
-                  |> Map.toSeq
-                  |> Seq.maxBy (fun (connectionId,_) -> connectionId)
-                  |> (fun x -> (x |> fst) + 1)
+              let neuronConnectionId = System.Guid.NewGuid()
               let updatedOutboundConnections =
                 let outboundConnection =
                  {

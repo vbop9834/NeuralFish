@@ -90,17 +90,9 @@ let mutateNeuralNetwork (mutations : MutationSequence)
       let rec mutate mutation =
         sprintf "Mutating using %A" mutation |> infoLog
         let addOutboundConnection (toNode : NodeRecord) fromNode = 
-          let neuronConnectionId =
-            if (fromNode.OutboundConnections |> Map.isEmpty) then
-              1
-            else
-              fromNode.OutboundConnections
-              |> Map.toSeq
-              |> Seq.maxBy (fun (connectionId,_) -> connectionId)
-              |> (fun x -> (x |> fst) + 1)
           let newOutboundConnections =
             fromNode.OutboundConnections
-            |> Map.add (neuronConnectionId) (toNode.NodeId,1.0)
+            |> Map.add (System.Guid.NewGuid()) (toNode.NodeId,1.0)
           { fromNode with OutboundConnections = newOutboundConnections }
         let selectRandomNode (nodeRecords : NodeRecords) =
           let seqOfNodeRecords = nodeRecords |> Map.toSeq
