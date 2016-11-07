@@ -58,6 +58,7 @@ let constructNeuralNetwork (activationFunctions : ActivationFunctions)
           (fun r -> ((targetNeuron,targetNodeId,targetLayer,weight),r) |> NeuronActions.AddOutboundConnection)
           |> fromNode.PostAndReply
 
+        sprintf "%A has outbound connections %A" fromNodeId node.OutboundConnections |> infoLog 
         node.OutboundConnections
         |> Map.iter (fun _ (targetNodeId, weight) -> findNeuronAndAddToOutboundConnections fromNodeId targetNodeId weight  )
       nodeRecords
@@ -67,6 +68,19 @@ let constructNeuralNetwork (activationFunctions : ActivationFunctions)
     liveNeurons |> Map.iter connectNode
     liveNeurons
 
+  let rec waitOnNeuralNetwork neuralNetworkToWaitOn : NeuralNetwork =
+    let checkIfNeuralNetworkIsActive (neuralNetwork : NeuralNetwork) =
+      //returns true if active
+      neuralNetwork
+      |> Map.forall(fun i (_,neuron) -> neuron.CurrentQueueLength <> 0)
+    if neuralNetworkToWaitOn |> checkIfNeuralNetworkIsActive then
+      //200 milliseconds of sleep seems plenty while waiting on the NN
+      System.Threading.Thread.Sleep(200)
+      waitOnNeuralNetwork neuralNetworkToWaitOn
+    else
+      neuralNetworkToWaitOn
+
   nodeRecords
   |> Map.map createNeuronFromRecord
   |> connectNeurons
+  |> waitOnNeuralNetwork

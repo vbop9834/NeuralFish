@@ -235,9 +235,11 @@ let ``Should be able to solve the XNOR problem with predefined weights, convert 
   //(class.coursera.org/ml/lecture/48)
   let (testHook, testHookMailbox) = getTestHook ()
   let getNodeId = getNumberGenerator()
-  let syncFunction_x1 = fakeDataGenerator([[0.0]; [0.0]; [1.0]; [1.0]])
+
+  let syncFunction_x1 = fakeDataGenerator([[0.0; 0.0]; [0.0; 0.0]; [1.0; 1.0]; [1.0; 1.0]])
   let syncFunctionId_x1 = 0
-  let syncFunction_x2 = fakeDataGenerator([[0.0]; [1.0]; [0.0]; [1.0]])
+
+  let syncFunction_x2 = fakeDataGenerator([[0.0; 0.0]; [1.0; 1.0]; [0.0; 0.0]; [1.0; 1.0]])
   let syncFunctionId_x2 = 1
 
   let activationFunction = sigmoid
@@ -468,7 +470,7 @@ let ``Should be able to deconstruct then reconstruct recurrent neural network wi
   let activationFunction = id
   let syncFunction =
     let data =
-      [1.0; 1.0; 1.0; 1.0; 1.0]
+      [1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0]
       |> List.toSeq
     fakeDataGenerator([data])
 
@@ -514,30 +516,29 @@ let ``Should be able to deconstruct then reconstruct recurrent neural network wi
     ] |> List.toSeq
 
   sensor |> connectSensorToNode neuron_1a weights
-  sensor |> connectSensorToNode neuron_1b weights
-  sensor |> connectSensorToNode neuron_2a weights
   neuron_1a |> connectNodeToActuator actuator
-  neuron_1b |> connectNodeToActuator actuator
+  neuron_2a |> connectNodeToActuator actuator
   neuron_1a |> connectNodeToNeuron neuron_1a 20.0
   neuron_1a |> connectNodeToNeuron neuron_1b 20.0
-  neuron_2a |> connectNodeToNeuron neuron_1b 20.0
+  neuron_1b |> connectNodeToNeuron neuron_1b 20.0
+  neuron_1b |> connectNodeToNeuron neuron_2a 20.0
 
   //Synchronize and Assert!
   //Since there is a recurrent connection then the output will
   synchronize sensor
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should equal 220.0)
+  |> (should equal 44320.0)
 
   synchronize sensor
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should equal 6820.0)
+  |> (should equal 1810520.0)
 
   synchronize sensor
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should equal 94820.0)
+  |> (should equal 54734520.0)
 
   let nodeRecords =
     Map.empty
@@ -581,17 +582,17 @@ let ``Should be able to deconstruct then reconstruct recurrent neural network wi
   synchronizeNN neuralNetwork
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should equal 220.0)
+  |> (should equal 44320.0)
 
   synchronizeNN neuralNetwork
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should equal 6820.0)
+  |> (should equal 1810520.0)
 
   synchronizeNN neuralNetwork
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should equal 94820.0)
+  |> (should equal 54734520.0)
 
   neuralNetwork |> killNeuralNetwork
 

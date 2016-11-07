@@ -74,12 +74,12 @@ let mutateNeuralNetwork (mutations : MutationSequence)
   let pendingMutations =
     let numberOfMutations =
       random.NextDouble() * (sqrt (nodeRecords |> Map.toSeq |> Seq.length |> float))
-      |> round
+      |> System.Math.Ceiling
       |> int
     sprintf "Selecting %i number of mutations" numberOfMutations
     |> infoLog
 
-    [0..numberOfMutations]
+    [1..numberOfMutations]
     |> Seq.map selectRandomMutation
   sprintf "Pending Mutations %A" pendingMutations |> infoLog
   let rec processMutationSequence pendingMutations nodeRecords =
@@ -107,9 +107,9 @@ let mutateNeuralNetwork (mutations : MutationSequence)
         let outputHookFunctionIds = outputHooks |> Map.toSeq |> Seq.map (fun (id, _) -> id)
         let selectRandomActivationFunctionId () =
           let randomNumber =
-              activationFunctionIds
-              |> Seq.length
-              |> random.Next
+            activationFunctionIds
+            |> Seq.length
+            |> random.Next
           activationFunctionIds
           |> Seq.item randomNumber
         let selectRandomSyncFunctionId () =
@@ -229,11 +229,11 @@ let mutateNeuralNetwork (mutations : MutationSequence)
         | Mutation.AddInboundConnection 
         | Mutation.AddOutboundConnection ->
           let _,nodeToAddOutboundConnection = 
-            nodeRecords 
+            nodeRecords
             |> Map.filter(fun _ x -> x.NodeType <> NodeRecordType.Actuator)
             |> selectRandomNode
           let _,nodeToConnectTo =
-            nodeRecords 
+            nodeRecords
             |> Map.filter(fun _ x -> x.NodeType <> NodeRecordType.Sensor)
             |> selectRandomNode
           let mutatedNode = 
@@ -255,12 +255,11 @@ let mutateNeuralNetwork (mutations : MutationSequence)
               nodeRecords
               |> Map.toSeq
             let layer = 
-              let maxLayer =
-                seqOfNodes
-                |> Seq.maxBy(fun (_,nodeRecord) -> nodeRecord.Layer)
-                |> (fun (_,record) -> record.Layer)
-              getRandomDoubleBetween 1.0 maxLayer
-              |> floor
+              match inboundNode.Layer < outboundNode.Layer with
+              | true ->
+                  getRandomDoubleBetween inboundNode.Layer outboundNode.Layer
+              | false ->
+                  getRandomDoubleBetween outboundNode.Layer inboundNode.Layer
             let outboundConnections = Map.empty 
             let nodeId =
               seqOfNodes

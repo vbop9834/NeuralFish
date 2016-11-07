@@ -104,13 +104,13 @@ let ``The NeuralFish should be able to solve the XNOR problem with predefined we
     createNeuron id layer activationFunction activationFunctionId bias
     |> createNeuronInstance
   let sensor_x1 =
-    let syncFunction = fakeDataGenerator([[0.0]; [0.0]; [1.0]; [1.0]])
+    let syncFunction = fakeDataGenerator([[0.0; 0.0]; [0.0; 0.0]; [1.0; 1.0]; [1.0; 1.0]])
     let syncFunctionId = 0
     let id = getNodeId()
     createSensor id syncFunction syncFunctionId
     |> createNeuronInstance
   let sensor_x2 =
-    let syncFunction = fakeDataGenerator([[0.0]; [1.0]; [0.0]; [1.0]])
+    let syncFunction = fakeDataGenerator([[0.0; 0.0]; [1.0; 1.0]; [0.0; 0.0]; [1.0; 1.0]])
     let syncFunctionId = 1
     let id = getNodeId()
     createSensor id syncFunction syncFunctionId
@@ -247,6 +247,8 @@ let ``Should be able to handle recurrent neural network with three neurons`` () 
   let getNodeId = getNumberGenerator()
   let actuatorId = getNodeId()
   let outputHookId = 9001
+  let activationFunctionId = 0
+  let activationFunction = id
 
   //Create Neurons
   let actuator =
@@ -254,8 +256,6 @@ let ``Should be able to handle recurrent neural network with three neurons`` () 
     createActuator actuatorId layer testHook outputHookId
     |> createNeuronInstance
   let neuron_1a =
-    let activationFunctionId = 0
-    let activationFunction = id
     let bias = 10.0
     let nodeId = getNodeId()
     let layer = 1.0
@@ -263,8 +263,6 @@ let ``Should be able to handle recurrent neural network with three neurons`` () 
     |> createNeuronInstance
 
   let neuron_1b =
-    let activationFunctionId = 0
-    let activationFunction = id
     let bias = 10.0
     let nodeId = getNodeId()
     let layer = 1.0
@@ -272,8 +270,6 @@ let ``Should be able to handle recurrent neural network with three neurons`` () 
     |> createNeuronInstance
 
   let neuron_2a =
-    let activationFunctionId = 0
-    let activationFunction = id
     let bias = 10.0
     let nodeId = getNodeId()
     let layer = 2.0
@@ -284,7 +280,7 @@ let ``Should be able to handle recurrent neural network with three neurons`` () 
     let syncFunctionId = 0
     let syncFunction =
         let data =
-          [1.0; 1.0; 1.0; 1.0; 1.0]
+          [1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0]
           |> List.toSeq
         fakeDataGenerator([data])
     let id = getNodeId()
@@ -302,30 +298,29 @@ let ``Should be able to handle recurrent neural network with three neurons`` () 
     ] |> List.toSeq
 
   sensor |> connectSensorToNode neuron_1a weights
-  sensor |> connectSensorToNode neuron_1b weights
-  sensor |> connectSensorToNode neuron_2a weights
   neuron_1a |> connectNodeToActuator actuator
-  neuron_1b |> connectNodeToActuator actuator
+  neuron_2a |> connectNodeToActuator actuator
   neuron_1a |> connectNodeToNeuron neuron_1a 20.0
   neuron_1a |> connectNodeToNeuron neuron_1b 20.0
-  neuron_2a |> connectNodeToNeuron neuron_1b 20.0
+  neuron_1b |> connectNodeToNeuron neuron_1b 20.0
+  neuron_1b |> connectNodeToNeuron neuron_2a 20.0
 
   //Synchronize and Assert!
   //Since there is a recurrent connection then the output will
   synchronize sensor
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should equal 220.0)
+  |> (should equal 44320.0)
 
   synchronize sensor
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should equal 6820.0)
+  |> (should equal 1810520.0)
 
   synchronize sensor
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should equal 94820.0)
+  |> (should equal 54734520.0)
 
   [
     sensor

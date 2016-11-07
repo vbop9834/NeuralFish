@@ -80,7 +80,7 @@ type NeuronType =
 
 type NeuronActions =
   | Sync
-  | ReceiveInput of NeuronConnectionId*Synapse
+  | ReceiveInput of NeuronConnectionId*Synapse*bool
   | AddOutboundConnection of (MailboxProcessor<NeuronActions>*NeuronId*NeuronLayerId*Weight)*AsyncReplyChannel<unit>
   | AddInboundConnection of NeuronConnectionId*AsyncReplyChannel<unit>
   | GetNodeRecord of AsyncReplyChannel<NodeRecord>

@@ -119,7 +119,7 @@ let createNeuronInstance neuronType =
     |> Seq.forall(fun connectionId -> barrier |> Map.containsKey connectionId)
   let sendSynapseToNeurons (outputNeurons : NeuronConnections) outputValue =
     let sendSynapseToNeuron outputValue neuronConnectionId outputNeuronConnection =
-      (neuronConnectionId, (outputNeuronConnection.NodeId, outputValue, outputNeuronConnection.Weight))
+      (neuronConnectionId, (outputNeuronConnection.NodeId, outputValue, outputNeuronConnection.Weight), true)
       |> ReceiveInput
       |> outputNeuronConnection.Neuron.Post
     outputNeurons
@@ -186,10 +186,9 @@ let createNeuronInstance neuronType =
                   ()
                 else
                   let sendSynapseToNeuron (neuron : NeuronInstance) neuronConnectionId weight outputValue =
-                    (neuronConnectionId, (props.Record.NodeId, outputValue, weight))
+                    (neuronConnectionId, (props.Record.NodeId, outputValue, weight), true)
                     |> ReceiveInput
                     |> neuron.Post
-
                   let data = dataStream |> Seq.head
                   let (connectionId, connection) = remainingConnections |> Seq.head 
                   sprintf "Sending %A to connection %A with a weight of %A" data connectionId connection.Weight |> infoLog
@@ -198,21 +197,21 @@ let createNeuronInstance neuronType =
                   processSensorSync newDataStream (remainingConnections |> Seq.tail)
               processSensorSync dataStream outboundConnectionsSeq
               return! loop barrier inboundConnections outboundConnections
-          | ReceiveInput (neuronConnectionId, package) ->
+          | ReceiveInput (neuronConnectionId, package, activateIfBarrierIsFull) ->
             let updatedBarrier : IncomingSynapses =
               barrier
               |> Map.add neuronConnectionId package
             match neuronType with
             | Neuron props ->
-              if updatedBarrier |> isBarrierSatisifed inboundConnections then
-                sprintf "Barrier not satisfied for Node %A. Received %A from %A" props.Record.NodeId package neuronConnectionId |> infoLog
+              if (activateIfBarrierIsFull && updatedBarrier |> isBarrierSatisifed inboundConnections) then
+                sprintf "Barrier is satisfied for Node %A. Received %A from %A" props.Record.NodeId package neuronConnectionId |> infoLog
                 neuronType |> activateNeuron updatedBarrier outboundConnections
                 return! loop Map.empty inboundConnections outboundConnections
               else
                 sprintf "Barrier not satisfied for Node %A. Received %A from %A" props.Record.NodeId package neuronConnectionId |> infoLog
                 return! loop updatedBarrier inboundConnections outboundConnections
             | Actuator props ->
-              if updatedBarrier |> isBarrierSatisifed inboundConnections then
+              if (activateIfBarrierIsFull && updatedBarrier |> isBarrierSatisifed inboundConnections) then
                 sprintf "Barrier is satisifed for Node %A" props.Record.NodeId |> infoLog
                 neuronType |> activateNeuron updatedBarrier outboundConnections
                 return! loop Map.empty inboundConnections outboundConnections
@@ -239,7 +238,8 @@ let createNeuronInstance neuronType =
 
               //queue up blank synapses for recurrent connections
               if (nodeLayer >= outboundLayer) then
-                (neuronConnectionId, (nodeId,0.0,weight))
+                sprintf "Sending recurrent blank synapse to %A via %A" nodeId neuronConnectionId |> infoLog 
+                (neuronConnectionId, (nodeId,0.0,weight), false)
                 |> ReceiveInput
                 |> toNode.Post
 

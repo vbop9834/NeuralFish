@@ -432,7 +432,7 @@ let ``AddNeuron mutation should add a new neuron and connect it randomly in the 
   let syncFunctionId = 0
   let syncFunction =
     let data =
-      [1.0; 1.0; 1.0; 1.0; 1.0]
+      [1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0]
       |> List.toSeq
     fakeDataGenerator([data])
 
@@ -535,7 +535,7 @@ let ``AddSensor mutation should add a new sensor and connect it randomly in the 
   let syncFunctionId = 0
   let syncFunction =
     let data =
-      [1.0; 1.0; 1.0; 1.0; 1.0]
+      [1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0]
       |> List.toSeq
     fakeDataGenerator([data])
 
@@ -731,7 +731,7 @@ let ``AddSensorLink mutation should add a sensor connection randomly in the neur
   let syncFunctionId = 0
   let syncFunction =
     let data =
-      [1.0; 1.0; 1.0; 1.0; 1.0]
+      [1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0]
       |> List.toSeq
     fakeDataGenerator([data])
 
@@ -834,7 +834,7 @@ let ``AddActuatorLink mutation should add an actuaor connection randomly in the 
   let syncFunctionId = 0
   let syncFunction =
     let data =
-      [1.0; 1.0; 1.0; 1.0; 1.0]
+      [1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0]
       |> List.toSeq
     fakeDataGenerator([data])
 
@@ -1051,7 +1051,7 @@ let ``MinimalMutationSequence should be capable of mutating records and executin
   let syncFunctionId = 0
   let syncFunction =
     let data =
-      [1.0; 1.0; 1.0; 1.0; 1.0]
+      [1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0;1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0]
       |> List.toSeq
     fakeDataGenerator([data])
 
