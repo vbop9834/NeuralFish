@@ -18,7 +18,11 @@ type ActivationFunction = NeuronOutput -> NeuronOutput
 type SyncFunction = unit -> NeuronOutput seq
 type OutputHookFunction = NeuronOutput -> unit
 
-type NeuronLayerId = int
+type ActivationFunctions = Map<ActivationFunctionId,ActivationFunction>
+type SyncFunctions = Map<SyncFunctionId,SyncFunction>
+type OutputHookFunctions = Map<OutputHookId, OutputHookFunction>
+
+type NeuronLayerId = float
 
 type NeuronConnectionId = System.Guid
 
@@ -76,7 +80,7 @@ type NeuronType =
 
 type NeuronActions =
   | Sync
-  | ReceiveInput of NeuronConnectionId*Synapse
+  | ReceiveInput of NeuronConnectionId*Synapse*bool
   | AddOutboundConnection of (MailboxProcessor<NeuronActions>*NeuronId*NeuronLayerId*Weight)*AsyncReplyChannel<unit>
   | AddInboundConnection of NeuronConnectionId*AsyncReplyChannel<unit>
   | GetNodeRecord of AsyncReplyChannel<NodeRecord>

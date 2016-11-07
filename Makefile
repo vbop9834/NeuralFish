@@ -2,8 +2,8 @@ test:
 	$(info Running tests...)
 	sh build.sh test
 
-watchtests:
-	$(info ...)
+watch:
+	$(info Watching Tests...)
 	sh watchAndRunTests.sh
 
 build:

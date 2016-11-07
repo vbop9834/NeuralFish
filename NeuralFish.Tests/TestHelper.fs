@@ -33,39 +33,38 @@ let fakeDataGenerator (buffer : (float seq) list) =
 type TestHookMsg =
   | SendDataToBuffer of float
   | WaitForData of AsyncReplyChannel<float>
-  | Die of AsyncReplyChannel<int>
+  | Die of AsyncReplyChannel<unit>
 
 
 let getTestHook () =
   let generator = MailboxProcessor<TestHookMsg>.Start(fun inbox ->
-    let rec loop dataBuffer counter replybuffer =
+    let rec loop dataBuffer replybuffer =
       async {
         let! msg = inbox.Receive ()
         match msg with
         | SendDataToBuffer dataValue ->
-          let counter = counter + 1
           if (replybuffer |> List.isEmpty) then
             let dataBuffer = dataValue :: dataBuffer
-            return! loop dataBuffer counter List.empty
+            return! loop dataBuffer List.empty
           else
             replybuffer |> List.iter (fun (replyChannel : AsyncReplyChannel<float>) -> replyChannel.Reply dataValue)
-            return! loop dataBuffer counter List.empty
+            return! loop dataBuffer List.empty
         | Die replyChannel ->
-          replyChannel.Reply counter
+          replyChannel.Reply () 
           replybuffer |> List.iter (fun (replyChannel : AsyncReplyChannel<float>) -> replyChannel.Reply 0.0)
           return ()
         | WaitForData replyChannel ->
           if (dataBuffer |> List.isEmpty) then
             let replybuffer = replyChannel :: replybuffer
-            return! loop dataBuffer counter replybuffer
+            return! loop dataBuffer replybuffer
           else
             let dataValue =  dataBuffer |> List.head
             dataValue |> replyChannel.Reply
             replybuffer |> List.iter (fun (replyChannel : AsyncReplyChannel<float>) -> replyChannel.Reply dataValue)
             let dataBuffer = dataBuffer |> List.tail
-            return! loop dataBuffer counter replybuffer
+            return! loop dataBuffer replybuffer
       }
-    loop [] 0 []
+    loop [] []
   )
 
   let hookFunction = (fun data -> SendDataToBuffer data |> generator.Post)
@@ -89,3 +88,7 @@ let getNumberGenerator () =
     loop 0
   )
   (fun () -> GetIntId |> generator.PostAndReply)
+
+
+let addNeuronToMap (neuronId, neuronInstance) =
+  Map.add neuronId neuronInstance
