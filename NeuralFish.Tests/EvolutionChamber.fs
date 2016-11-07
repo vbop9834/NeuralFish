@@ -41,7 +41,7 @@ let ``AddBias mutation should add a bias to a neuron that has none`` () =
 
   let sensor =
     let id = getNodeId()
-    createSensor id syncFunction syncFunctionId
+    createSensor id syncFunction syncFunctionId 1
     |> createNeuronInstance
 
   //Connect Neurons
@@ -146,7 +146,7 @@ let ``RemoveBias mutation should remove a bias to a neuron that has some bias`` 
 
   let sensor =
     let id = getNodeId()
-    createSensor id syncFunction syncFunctionId
+    createSensor id syncFunction syncFunctionId 1
     |> createNeuronInstance
 
   //Connect Neurons
@@ -249,7 +249,7 @@ let ``MutateWeights mutation should mutate the weights of all outbound connectio
 
   let sensor =
     let id = getNodeId()
-    createSensor id syncFunction syncFunctionId
+    createSensor id syncFunction syncFunctionId 1
     |> createNeuronInstance
 
   //Connect Neurons
@@ -368,7 +368,7 @@ let ``AddOutboundConnection mutation should mutate connect a neuron to a neuron 
 
   let sensor =
     let id = getNodeId()
-    createSensor id syncFunction syncFunctionId
+    createSensor id syncFunction syncFunctionId 1
     |> createNeuronInstance
 
   //Connect Neurons
@@ -460,7 +460,7 @@ let ``AddNeuron mutation should add a new neuron and connect it randomly in the 
 
   let sensor =
     let id = getNodeId()
-    createSensor id syncFunction syncFunctionId
+    createSensor id syncFunction syncFunctionId 1
     |> createNeuronInstance
 
   //Connect Neurons
@@ -563,7 +563,7 @@ let ``AddSensor mutation should add a new sensor and connect it randomly in the 
 
   let sensor =
     let id = getNodeId()
-    createSensor id syncFunction syncFunctionId
+    createSensor id syncFunction syncFunctionId 1
     |> createNeuronInstance
 
   //Connect Neurons
@@ -661,7 +661,7 @@ let ``AddActuator mutation should add a new actuator and connect it randomly in 
 
   let sensor =
     let id = getNodeId()
-    createSensor id syncFunction syncFunctionId
+    createSensor id syncFunction syncFunctionId 1
     |> createNeuronInstance
 
   //Connect Neurons
@@ -759,7 +759,7 @@ let ``AddSensorLink mutation should add a sensor connection randomly in the neur
 
   let sensor =
     let id = getNodeId()
-    createSensor id syncFunction syncFunctionId
+    createSensor id syncFunction syncFunctionId 1
     |> createNeuronInstance
 
   //Connect Neurons
@@ -862,7 +862,7 @@ let ``AddActuatorLink mutation should add an actuaor connection randomly in the 
 
   let sensor =
     let id = getNodeId()
-    createSensor id syncFunction syncFunctionId
+    createSensor id syncFunction syncFunctionId 1
     |> createNeuronInstance
 
   //Connect Neurons
@@ -976,7 +976,7 @@ let ``MutateActivationFunction mutation should mutate the activation function of
 
   let sensor =
     let id = getNodeId()
-    createSensor id syncFunction syncFunctionId
+    createSensor id syncFunction syncFunctionId 1
     |> createNeuronInstance
 
   //Connect Neurons
@@ -1079,7 +1079,7 @@ let ``MinimalMutationSequence should be capable of mutating records and executin
 
   let sensor =
     let id = getNodeId()
-    createSensor id syncFunction syncFunctionId
+    createSensor id syncFunction syncFunctionId 1
     |> createNeuronInstance
 
   //Connect Neurons

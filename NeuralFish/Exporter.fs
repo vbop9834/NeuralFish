@@ -34,7 +34,11 @@ let constructNeuralNetwork (activationFunctions : ActivationFunctions)
         if (nodeRecord.SyncFunctionId |> Option.isNone) then
           raise (NodeRecordTypeException <| sprintf "Sensor with id %A does not have a sync function id" nodeRecord.NodeId)
         let syncFunction = syncFunctions |> Map.find nodeRecord.SyncFunctionId.Value
-        createSensor nodeId syncFunction nodeRecord.SyncFunctionId.Value
+        let maximumVectorLength = 
+          match nodeRecord.MaximumVectorLength with
+            | Some x -> x
+            | None -> 1
+        createSensor nodeId syncFunction nodeRecord.SyncFunctionId.Value maximumVectorLength
         |> createNeuronInstance
       | NodeRecordType.Actuator ->
         if (nodeRecord.OutputHookId |> Option.isNone) then
