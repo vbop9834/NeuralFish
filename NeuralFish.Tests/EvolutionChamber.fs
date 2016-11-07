@@ -339,7 +339,7 @@ let ``MutateWeights mutation should mutate the weights of all outbound connectio
   Die |> testHookMailbox.PostAndReply
 
 [<Fact>]
-let ``AddOutboundConnection mutation should mutate connect a sensor or neuron to a neuron or actuator`` () =
+let ``AddOutboundConnection mutation should mutate connect a neuron to a neuron or actuator`` () =
   //Test setup
   let (testHook, testHookMailbox) = getTestHook ()
   let getNodeId = getNumberGenerator()
@@ -424,7 +424,7 @@ let ``AddOutboundConnection mutation should mutate connect a sensor or neuron to
   synchronize newSensor
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should not' (equal 20.0))
+  |> (should be (greaterThan 0.0))
 
   neuralNetwork |> killNeuralNetwork
 

@@ -230,7 +230,7 @@ let mutateNeuralNetwork (mutations : MutationSequence)
         | Mutation.AddOutboundConnection ->
           let _,nodeToAddOutboundConnection = 
             nodeRecords
-            |> Map.filter(fun _ x -> x.NodeType <> NodeRecordType.Actuator)
+            |> Map.filter(fun _ x -> x.NodeType = NodeRecordType.Neuron)
             |> selectRandomNode
           let _,nodeToConnectTo =
             nodeRecords
@@ -291,7 +291,7 @@ let mutateNeuralNetwork (mutations : MutationSequence)
         | AddSensorLink ->
           let _,outboundNode =
             nodeRecords 
-            |> Map.filter(fun _ x -> x.NodeType <> NodeRecordType.Sensor)
+            |> Map.filter(fun _ x -> x.NodeType = NodeRecordType.Neuron)
             |> selectRandomNode
           let _, sensorNode =
             nodeRecords 
@@ -306,7 +306,7 @@ let mutateNeuralNetwork (mutations : MutationSequence)
         | AddActuatorLink ->
           let _,inboundNode =
             nodeRecords 
-            |> Map.filter(fun _ x -> x.NodeType <> NodeRecordType.Actuator)
+            |> Map.filter(fun _ x -> x.NodeType = NodeRecordType.Neuron)
             |> selectRandomNode
           let _, actuatorNode =
             nodeRecords 
@@ -322,7 +322,7 @@ let mutateNeuralNetwork (mutations : MutationSequence)
         | AddSensor ->
           let _,outboundNode =
             nodeRecords 
-            |> Map.filter(fun _ x -> x.NodeType <> NodeRecordType.Sensor)
+            |> Map.filter(fun _ x -> x.NodeType = NodeRecordType.Neuron)
             |> selectRandomNode
           let blankSensorRecord =
             let layer = 0.0
@@ -352,7 +352,7 @@ let mutateNeuralNetwork (mutations : MutationSequence)
         | AddActuator ->
           let _,inboundNode =
             nodeRecords 
-            |> Map.filter(fun _ x -> x.NodeType <> NodeRecordType.Actuator)
+            |> Map.filter(fun _ x -> x.NodeType = NodeRecordType.Neuron)
             |> selectRandomNode
           let blankActuatorRecord =
             let seqOfNodes =
