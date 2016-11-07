@@ -597,3 +597,109 @@ let ``Should be able to deconstruct then reconstruct recurrent neural network wi
   neuralNetwork |> killNeuralNetwork
 
   Die |> testHookMailbox.PostAndReply
+
+[<Fact>]
+let ``After reconstruction, Sensor should inflate data if there is not enough data to go to all the neuron connections`` () =
+  //Test setup
+  let (testHook, testHookMailbox) = getTestHook ()
+  let getNodeId = getNumberGenerator()
+  let actuatorId = getNodeId()
+  let outputHookId = 9001
+
+  let syncFunctionId = 0
+  let syncFunction =
+   let data =
+     [1.0; 1.0; 1.0; 1.0; 1.0]
+     |> List.toSeq
+   fakeDataGenerator([data])
+
+  let activationFunctionId = 0
+  let activationFunction = id
+
+  //Create Neurons
+  let actuator =
+    let layer = 3.0
+    createActuator actuatorId layer testHook outputHookId
+    |> createNeuronInstance
+  let neuron_1a =
+    let bias = 10.0
+    let nodeId = getNodeId()
+    let layer = 2.0
+    createNeuron nodeId layer activationFunction activationFunctionId bias
+    |> createNeuronInstance
+
+  let neuron_1b =
+    let bias = 0.0
+    let nodeId = getNodeId()
+    let layer = 2.0
+    createNeuron nodeId layer activationFunction activationFunctionId bias
+    |> createNeuronInstance
+
+  let sensor =
+    let id = getNodeId()
+    createSensor id syncFunction syncFunctionId
+    |> createNeuronInstance
+
+  //Connect Neurons
+  let weights =
+    [
+      20.0
+      20.0
+      20.0
+      20.0
+      20.0
+    ] |> List.toSeq
+
+  sensor |> connectSensorToNode neuron_1a weights
+  sensor |> connectSensorToNode neuron_1b weights
+  neuron_1a |> connectNodeToActuator actuator
+  neuron_1b |> connectNodeToActuator actuator
+
+  //Synchronize and Assert!
+  synchronize sensor
+  WaitForData
+  |> testHookMailbox.PostAndReply
+  |> (should equal 110.0)
+
+  let nodeRecords =
+    Map.empty
+    |> addNeuronToMap actuator
+    |> addNeuronToMap neuron_1a
+    |> addNeuronToMap neuron_1b
+    |> addNeuronToMap sensor
+    |> constructNodeRecords
+
+  actuator |> assertNodeRecordsContainsNode nodeRecords
+  neuron_1a |> assertNodeRecordsContainsNode nodeRecords
+  neuron_1b |> assertNodeRecordsContainsNode nodeRecords
+  sensor |> assertNodeRecordsContainsNode nodeRecords
+
+  [
+    sensor
+    neuron_1a
+    neuron_1b
+    actuator
+  ]
+  |> Map.ofList
+  |> killNeuralNetwork
+
+  let activationFunctions : ActivationFunctions =
+    Map.empty
+    |> Map.add activationFunctionId activationFunction
+  let syncFunctions =
+    Map.empty
+    |> Map.add syncFunctionId syncFunction
+  let outputHooks =
+    Map.empty
+    |> Map.add outputHookId testHook
+
+  let neuralNetwork =
+    nodeRecords
+    |> constructNeuralNetwork activationFunctions syncFunctions outputHooks
+
+  synchronizeNN neuralNetwork
+  WaitForData
+  |> testHookMailbox.PostAndReply
+  |> (should equal 110.0)
+
+  Die |> testHookMailbox.PostAndReply
