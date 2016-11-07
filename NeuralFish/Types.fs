@@ -51,6 +51,7 @@ type NodeRecord =
     ActivationFunctionId: ActivationFunctionId option
     SyncFunctionId: ActivationFunctionId option
     OutputHookId: OutputHookId option
+    MaximumVectorLength: int option 
   }
 
 type NodeRecords = Map<NeuronId,NodeRecord>

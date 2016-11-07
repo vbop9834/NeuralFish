@@ -89,7 +89,7 @@ let ``Should be able to export a simple neural network to a map of node records`
   let sensorId = getNodeId()
   let syncFunction = (fun () -> Seq.empty)
   let sensor =
-    createSensor sensorId syncFunction syncFunctionId
+    createSensor sensorId syncFunction syncFunctionId 1
     |> createNeuronInstance
 
   neuron |> connectNodeToActuator actuator
@@ -153,7 +153,7 @@ let ``Should be able to construct a simple neural network from a map of node rec
     |> createNeuronInstance
   let sensor =
     let id = getNodeId()
-    createSensor id syncFunction syncFunctionId
+    createSensor id syncFunction syncFunctionId 1
     |> createNeuronInstance
 
   //Connect Neurons
@@ -271,11 +271,11 @@ let ``Should be able to solve the XNOR problem with predefined weights, convert 
     |> createNeuronInstance
   let sensor_x1 =
     let id = getNodeId()
-    createSensor id syncFunction_x1 syncFunctionId_x1
+    createSensor id syncFunction_x1 syncFunctionId_x1 1
     |> createNeuronInstance
   let sensor_x2 =
     let id = getNodeId()
-    createSensor id syncFunction_x2 syncFunctionId_x2
+    createSensor id syncFunction_x2 syncFunctionId_x2 1
     |> createNeuronInstance
 
   let weightOne = 20.0
@@ -423,7 +423,7 @@ let ``Should be able to export a recurrent neural network to a map of node recor
   let sensorId = getNodeId()
   let syncFunction = (fun () -> Seq.empty)
   let sensor =
-    createSensor sensorId syncFunction syncFunctionId
+    createSensor sensorId syncFunction syncFunctionId 1
     |> createNeuronInstance
 
   neuron |> connectNodeToActuator actuator
@@ -502,7 +502,7 @@ let ``Should be able to deconstruct then reconstruct recurrent neural network wi
 
   let sensor =
     let nodeId = getNodeId()
-    createSensor nodeId syncFunction syncFunctionId
+    createSensor nodeId syncFunction syncFunctionId 1
     |> createNeuronInstance
 
   //Connect Neurons
@@ -637,7 +637,7 @@ let ``After reconstruction, Sensor should inflate data if there is not enough da
 
   let sensor =
     let id = getNodeId()
-    createSensor id syncFunction syncFunctionId
+    createSensor id syncFunction syncFunctionId 1
     |> createNeuronInstance
 
   //Connect Neurons

@@ -276,6 +276,7 @@ let mutateNeuralNetwork (mutations : MutationSequence)
               ActivationFunctionId = Some activationFunctionId
               SyncFunctionId = None
               OutputHookId = None 
+              MaximumVectorLength = None
             }
           let newNeuronRecordWithOutbound = 
             blankNewNeuronRecord
@@ -289,20 +290,34 @@ let mutateNeuralNetwork (mutations : MutationSequence)
        // | OutSplice ->
        // | InSplice ->
         | AddSensorLink ->
-          let _,outboundNode =
-            nodeRecords 
-            |> Map.filter(fun _ x -> x.NodeType = NodeRecordType.Neuron)
-            |> selectRandomNode
-          let _, sensorNode =
-            nodeRecords 
-            |> Map.filter(fun _ x -> x.NodeType = NodeRecordType.Sensor)
-            |> selectRandomNode
+          let sensorRecordsThatCanHaveAnotherOutput =
+            let determineSensorEligibility key nodeRecord =
+              if (nodeRecord.NodeType <> NodeRecordType.Sensor) then
+                false
+              else if (nodeRecord.MaximumVectorLength |> Option.isNone) then
+                false
+              else if (nodeRecord.MaximumVectorLength.Value > (nodeRecord.OutboundConnections |> Map.toSeq |> Seq.length)) then
+                true
+              else
+                false
+            nodeRecords
+            |> Map.filter determineSensorEligibility
+          if (sensorRecordsThatCanHaveAnotherOutput |> Map.isEmpty) then
+            selectRandomMutation () |> mutate
+          else
+            let _, sensorNode =
+              sensorRecordsThatCanHaveAnotherOutput 
+              |> selectRandomNode
+            let _,outboundNode =
+              nodeRecords 
+              |> Map.filter(fun _ x -> x.NodeType = NodeRecordType.Neuron)
+              |> selectRandomNode
 
-          let sensorNodeWithNewOutbound = 
-            sensorNode
-            |> addOutboundConnection outboundNode
-          nodeRecords
-          |> Map.add sensorNodeWithNewOutbound.NodeId sensorNodeWithNewOutbound
+            let sensorNodeWithNewOutbound = 
+              sensorNode
+              |> addOutboundConnection outboundNode
+            nodeRecords
+            |> Map.add sensorNodeWithNewOutbound.NodeId sensorNodeWithNewOutbound
         | AddActuatorLink ->
           let _,inboundNode =
             nodeRecords 
@@ -343,6 +358,7 @@ let mutateNeuralNetwork (mutations : MutationSequence)
               ActivationFunctionId = None
               SyncFunctionId = Some syncFunctionId
               OutputHookId = None 
+              MaximumVectorLength = Some 1
             }
           let newSensorWithOutbound = 
             blankSensorRecord
@@ -381,6 +397,7 @@ let mutateNeuralNetwork (mutations : MutationSequence)
               ActivationFunctionId = None
               SyncFunctionId = None
               OutputHookId = Some outputHookId 
+              MaximumVectorLength = None
             }
           let newInboundWithActuatorOutboundConnection = 
             inboundNode

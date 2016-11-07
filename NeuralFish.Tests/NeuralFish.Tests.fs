@@ -38,7 +38,7 @@ let ``When the Sensor receives the sync message, the neural circuit should activ
           |> List.toSeq
         fakeDataGenerator([data])
     let id = getNodeId()
-    createSensor id syncFunction syncFunctionId
+    createSensor id syncFunction syncFunctionId 1
     |> createNeuronInstance
 
   //Connect Neurons
@@ -107,13 +107,13 @@ let ``The NeuralFish should be able to solve the XNOR problem with predefined we
     let syncFunction = fakeDataGenerator([[0.0; 0.0]; [0.0; 0.0]; [1.0; 1.0]; [1.0; 1.0]])
     let syncFunctionId = 0
     let id = getNodeId()
-    createSensor id syncFunction syncFunctionId
+    createSensor id syncFunction syncFunctionId 1
     |> createNeuronInstance
   let sensor_x2 =
     let syncFunction = fakeDataGenerator([[0.0; 0.0]; [1.0; 1.0]; [0.0; 0.0]; [1.0; 1.0]])
     let syncFunctionId = 1
     let id = getNodeId()
-    createSensor id syncFunction syncFunctionId
+    createSensor id syncFunction syncFunctionId 1
     |> createNeuronInstance
 
   let weightOne = 20.0
@@ -196,7 +196,7 @@ let ``Should be able to handle recurrent neural connections`` () =
           |> List.toSeq
         fakeDataGenerator([data])
     let id = getNodeId()
-    createSensor id syncFunction syncFunctionId
+    createSensor id syncFunction syncFunctionId 1
     |> createNeuronInstance
 
   //Connect Neurons
@@ -284,7 +284,7 @@ let ``Should be able to handle recurrent neural network with three neurons`` () 
           |> List.toSeq
         fakeDataGenerator([data])
     let id = getNodeId()
-    createSensor id syncFunction syncFunctionId
+    createSensor id syncFunction syncFunctionId 1
     |> createNeuronInstance
 
   //Connect Neurons
@@ -372,7 +372,7 @@ let ``Sensor should inflate data if there is not enough data to go to all the ne
           |> List.toSeq
         fakeDataGenerator([data])
     let id = getNodeId()
-    createSensor id syncFunction syncFunctionId
+    createSensor id syncFunction syncFunctionId 1
     |> createNeuronInstance
 
   //Connect Neurons
