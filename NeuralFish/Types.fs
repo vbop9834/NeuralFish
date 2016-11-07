@@ -24,7 +24,7 @@ type OutputHookFunctions = Map<OutputHookId, OutputHookFunction>
 
 type NeuronLayerId = float
 
-type NeuronConnectionId = System.Guid
+type NeuronConnectionId = int
 
 type Synapse = NeuronId*NeuronOutput*Weight
 
