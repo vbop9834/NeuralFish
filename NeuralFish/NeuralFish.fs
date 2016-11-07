@@ -2,7 +2,7 @@ module NeuralFish.Core
 
 open NeuralFish.Types
 
-let mutable InfoLogging = true
+let mutable InfoLogging = false
 let infoLog (message : string) =
   if (InfoLogging) then
     System.Console.WriteLine(message)
@@ -179,8 +179,16 @@ let createNeuronInstance neuronType =
             | Actuator _ ->
               return! loop barrier inboundConnections outboundConnections
             | Sensor props ->
-              let dataStream = props.SyncFunction()
+              let inflateData expectedVectorLength (dataStream : NeuronOutput seq) =
+                let inflatedData =
+                  let difference = expectedVectorLength - (dataStream |> Seq.length)
+                  [0..difference]
+                  |> Seq.map (fun _ -> 0.0)
+                Seq.append dataStream inflatedData
               let outboundConnectionsSeq = outboundConnections |> Map.toSeq
+              let dataStream =
+                props.SyncFunction()
+                |> inflateData (outboundConnectionsSeq |> Seq.length)
               let rec processSensorSync dataStream remainingConnections =
                 if (dataStream |> Seq.isEmpty || remainingConnections |> Seq.isEmpty) then
                   ()
