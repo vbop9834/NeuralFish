@@ -303,13 +303,23 @@ let ``MutateWeights mutation should mutate the weights of all outbound connectio
      |> Map.find sensorId)
 
   let newWeight =
+    let neuronOutboundConnections =
+      let neuronId = neuron |> fst
+      let neuron =
+        nodeRecords
+        |> Map.find neuronId
+      neuron.OutboundConnections
+      |> Map.toSeq
+
     let sensorId = newSensor |> fst
     let sensor = 
       nodeRecords
       |> Map.find sensorId
 
     sensor.OutboundConnections
-    |> Map.exists(fun key (_,weight) -> weight <> 20.0)
+    |> Map.toSeq
+    |> Seq.append neuronOutboundConnections
+    |> Seq.exists(fun (key,(_,weight)) -> weight <> 20.0)
     |> should equal true
 
     let _,(_,weight) =
