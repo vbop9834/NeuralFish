@@ -101,3 +101,9 @@ type RecurrentNeuronConnections = Map<NeuronConnectionId,NeuronConnection>
 type InboundNeuronConnections = NeuronConnectionId seq
 
 type NeuralNetwork = Map<NeuronId, NeuronLayerId*NeuronInstance>
+
+type CortexMessage =
+  | Think
+  | KillCortex of AsyncReplyChannel<NodeRecords>
+
+type CortexInstance = MailboxProcessor<CortexMessage>
