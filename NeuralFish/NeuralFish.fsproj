@@ -46,6 +46,7 @@
     <Compile Include="NeuralFish.fs" />
     <Compile Include="Exporter.fs" />
     <Compile Include="EvolutionChamber.fs" />
+    <Compile Include="Cortex.fs" />
   </ItemGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">14</MinimumVisualStudioVersion>

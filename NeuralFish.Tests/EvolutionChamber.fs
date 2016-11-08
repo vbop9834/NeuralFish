@@ -1131,13 +1131,8 @@ let ``MinimalMutationSequence should be capable of mutating records and executin
   let neuralNetwork =
    nodeRecords
    |> constructNeuralNetwork activationFunctions syncFunctions outputHooks
-  let newSensor =
-    let sensorId = (fst sensor)
-    (sensorId,
-     neuralNetwork
-     |> Map.find sensorId)
 
-  synchronize newSensor
+  synchronizeNN neuralNetwork
   WaitForData
   |> testHookMailbox.PostAndReply
   |> (should be (greaterThan 0.0))
