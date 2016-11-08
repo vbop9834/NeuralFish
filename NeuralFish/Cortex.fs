@@ -5,7 +5,7 @@ open NeuralFish.Core
 open NeuralFish.Exporter
 open NeuralFish.EvolutionChamber
 
-let createCortex liveNeurons =
+let createCortex liveNeurons : CortexInstance =
   let rec waitOnNeuralNetwork neuralNetworkToWaitOn =
     let checkIfNeuralNetworkIsActive (neuralNetwork : NeuralNetwork) =
       //returns true if active
@@ -27,11 +27,15 @@ let createCortex liveNeurons =
           return! loop liveNeurons 
         | Some msg ->
           match msg with
-          | Think ->
+          | Think replyChannel ->
+            "Cortex - Starting think cycle" |> infoLog
             liveNeurons |> synchronizeNN
             liveNeurons |> waitOnNeuralNetwork
+            "Cortex - Think cycle finished" |> infoLog
+            replyChannel.Reply ()
             return! loop liveNeurons
           | KillCortex replyChannel ->
+            "Cortex - Killing Neural Network" |> infoLog
             let updatedNodeRecords = liveNeurons |> constructNodeRecords
             liveNeurons |> killNeuralNetwork
             updatedNodeRecords |> replyChannel.Reply
