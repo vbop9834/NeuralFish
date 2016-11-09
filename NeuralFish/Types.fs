@@ -56,6 +56,12 @@ type NodeRecord =
 
 type NodeRecords = Map<NeuronId,NodeRecord>
 
+type CortexMessage =
+    | Think of AsyncReplyChannel<unit>
+    | KillCortex of AsyncReplyChannel<NodeRecords>
+
+type CortexInstance = MailboxProcessor<CortexMessage>
+
 type NeuronProperties =
   {
     ActivationFunction: ActivationFunction
@@ -86,6 +92,9 @@ type NeuronActions =
   | AddInboundConnection of NeuronConnectionId*AsyncReplyChannel<unit>
   | GetNodeRecord of AsyncReplyChannel<NodeRecord>
   | Die of AsyncReplyChannel<unit>
+  | RegisterCortex of CortexInstance*AsyncReplyChannel<unit>
+  | ActivateActuator
+  | CheckActuatorStatus of AsyncReplyChannel<bool>
 
 type NeuronInstance = MailboxProcessor<NeuronActions>
 
@@ -102,8 +111,3 @@ type InboundNeuronConnections = NeuronConnectionId seq
 
 type NeuralNetwork = Map<NeuronId, NeuronLayerId*NeuronInstance>
 
-type CortexMessage =
-  | Think of AsyncReplyChannel<unit>
-  | KillCortex of AsyncReplyChannel<NodeRecords>
-
-type CortexInstance = MailboxProcessor<CortexMessage>
