@@ -79,7 +79,7 @@ let ``AddBias mutation should add a bias to a neuron that has none`` () =
     |> addNeuronToMap neuron
     |> addNeuronToMap sensor
     |> constructNodeRecords
-    |> mutateNeuralNetwork [AddBias] activationFunctions syncFunctions outputHooks
+    |> mutateNeuralNetwork [AddBias] [activationFunctionId] [syncFunctionId] [outputHookId]
 
   [
     sensor
@@ -184,7 +184,7 @@ let ``RemoveBias mutation should remove a bias to a neuron that has some bias`` 
     |> addNeuronToMap neuron
     |> addNeuronToMap sensor
     |> constructNodeRecords
-    |> mutateNeuralNetwork [RemoveBias] activationFunctions syncFunctions outputHooks
+    |> mutateNeuralNetwork [RemoveBias] [activationFunctionId] [syncFunctionId] [outputHookId]
 
   [
     sensor
@@ -283,7 +283,7 @@ let ``MutateWeights mutation should mutate the weights of all outbound connectio
     |> addNeuronToMap neuron
     |> addNeuronToMap sensor
     |> constructNodeRecords
-    |> mutateNeuralNetwork [MutateWeights] activationFunctions syncFunctions outputHooks
+    |> mutateNeuralNetwork [MutateWeights] [activationFunctionId] [syncFunctionId] [outputHookId]
  
   [
     sensor
@@ -402,7 +402,7 @@ let ``AddOutboundConnection mutation should mutate connect a neuron to a neuron 
     |> addNeuronToMap neuron
     |> addNeuronToMap sensor
     |> constructNodeRecords
-    |> mutateNeuralNetwork [AddOutboundConnection] activationFunctions syncFunctions outputHooks 
+    |> mutateNeuralNetwork [AddOutboundConnection] [activationFunctionId] [syncFunctionId] [outputHookId]
  
   [
     sensor
@@ -498,7 +498,7 @@ let ``AddNeuron mutation should add a new neuron and connect it randomly in the 
     |> addNeuronToMap neuron
     |> addNeuronToMap sensor
     |> constructNodeRecords
-    |> mutateNeuralNetwork [AddNeuron] activationFunctions syncFunctions outputHooks
+    |> mutateNeuralNetwork [AddNeuron] [activationFunctionId] [syncFunctionId] [outputHookId]
 
   [
     sensor
@@ -601,7 +601,7 @@ let ``AddSensor mutation should add a new sensor and connect it randomly in the 
     |> addNeuronToMap neuron
     |> addNeuronToMap sensor
     |> constructNodeRecords
-    |> mutateNeuralNetwork [AddSensor] activationFunctions syncFunctions outputHooks
+    |> mutateNeuralNetwork [AddSensor] [activationFunctionId] [syncFunctionId] [outputHookId]
 
   [
     sensor
@@ -698,7 +698,7 @@ let ``AddActuator mutation should add a new actuator and connect it randomly in 
     |> addNeuronToMap neuron
     |> addNeuronToMap sensor
     |> constructNodeRecords
-    |> mutateNeuralNetwork [AddActuator] activationFunctions syncFunctions outputHooks
+    |> mutateNeuralNetwork [AddActuator] [activationFunctionId] [syncFunctionId] [outputHookId]
 
   [
     sensor
@@ -796,7 +796,7 @@ let ``AddSensorLink mutation should add a sensor connection randomly in the neur
     |> addNeuronToMap neuron
     |> addNeuronToMap sensor
     |> constructNodeRecords
-    |> mutateNeuralNetwork [AddSensorLink] activationFunctions syncFunctions outputHooks
+    |> mutateNeuralNetwork [AddSensorLink] [activationFunctionId] [syncFunctionId] [outputHookId]
 
   [
     sensor
@@ -899,7 +899,7 @@ let ``AddActuatorLink mutation should add an actuaor connection randomly in the 
     |> addNeuronToMap neuron
     |> addNeuronToMap sensor
     |> constructNodeRecords
-    |> mutateNeuralNetwork [AddActuatorLink] activationFunctions syncFunctions outputHooks
+    |> mutateNeuralNetwork [AddActuatorLink] [activationFunctionId] [syncFunctionId] [outputHookId]
 
   [
     sensor
@@ -946,7 +946,7 @@ let ``AddActuatorLink mutation should add an actuaor connection randomly in the 
   Die |> testHookMailbox.PostAndReply
 
 [<Fact>]
-let ``MutateActivationFunction mutation should mutate the activation function of a neuron randoly`` () =
+let ``MutateActivationFunction mutation should mutate the activation function of a neuron randomly`` () =
   //Test setup
   let (testHook, testHookMailbox) = getTestHook ()
   let getNodeId = getNumberGenerator()
@@ -1014,7 +1014,7 @@ let ``MutateActivationFunction mutation should mutate the activation function of
     |> addNeuronToMap neuron
     |> addNeuronToMap sensor
     |> constructNodeRecords
-    |> mutateNeuralNetwork [MutateActivationFunction] activationFunctions syncFunctions outputHooks
+    |> mutateNeuralNetwork [MutateActivationFunction] [secondActivationFunctionId] [syncFunctionId] [outputHookId]
 
   [
     sensor
@@ -1117,7 +1117,7 @@ let ``MinimalMutationSequence should be capable of mutating records and executin
     |> addNeuronToMap neuron
     |> addNeuronToMap sensor
     |> constructNodeRecords
-    |> mutateNeuralNetwork minimalMutationSequence activationFunctions syncFunctions outputHooks
+    |> mutateNeuralNetwork minimalMutationSequence [activationFunctionId] [syncFunctionId] [outputHookId]
 
   [
     sensor

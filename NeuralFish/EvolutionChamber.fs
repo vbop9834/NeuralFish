@@ -3,6 +3,7 @@ module NeuralFish.EvolutionChamber
 open NeuralFish.Types
 open NeuralFish.Core
 open NeuralFish.Exporter
+open NeuralFish.Cortex
 
 type Mutation =
   | MutateActivationFunction
@@ -15,8 +16,6 @@ type Mutation =
   // | ResetWeights
   // //Choose random neuron, reset all weights to random values
   // // ranging between -pi/2 and pi/2
-  // | MutateActivationFunction
-  // //Choose a random neuron A, change activation function to random activation function
   | AddInboundConnection
   // //Choose a random neuron A, node B, and add a connection
   | AddOutboundConnection
@@ -46,7 +45,7 @@ type MutationSequence = Mutation seq
 
 let minimalMutationSequence : MutationSequence =
   [
-    MutateActivationFunction 
+    MutateActivationFunction
     AddBias
     RemoveBias
     MutateWeights
@@ -60,9 +59,9 @@ let minimalMutationSequence : MutationSequence =
   ] |> List.toSeq
 
 let mutateNeuralNetwork (mutations : MutationSequence)
-  (activationFunctions : ActivationFunctions)
-    (syncFunctions : SyncFunctions)
-      (outputHooks : OutputHookFunctions)
+  (activationFunctionIds : ActivationFunctionId seq)
+    (syncFunctionIds : SyncFunctionId seq)
+      (outputHookFunctionIds : OutputHookId seq)
         (nodeRecords : NodeRecords) =
 
   let random = System.Random()
@@ -89,7 +88,7 @@ let mutateNeuralNetwork (mutations : MutationSequence)
     else
       let rec mutate mutation =
         sprintf "Mutating using %A" mutation |> infoLog
-        let addOutboundConnection (toNode : NodeRecord) fromNode = 
+        let addOutboundConnection (toNode : NodeRecord) fromNode =
           let newOutboundConnections =
             fromNode.OutboundConnections
             |> Map.add (System.Guid.NewGuid()) (toNode.NodeId,1.0)
@@ -102,9 +101,6 @@ let mutateNeuralNetwork (mutations : MutationSequence)
             |> random.Next
           seqOfNodeRecords
           |> Seq.item randomNumber
-        let activationFunctionIds = activationFunctions |> Map.toSeq |> Seq.map (fun (id, _) -> id)
-        let syncFunctionIds = syncFunctions |> Map.toSeq |> Seq.map (fun (id, _) -> id)
-        let outputHookFunctionIds = outputHooks |> Map.toSeq |> Seq.map (fun (id, _) -> id)
         let selectRandomActivationFunctionId () =
           let randomNumber =
             activationFunctionIds
@@ -194,26 +190,26 @@ let mutateNeuralNetwork (mutations : MutationSequence)
                 selectRandomMutation () |> mutate
         | MutateWeights ->
           let _, neuronToMutateWeights =
-            nodeRecords 
+            nodeRecords
             |> Map.filter(fun _ x -> x.NodeType <> NodeRecordType.Actuator)
             |> selectRandomNode
           let mutatedNeuron =
-            let probabilityOfWeightMutation = 
+            let probabilityOfWeightMutation =
               let totalNumberOfOutboundConnections = neuronToMutateWeights.OutboundConnections |> Map.toSeq |> Seq.length |> float
               1.0/(sqrt totalNumberOfOutboundConnections)
             let newOutboundConnections =
               let calculateProbabilityAndMutateWeight _ inactiveConnection =
                 let mutateWeight ((nodeId, weight) : InactiveNeuronConnection) =
-                  let newWeight = 
+                  let newWeight =
                     let pi = System.Math.PI
                     let maxValue = pi/2.0
                     let minValue = -1.0 * pi/2.0
                     getRandomDoubleBetween minValue maxValue
                   (nodeId, newWeight)
                 if random.NextDouble() <= probabilityOfWeightMutation then
-                  inactiveConnection |> mutateWeight 
+                  inactiveConnection |> mutateWeight
                 else
-                  inactiveConnection 
+                  inactiveConnection
               neuronToMutateWeights.OutboundConnections
               |> Map.map calculateProbabilityAndMutateWeight
             { neuronToMutateWeights with OutboundConnections = newOutboundConnections }
@@ -222,13 +218,13 @@ let mutateNeuralNetwork (mutations : MutationSequence)
           |> Map.add mutatedNeuron.NodeId mutatedNeuron
        // | ResetWeights ->
 //        | MutateActivationFunction ->
-//          let neuronToMutateAF = 
-//            nodeRecords 
+//          let neuronToMutateAF =
+//            nodeRecords
 //            |> Map.filter(fun _ x -> x.NodeType = NodeRecordType.Neuron)
 //            |> selectRandomNode
-        | Mutation.AddInboundConnection 
+        | Mutation.AddInboundConnection
         | Mutation.AddOutboundConnection ->
-          let _,nodeToAddOutboundConnection = 
+          let _,nodeToAddOutboundConnection =
             nodeRecords
             |> Map.filter(fun _ x -> x.NodeType = NodeRecordType.Neuron)
             |> selectRandomNode
@@ -236,37 +232,37 @@ let mutateNeuralNetwork (mutations : MutationSequence)
             nodeRecords
             |> Map.filter(fun _ x -> x.NodeType <> NodeRecordType.Sensor)
             |> selectRandomNode
-          let mutatedNode = 
+          let mutatedNode =
             nodeToAddOutboundConnection
             |> addOutboundConnection nodeToConnectTo
           nodeRecords
           |> Map.add mutatedNode.NodeId mutatedNode
         | AddNeuron ->
-          let _,inboundNode = 
-            nodeRecords 
+          let _,inboundNode =
+            nodeRecords
             |> Map.filter(fun _ x -> x.NodeType <> NodeRecordType.Actuator)
             |> selectRandomNode
           let _,outboundNode =
-            nodeRecords 
+            nodeRecords
             |> Map.filter(fun _ x -> x.NodeType <> NodeRecordType.Sensor)
             |> selectRandomNode
           let blankNewNeuronRecord =
             let seqOfNodes =
               nodeRecords
               |> Map.toSeq
-            let layer = 
+            let layer =
               match inboundNode.Layer < outboundNode.Layer with
               | true ->
                   getRandomDoubleBetween inboundNode.Layer outboundNode.Layer
               | false ->
                   getRandomDoubleBetween outboundNode.Layer inboundNode.Layer
-            let outboundConnections = Map.empty 
+            let outboundConnections = Map.empty
             let nodeId =
               seqOfNodes
               |> Seq.maxBy(fun (nodeId,_) -> nodeId)
               |> (fun (nodeId,_) -> nodeId + 1)
             let activationFunctionId = selectRandomActivationFunctionId ()
-              
+
             {
               Layer = layer
               NodeId = nodeId
@@ -275,13 +271,13 @@ let mutateNeuralNetwork (mutations : MutationSequence)
               Bias = None
               ActivationFunctionId = Some activationFunctionId
               SyncFunctionId = None
-              OutputHookId = None 
+              OutputHookId = None
               MaximumVectorLength = None
             }
-          let newNeuronRecordWithOutbound = 
+          let newNeuronRecordWithOutbound =
             blankNewNeuronRecord
             |> addOutboundConnection outboundNode
-          let inboundNodeWithNewNeuron = 
+          let inboundNodeWithNewNeuron =
             inboundNode
             |> addOutboundConnection newNeuronRecordWithOutbound
           nodeRecords
@@ -306,28 +302,28 @@ let mutateNeuralNetwork (mutations : MutationSequence)
             selectRandomMutation () |> mutate
           else
             let _, sensorNode =
-              sensorRecordsThatCanHaveAnotherOutput 
+              sensorRecordsThatCanHaveAnotherOutput
               |> selectRandomNode
             let _,outboundNode =
-              nodeRecords 
+              nodeRecords
               |> Map.filter(fun _ x -> x.NodeType = NodeRecordType.Neuron)
               |> selectRandomNode
 
-            let sensorNodeWithNewOutbound = 
+            let sensorNodeWithNewOutbound =
               sensorNode
               |> addOutboundConnection outboundNode
             nodeRecords
             |> Map.add sensorNodeWithNewOutbound.NodeId sensorNodeWithNewOutbound
         | AddActuatorLink ->
           let _,inboundNode =
-            nodeRecords 
+            nodeRecords
             |> Map.filter(fun _ x -> x.NodeType = NodeRecordType.Neuron)
             |> selectRandomNode
           let _, actuatorNode =
-            nodeRecords 
+            nodeRecords
             |> Map.filter(fun _ x -> x.NodeType = NodeRecordType.Actuator)
             |> selectRandomNode
-          let nodeWithActuatorOutbound = 
+          let nodeWithActuatorOutbound =
             inboundNode
             |> addOutboundConnection actuatorNode
           nodeRecords
@@ -336,19 +332,19 @@ let mutateNeuralNetwork (mutations : MutationSequence)
        // | RemoveActuatorLink ->
         | AddSensor ->
           let _,outboundNode =
-            nodeRecords 
+            nodeRecords
             |> Map.filter(fun _ x -> x.NodeType = NodeRecordType.Neuron)
             |> selectRandomNode
           let blankSensorRecord =
             let layer = 0.0
-            let outboundConnections = Map.empty 
+            let outboundConnections = Map.empty
             let nodeId =
               nodeRecords
               |> Map.toSeq
               |> Seq.maxBy(fun (nodeId,_) -> nodeId)
               |> (fun (nodeId,_) -> nodeId + 1)
             let syncFunctionId = selectRandomSyncFunctionId ()
-              
+
             {
               Layer = layer
               NodeId = nodeId
@@ -357,37 +353,37 @@ let mutateNeuralNetwork (mutations : MutationSequence)
               Bias = None
               ActivationFunctionId = None
               SyncFunctionId = Some syncFunctionId
-              OutputHookId = None 
+              OutputHookId = None
               MaximumVectorLength = Some 1
             }
-          let newSensorWithOutbound = 
+          let newSensorWithOutbound =
             blankSensorRecord
             |> addOutboundConnection outboundNode
           nodeRecords
           |> Map.add newSensorWithOutbound.NodeId newSensorWithOutbound
         | AddActuator ->
           let _,inboundNode =
-            nodeRecords 
+            nodeRecords
             |> Map.filter(fun _ x -> x.NodeType = NodeRecordType.Neuron)
             |> selectRandomNode
           let blankActuatorRecord =
             let seqOfNodes =
               nodeRecords
               |> Map.toSeq
-            let layer = 
+            let layer =
               let maxLayer =
                 seqOfNodes
                 |> Seq.maxBy(fun (_,nodeRecord) -> nodeRecord.Layer)
                 |> (fun (_,record) -> record.Layer)
               maxLayer
               |> round
-            let outboundConnections = Map.empty 
+            let outboundConnections = Map.empty
             let nodeId =
               seqOfNodes
               |> Seq.maxBy(fun (nodeId,_) -> nodeId)
               |> (fun (nodeId,_) -> nodeId + 1)
             let outputHookId = selectRandomOutputHookFunctionId ()
-              
+
             {
               Layer = layer
               NodeId = nodeId
@@ -396,10 +392,10 @@ let mutateNeuralNetwork (mutations : MutationSequence)
               Bias = None
               ActivationFunctionId = None
               SyncFunctionId = None
-              OutputHookId = Some outputHookId 
+              OutputHookId = Some outputHookId
               MaximumVectorLength = None
             }
-          let newInboundWithActuatorOutboundConnection = 
+          let newInboundWithActuatorOutboundConnection =
             inboundNode
             |> addOutboundConnection blankActuatorRecord
           nodeRecords
@@ -417,3 +413,151 @@ let mutateNeuralNetwork (mutations : MutationSequence)
       |> processMutationSequence (pendingMutations |> Seq.tail)
   nodeRecords
   |> processMutationSequence pendingMutations
+
+
+let evolveForXGenerations (maximumMinds : int)
+  (maximumThinkCycles : int)
+    (mutationSequence : MutationSequence)
+      (fitnessFunction : FitnessFunction)
+        (activationFunctions : ActivationFunctions)
+          (syncFunctions : SyncFunctions)
+            (outputHookFunctionIds : OutputHookFunctionIds)
+              (generations : int)
+                (startingRecords : GenerationRecords)
+                 : GenerationRecords =
+  let mutationFunction =
+    let activationFunctionIds =
+      activationFunctions
+      |> Map.toSeq
+      |> Seq.map (fun (id,_) -> id)
+    let syncFunctionIds =
+      syncFunctions
+      |> Map.toSeq
+      |> Seq.map (fun (id,_) -> id)
+    (fun records -> records |> mutateNeuralNetwork mutationSequence activationFunctionIds syncFunctionIds outputHookFunctionIds)
+
+  let evolveGeneration (generationRecords : GenerationRecords) : GenerationRecords =
+    let processEvolution currentGen = 
+      let rec processEvolutionLoop newGeneration previousGeneration =
+        if ((newGeneration |> Array.length) >= maximumMinds) then
+          printfn "New Generation %A" newGeneration
+          newGeneration
+        else
+          let beingId,being = previousGeneration |> Array.head
+          let updatedPreviousGeneration =
+            let tailGeneration = previousGeneration |> Array.tail
+            Array.append tailGeneration [|(beingId, being)|]
+          let mutatedBeing : NodeRecords = being |> mutationFunction
+          let newId = newGeneration |> Array.length
+          let updatedNewGeneration = Array.append newGeneration [|(newId,mutatedBeing)|]  
+          processEvolutionLoop updatedNewGeneration updatedPreviousGeneration
+      processEvolutionLoop Array.empty currentGen
+    generationRecords
+    |> Map.toArray
+    |> processEvolution
+    |> Map.ofArray
+  let rec processGenerations (generationCounter : int) (generationRecords : GenerationRecords) : GenerationRecords =
+    let scoredGenerationRecords : ScoredNodeRecords =
+      let scoreNeuralNetwork nodeRecordsId nodeRecords =
+        let scoreKeeper =
+          ScoreKeeperInstance.Start(fun inbox ->
+            let rec loop outputBuffer =
+              async {
+                let! someMsg = inbox.TryReceive 250
+                match someMsg with
+                | None ->
+                  return! loop outputBuffer
+                | Some msg ->
+                  match msg with
+                  | Gather (replyChannel, outputHookId, actuatorOutput) ->
+                    let updatedBuffer =
+                      outputBuffer
+                      |> Map.add outputHookId actuatorOutput
+                    replyChannel.Reply()
+                    return! loop updatedBuffer
+                  | GetScore replyChannel ->
+                    sprintf "Sending Buffer to fitnessfunction %A" outputBuffer |> infoLog
+                    outputBuffer
+                    |> fitnessFunction
+                    |> replyChannel.Reply
+                    return! loop Map.empty
+                  | KillScoreKeeper replyChannel ->
+                    replyChannel.Reply ()
+                    ()
+              }
+            loop Map.empty
+          )
+        let outputHooks : OutputHookFunctions =
+          let scoringFunction outputHookId =
+            (fun actuatorOutput ->
+              (fun r -> Gather (r, outputHookId, actuatorOutput))
+              |> scoreKeeper.PostAndReply
+            )
+          outputHookFunctionIds
+          |> Seq.map(fun id -> (id, id |> scoringFunction) )
+          |> Map.ofSeq
+        let cortex =
+          nodeRecords
+          |> constructNeuralNetwork activationFunctions syncFunctions outputHooks
+          |> createCortex
+        let thinkAndScore _ =
+          Think |> cortex.PostAndReply
+          let score =
+            GetScore |> scoreKeeper.PostAndReply
+          sprintf "Node Records Id %A scored %A" nodeRecordsId score |> infoLog
+          score
+        let sumScore : Score =
+          [0..maximumThinkCycles]
+          |> Seq.map thinkAndScore
+          |> Seq.sum
+        KillScoreKeeper |> scoreKeeper.PostAndReply
+        let updatedRecords = KillCortex |> cortex.PostAndReply
+        sumScore, updatedRecords
+      generationRecords
+      |> Map.map scoreNeuralNetwork
+      |> Map.toSeq
+    let halfThePopulation (scoredRecords : ScoredNodeRecords) : ScoredNodeRecords =
+      let halfLength =
+        let half = (scoredRecords |> Seq.length) / 2
+        if (half < 2) then
+          2
+        else
+          half
+      scoredRecords
+      |> Seq.sortByDescending(fun (_,(score,_)) -> score)
+      |> Seq.chunkBySize halfLength
+      |> Seq.head
+      |> Array.toSeq
+    let convertToGenerationRecords (scoredNodeRecords : ScoredNodeRecords) : GenerationRecords =
+      scoredNodeRecords
+      |> Seq.map (fun (nodeId, (score,nodeRecord)) -> (nodeId, nodeRecord))
+      |> Map.ofSeq
+
+    if (generationCounter >= generations) then
+      let printScores (scoredRecords : ScoredNodeRecords) : ScoredNodeRecords =
+        let rec printScores remainingScoredRecords =
+          if remainingScoredRecords |> Array.isEmpty then
+            ()
+          else
+            let key, (score,_) = remainingScoredRecords |> Array.head
+            printfn "Neuron Records Id %A : %f" key score
+            printScores (remainingScoredRecords |> Array.tail)
+        printfn "Scored Generations"
+        printfn "-------------------------------"
+        scoredRecords
+        |> Seq.toArray
+        |> printScores
+        scoredRecords
+
+      scoredGenerationRecords
+      |> printScores
+      |> convertToGenerationRecords 
+    else
+      scoredGenerationRecords
+      |> halfThePopulation
+      |> convertToGenerationRecords 
+      |> evolveGeneration
+      |> processGenerations (generationCounter + 1)
+  startingRecords
+  |> evolveGeneration
+  |> processGenerations 0

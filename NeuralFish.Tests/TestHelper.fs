@@ -12,11 +12,6 @@ let fakeDataGenerator (buffer : (float seq) list) =
     let rec loop buffer =
       async {
         let! msg = inbox.Receive ()
-        let getData buffer =
-          if buffer |> List.isEmpty then
-            Seq.empty
-          else
-            buffer |> List.head
         match msg with
         | GetData replyChannel ->
           let data = buffer |> List.head

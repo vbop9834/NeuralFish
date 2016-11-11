@@ -37,7 +37,12 @@ Target "Deploy" (fun _ ->
 
 Target "Test" (fun _ ->
     !! (buildDir + "/*.Tests.dll")
-    |> xUnit2 (fun p -> { p with HtmlOutputPath = Some (buildDir @@ "xunit.html") })
+    |> xUnit2 (fun p ->
+               { p with
+                     HtmlOutputPath = Some (buildDir @@ "xunit.html")
+                     TimeOut = TimeSpan.FromMinutes 7.5 
+                     Parallel = NoParallelization
+               })
 )
 // Build order
 "Clean"

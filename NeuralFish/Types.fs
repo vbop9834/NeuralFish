@@ -13,14 +13,17 @@ type OutputHookId = int
 type Bias = float
 type Weight = float
 type NeuronOutput = float
+type ActuatorOutput = float
 
 type ActivationFunction = NeuronOutput -> NeuronOutput
 type SyncFunction = unit -> NeuronOutput seq
-type OutputHookFunction = NeuronOutput -> unit
+type OutputHookFunction = ActuatorOutput -> unit
 
 type ActivationFunctions = Map<ActivationFunctionId,ActivationFunction>
 type SyncFunctions = Map<SyncFunctionId,SyncFunction>
 type OutputHookFunctions = Map<OutputHookId, OutputHookFunction>
+
+type OutputHookFunctionIds = OutputHookId seq
 
 type NeuronLayerId = float
 
@@ -51,7 +54,7 @@ type NodeRecord =
     ActivationFunctionId: ActivationFunctionId option
     SyncFunctionId: ActivationFunctionId option
     OutputHookId: OutputHookId option
-    MaximumVectorLength: int option 
+    MaximumVectorLength: int option
   }
 
 type NodeRecords = Map<NeuronId,NodeRecord>
@@ -80,6 +83,7 @@ type ActuatorProperties =
     Record: NodeRecord
   }
 
+
 type NeuronType =
   | Neuron of NeuronProperties
   | Sensor of SensorProperties
@@ -93,7 +97,7 @@ type NeuronActions =
   | GetNodeRecord of AsyncReplyChannel<NodeRecord>
   | Die of AsyncReplyChannel<unit>
   | RegisterCortex of CortexInstance*AsyncReplyChannel<unit>
-  | ActivateActuator
+  | ActivateActuator of AsyncReplyChannel<unit>
   | CheckActuatorStatus of AsyncReplyChannel<bool>
 
 type NeuronInstance = MailboxProcessor<NeuronActions>
@@ -110,4 +114,23 @@ type RecurrentNeuronConnections = Map<NeuronConnectionId,NeuronConnection>
 type InboundNeuronConnections = NeuronConnectionId seq
 
 type NeuralNetwork = Map<NeuronId, NeuronLayerId*NeuronInstance>
+
+type Score = float
+
+type ScoreKeeperMsg =
+  | Gather of AsyncReplyChannel<unit>*OutputHookId*float
+  | GetScore of AsyncReplyChannel<float>
+  | KillScoreKeeper of AsyncReplyChannel<unit>
+
+type ScoreKeeperInstance = MailboxProcessor<ScoreKeeperMsg>
+
+type NodeRecordsId = int
+
+type ScoredNodeRecords = seq<NodeRecordsId*(Score*NodeRecords)>
+
+type NeuralOutputs = Map<NeuronId, ActuatorOutput>
+
+type FitnessFunction = NeuralOutputs -> Score
+
+type GenerationRecords = Map<NodeRecordsId, NodeRecords>
 
