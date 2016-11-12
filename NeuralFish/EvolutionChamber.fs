@@ -420,18 +420,19 @@ let evolveForXGenerations (maximumMinds : int)
     (mutationSequence : MutationSequence)
       (fitnessFunction : FitnessFunction)
         (activationFunctions : ActivationFunctions)
-          (syncFunctions : SyncFunctions)
+          (syncFunctionSources : SyncFunctionSources)
             (outputHookFunctionIds : OutputHookFunctionIds)
-              (generations : int)
-                (startingRecords : GenerationRecords)
-                 : GenerationRecords =
+              (endOfGenerationFunction : EndOfGenerationFunction)
+                (generations : int)
+                  (startingRecords : GenerationRecords)
+                   : GenerationRecords =
   let mutationFunction =
     let activationFunctionIds =
       activationFunctions
       |> Map.toSeq
       |> Seq.map (fun (id,_) -> id)
     let syncFunctionIds =
-      syncFunctions
+      syncFunctionSources
       |> Map.toSeq
       |> Seq.map (fun (id,_) -> id)
     (fun records -> records |> mutateNeuralNetwork mutationSequence activationFunctionIds syncFunctionIds outputHookFunctionIds)
@@ -440,7 +441,7 @@ let evolveForXGenerations (maximumMinds : int)
     let processEvolution currentGen = 
       let rec processEvolutionLoop newGeneration previousGeneration =
         if ((newGeneration |> Array.length) >= maximumMinds) then
-          printfn "New Generation %A" newGeneration
+          sprintf "New Generation %A" newGeneration |> infoLog
           newGeneration
         else
           let beingId,being = previousGeneration |> Array.head
@@ -452,13 +453,14 @@ let evolveForXGenerations (maximumMinds : int)
           let updatedNewGeneration = Array.append newGeneration [|(newId,mutatedBeing)|]  
           processEvolutionLoop updatedNewGeneration updatedPreviousGeneration
       processEvolutionLoop Array.empty currentGen
+    //TODO optimize this
     generationRecords
     |> Map.toArray
     |> processEvolution
     |> Map.ofArray
   let rec processGenerations (generationCounter : int) (generationRecords : GenerationRecords) : GenerationRecords =
     let scoredGenerationRecords : ScoredNodeRecords =
-      let scoreNeuralNetwork nodeRecordsId nodeRecords =
+      let scoreNeuralNetwork (nodeRecordsId : NodeRecordsId) (nodeRecords : NodeRecords) =
         let scoreKeeper =
           ScoreKeeperInstance.Start(fun inbox ->
             let rec loop outputBuffer =
@@ -478,7 +480,7 @@ let evolveForXGenerations (maximumMinds : int)
                   | GetScore replyChannel ->
                     sprintf "Sending Buffer to fitnessfunction %A" outputBuffer |> infoLog
                     outputBuffer
-                    |> fitnessFunction
+                    |> fitnessFunction nodeRecordsId
                     |> replyChannel.Reply
                     return! loop Map.empty
                   | KillScoreKeeper replyChannel ->
@@ -496,6 +498,23 @@ let evolveForXGenerations (maximumMinds : int)
           outputHookFunctionIds
           |> Seq.map(fun id -> (id, id |> scoringFunction) )
           |> Map.ofSeq
+        let syncFunctions = 
+          let neededSyncFunctionIds =
+            let sensorRecords =
+              nodeRecords
+              |> Map.filter (fun _ record -> record.NodeType = NodeRecordType.Sensor)
+            let getSyncFunctionId (sensorId,sensorRecord) =
+              if (sensorRecord.SyncFunctionId.IsNone) then
+                raise(SensorRecordDoesNotHaveASyncFunctionException <| sprintf "Sensor Record %A" sensorRecord.NodeId)
+              else
+                sensorRecord.SyncFunctionId.Value
+            sensorRecords
+            |> Map.toSeq
+            |> Seq.map getSyncFunctionId
+
+          syncFunctionSources
+          |> Map.filter(fun key _ -> neededSyncFunctionIds |> Seq.exists(fun neededId -> key = neededId))
+          |> Map.map (fun key syncFunctionSource -> syncFunctionSource nodeRecordsId)
         let cortex =
           nodeRecords
           |> constructNeuralNetwork activationFunctions syncFunctions outputHooks
@@ -514,24 +533,25 @@ let evolveForXGenerations (maximumMinds : int)
         let updatedRecords = KillCortex |> cortex.PostAndReply
         sumScore, updatedRecords
       generationRecords
-      |> Map.map scoreNeuralNetwork
-      |> Map.toSeq
+      |> Map.toArray
+      |> Array.Parallel.map(fun (nodeRecordsId, nodeRecords) -> (nodeRecordsId, nodeRecords |> scoreNeuralNetwork nodeRecordsId))
     let halfThePopulation (scoredRecords : ScoredNodeRecords) : ScoredNodeRecords =
       let halfLength =
-        let half = (scoredRecords |> Seq.length) / 2
+        let half = (scoredRecords |> Array.length) / 2
         if (half < 2) then
           2
         else
           half
       scoredRecords
-      |> Seq.sortByDescending(fun (_,(score,_)) -> score)
-      |> Seq.chunkBySize halfLength
-      |> Seq.head
-      |> Array.toSeq
+      |> Array.sortByDescending(fun (_,(score,_)) -> score)
+      |> Array.chunkBySize halfLength
+      |> Array.head
     let convertToGenerationRecords (scoredNodeRecords : ScoredNodeRecords) : GenerationRecords =
       scoredNodeRecords
-      |> Seq.map (fun (nodeId, (score,nodeRecord)) -> (nodeId, nodeRecord))
-      |> Map.ofSeq
+      |> Array.Parallel.map (fun (nodeId, (score,nodeRecord)) -> (nodeId, nodeRecord))
+      |> Map.ofArray
+
+    scoredGenerationRecords |> endOfGenerationFunction
 
     if (generationCounter >= generations) then
       let printScores (scoredRecords : ScoredNodeRecords) : ScoredNodeRecords =
@@ -545,7 +565,6 @@ let evolveForXGenerations (maximumMinds : int)
         printfn "Scored Generations"
         printfn "-------------------------------"
         scoredRecords
-        |> Seq.toArray
         |> printScores
         scoredRecords
 

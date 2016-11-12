@@ -3,6 +3,7 @@ module NeuralFish.Types
 exception NodeRecordTypeException of string
 exception NeuronInstanceException of string
 exception NoBiasInRecordForNeuronException of string
+exception SensorRecordDoesNotHaveASyncFunctionException of string
 
 type NeuronId = int
 
@@ -52,7 +53,7 @@ type NodeRecord =
     OutboundConnections: NodeRecordConnections
     Bias: Bias option
     ActivationFunctionId: ActivationFunctionId option
-    SyncFunctionId: ActivationFunctionId option
+    SyncFunctionId: SyncFunctionId option
     OutputHookId: OutputHookId option
     MaximumVectorLength: int option
   }
@@ -126,11 +127,15 @@ type ScoreKeeperInstance = MailboxProcessor<ScoreKeeperMsg>
 
 type NodeRecordsId = int
 
-type ScoredNodeRecords = seq<NodeRecordsId*(Score*NodeRecords)>
+type ScoredNodeRecords = array<NodeRecordsId*(Score*NodeRecords)>
 
 type NeuralOutputs = Map<NeuronId, ActuatorOutput>
 
-type FitnessFunction = NeuralOutputs -> Score
+type FitnessFunction = NodeRecordsId -> NeuralOutputs -> Score
 
 type GenerationRecords = Map<NodeRecordsId, NodeRecords>
 
+type EndOfGenerationFunction = ScoredNodeRecords -> unit
+
+type SyncFunctionSource = NodeRecordsId -> SyncFunction
+type SyncFunctionSources = Map<SyncFunctionId, SyncFunctionSource>

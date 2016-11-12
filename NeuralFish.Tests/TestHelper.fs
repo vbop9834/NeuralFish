@@ -23,6 +23,7 @@ let fakeDataGenerator (buffer : (float seq) list) =
       }
     loop buffer
   )
+  //TODO these never die. Need to make a manager
   (fun () -> GetData |> generator.PostAndReply)
 
 type TestHookMsg =
