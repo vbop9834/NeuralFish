@@ -5,44 +5,6 @@ open NeuralFish.Core
 open NeuralFish.Exporter
 open NeuralFish.Cortex
 
-type Mutation =
-  | MutateActivationFunction
-  | AddBias
-  | RemoveBias
-  | MutateWeights
-  // //Choose random neuron, perturb each weight with probability of
-  // //1/sqrt(# of weights)
-  // //Intensity chosen randomly between -pi/2 and pi/2
-  // | ResetWeights
-  // //Choose random neuron, reset all weights to random values
-  // // ranging between -pi/2 and pi/2
-  | AddInboundConnection
-  // //Choose a random neuron A, node B, and add a connection
-  | AddOutboundConnection
-  | AddNeuron
-  // //Create a new neuron A, position randomly in NN.
-  // //Random Activation Function
-  // //Random inbound and outbound
-  // | OutSplice
-  // | InSplice
-  // //Create a new neuron A and sandwich between two nodes
-  | AddSensorLink
-  | AddActuatorLink
-  // | RemoveSensorLink
-  // | RemoveActuatorLink
-  | AddSensor
-  | AddActuator
-  // | RemoveInboundConnection
-  // | RemoveOutboundConnection
-  // | RemoveNeuron
-  // //Remove neuron then connect inputs to outputs
-  // | DespliceOut
-  // | DespliceIn
-  // | RemoveSensor
-  // | RemoveActuator
-
-type MutationSequence = Mutation seq
-
 let minimalMutationSequence : MutationSequence =
   [
     MutateActivationFunction
@@ -414,19 +376,36 @@ let mutateNeuralNetwork (mutations : MutationSequence)
   nodeRecords
   |> processMutationSequence pendingMutations
 
+let defaultEvolutionProperties : EvolutionProperties =
+  {
+    MaximumMinds = 5
+    MaximumThinkCycles = 5
+    Generations = 5
+    MutationSequence = minimalMutationSequence 
+    FitnessFunction = (fun _ _ -> 0.0)
+    ActivationFunctions = Map.empty
+    SyncFunctionSources = Map.empty
+    OutputHookFunctionIds = Seq.empty
+    EndOfGenerationFunctionOption = None
+    StartingRecords = Map.empty
+  }
 
-let evolveForXGenerations (maximumMinds : int)
-  (maximumThinkCycles : int)
-    (mutationSequence : MutationSequence)
-      (fitnessFunction : FitnessFunction)
-        (activationFunctions : ActivationFunctions)
-          (syncFunctionSources : SyncFunctionSources)
-            (outputHookFunctionIds : OutputHookFunctionIds)
-              (endOfGenerationFunction : EndOfGenerationFunction)
-                (generations : int)
-                  (startingRecords : GenerationRecords)
+let evolveForXGenerations (evolutionProperties : EvolutionProperties) 
                    : GenerationRecords =
+  let activationFunctions = evolutionProperties.ActivationFunctions
+  let syncFunctionSources = evolutionProperties.SyncFunctionSources
+  let outputHookFunctionIds = evolutionProperties.OutputHookFunctionIds
+  let maximumMinds = evolutionProperties.MaximumMinds
+  let maximumThinkCycles = evolutionProperties.MaximumThinkCycles
+  let fitnessFunction = evolutionProperties.FitnessFunction
+  let endOfGenerationFunction =
+    match evolutionProperties.EndOfGenerationFunctionOption with
+    | Some endOfGenerationFunction -> endOfGenerationFunction
+    | None -> (fun _ -> ())
+  let generations = evolutionProperties.Generations 
+
   let mutationFunction =
+    let mutationSequence = evolutionProperties.MutationSequence
     let activationFunctionIds =
       activationFunctions
       |> Map.toSeq
@@ -577,6 +556,6 @@ let evolveForXGenerations (maximumMinds : int)
       |> convertToGenerationRecords 
       |> evolveGeneration
       |> processGenerations (generationCounter + 1)
-  startingRecords
+  evolutionProperties.StartingRecords
   |> evolveGeneration
   |> processGenerations 0

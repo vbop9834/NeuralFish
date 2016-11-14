@@ -139,3 +139,54 @@ type EndOfGenerationFunction = ScoredNodeRecords -> unit
 
 type SyncFunctionSource = NodeRecordsId -> SyncFunction
 type SyncFunctionSources = Map<SyncFunctionId, SyncFunctionSource>
+
+type Mutation =
+  | MutateActivationFunction
+  | AddBias
+  | RemoveBias
+  | MutateWeights
+  // //Choose random neuron, perturb each weight with probability of
+  // //1/sqrt(# of weights)
+  // //Intensity chosen randomly between -pi/2 and pi/2
+  // | ResetWeights
+  // //Choose random neuron, reset all weights to random values
+  // // ranging between -pi/2 and pi/2
+  | AddInboundConnection
+  // //Choose a random neuron A, node B, and add a connection
+  | AddOutboundConnection
+  | AddNeuron
+  // //Create a new neuron A, position randomly in NN.
+  // //Random Activation Function
+  // //Random inbound and outbound
+  // | OutSplice
+  // | InSplice
+  // //Create a new neuron A and sandwich between two nodes
+  | AddSensorLink
+  | AddActuatorLink
+  // | RemoveSensorLink
+  // | RemoveActuatorLink
+  | AddSensor
+  | AddActuator
+  // | RemoveInboundConnection
+  // | RemoveOutboundConnection
+  // | RemoveNeuron
+  // //Remove neuron then connect inputs to outputs
+  // | DespliceOut
+  // | DespliceIn
+  // | RemoveSensor
+  // | RemoveActuator
+
+type MutationSequence = Mutation seq
+type EvolutionProperties =
+  {
+    MaximumMinds : int
+    MaximumThinkCycles : int
+    Generations : int
+    MutationSequence : MutationSequence 
+    FitnessFunction : FitnessFunction
+    ActivationFunctions : ActivationFunctions
+    SyncFunctionSources : SyncFunctionSources
+    OutputHookFunctionIds : OutputHookFunctionIds
+    EndOfGenerationFunctionOption : EndOfGenerationFunction option
+    StartingRecords : GenerationRecords
+  }

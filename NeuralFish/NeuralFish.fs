@@ -255,7 +255,7 @@ let createNeuronInstance neuronType =
             | Sensor _ ->
               //Sensors use the sync msg
               return! loop Map.empty inboundConnections outboundConnections maximumVectorLength maybeCortex
-          | AddOutboundConnection ((toNode,nodeId,outboundLayer,weight),replyChannel) ->
+          | NeuronActions.AddOutboundConnection ((toNode,nodeId,outboundLayer,weight),replyChannel) ->
               let neuronConnectionId = System.Guid.NewGuid()
               let updatedOutboundConnections =
                 let outboundConnection =
@@ -267,7 +267,7 @@ let createNeuronInstance neuronType =
                 outboundConnections |> Map.add neuronConnectionId outboundConnection
 
               (neuronConnectionId, replyChannel)
-              |> AddInboundConnection
+              |> NeuronActions.AddInboundConnection
               |> toNode.Post
 
               //queue up blank synapses for recurrent connections
@@ -280,7 +280,7 @@ let createNeuronInstance neuronType =
               sprintf "Node %A is adding Node %A as an outbound connection %A with weight %A" neuronType nodeId neuronConnectionId weight
               |> infoLog
               return! loop barrier inboundConnections updatedOutboundConnections maximumVectorLength maybeCortex
-            | AddInboundConnection (neuronConnectionId,replyChannel) ->
+            | NeuronActions.AddInboundConnection (neuronConnectionId,replyChannel) ->
               let updatedInboundConnections =
                 inboundConnections |> Seq.append(Seq.singleton neuronConnectionId)
               replyChannel.Reply()

@@ -1227,8 +1227,6 @@ let ``Should be able to evolve x generations`` () =
 
   Die |> testHookMailbox.PostAndReply
 
-  let maximumMinds = 5
-  let maximumThinkCycles = 5
   let random = System.Random()
   let fitnessFunction : FitnessFunction =
     (fun nodeRecordsId neuralOutputs ->
@@ -1241,7 +1239,6 @@ let ``Should be able to evolve x generations`` () =
     (fun scoredNodeRecords ->
      ()
     )
-  let generations = 3
   let mutationSequence =
     [
       MutateActivationFunction
@@ -1258,8 +1255,17 @@ let ``Should be able to evolve x generations`` () =
     let generationRecords =
       Map.empty
       |> Map.add 0 nodeRecords
-    generationRecords
-    |> evolveForXGenerations maximumMinds maximumThinkCycles mutationSequence fitnessFunction activationFunctions syncFunctionSources outputHookFunctionIds endOfGenerationFunction generations 
+    let evolutionProperties =
+      { defaultEvolutionProperties with
+          MutationSequence = mutationSequence
+          FitnessFunction = fitnessFunction
+          ActivationFunctions = activationFunctions
+          SyncFunctionSources = syncFunctionSources
+          OutputHookFunctionIds = outputHookFunctionIds
+          EndOfGenerationFunctionOption = Some endOfGenerationFunction
+          StartingRecords = generationRecords
+      }
+    evolutionProperties |> evolveForXGenerations  
   evolvedRecords
   |> Map.toSeq
   |> Seq.length
