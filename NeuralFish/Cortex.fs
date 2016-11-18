@@ -53,9 +53,11 @@ let createCortex liveNeurons : CortexInstance =
             replyChannel.Reply ()
             return! loop liveNeurons
           | KillCortex replyChannel ->
-            "Cortex - Killing Neural Network" |> infoLog
+            "Cortex - Gathering Updated Node Records" |> infoLog
             let updatedNodeRecords = liveNeurons |> constructNodeRecords
+            "Cortex - Killing Neural Network" |> infoLog
             liveNeurons |> killNeuralNetwork
+            "Cortex - Replying with Updated records" |> infoLog
             updatedNodeRecords |> replyChannel.Reply
             () 
       }

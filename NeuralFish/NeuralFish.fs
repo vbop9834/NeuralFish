@@ -2,6 +2,8 @@ module NeuralFish.Core
 
 open NeuralFish.Types
 
+let sigmoid = (fun x -> 1.0 / (1.0 + exp(-x)))
+
 let mutable InfoLogging = true
 let infoLog (message : string) =
   if (InfoLogging) then
@@ -12,7 +14,14 @@ let killNeuralNetwork (liveNeurons : NeuralNetwork) =
     let checkIfNeuralNetworkIsActive (neuralNetwork : NeuralNetwork) =
       //returns true if active
       neuralNetwork
-      |> Map.forall(fun i (_,neuron) -> neuron.CurrentQueueLength <> 0)
+      |> Map.exists(fun i (nodeRecordId,neuron) -> 
+                    if neuron.CurrentQueueLength <> 0 then 
+                      sprintf "Waiting on node %A" nodeRecordId
+                      |> infoLog
+                      true
+                    else
+                      false
+                    )
     if neuralNetworkToWaitOn |> checkIfNeuralNetworkIsActive then
       //200 milliseconds of sleep seems plenty while waiting on the NN
       System.Threading.Thread.Sleep(200)
@@ -22,7 +31,7 @@ let killNeuralNetwork (liveNeurons : NeuralNetwork) =
   let killNeuralNetwork (neuralNetworkToKill : NeuralNetwork) =
     neuralNetworkToKill
     |> Map.toArray
-    |> Array.Parallel.iter(fun (_,(_,neuron)) -> Die |> neuron.PostAndReply)
+    |> Array.Parallel.iter(fun (_,(_,neuron)) -> neuron.TryPostAndReply (Die, timeout=500) |> ignore)
 
   liveNeurons
   |> waitOnNeuralNetwork

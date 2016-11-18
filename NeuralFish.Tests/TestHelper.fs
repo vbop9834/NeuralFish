@@ -66,7 +66,6 @@ let getTestHook () =
   let hookFunction = (fun data -> SendDataToBuffer data |> generator.Post)
   (hookFunction, generator)
 
-let sigmoid = (fun x -> 1.0 / (1.0 + exp(-x)))
 
 type NeuronIdGeneratorMsg =
   | GetIntId of AsyncReplyChannel<int>

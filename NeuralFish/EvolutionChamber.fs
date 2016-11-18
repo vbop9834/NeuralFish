@@ -1,6 +1,7 @@
 module NeuralFish.EvolutionChamber
 
 open NeuralFish.Types
+open NeuralFish.Exceptions
 open NeuralFish.Core
 open NeuralFish.Exporter
 open NeuralFish.Cortex
@@ -25,6 +26,10 @@ let mutateNeuralNetwork (mutations : MutationSequence)
     (syncFunctionIds : SyncFunctionId seq)
       (outputHookFunctionIds : OutputHookId seq)
         (nodeRecords : NodeRecords) =
+  let numberOfOutputHookFunctions = outputHookFunctionIds |> Seq.length
+  let numberOfSyncFunctions = syncFunctionIds |> Seq.length
+  let numberOfActivationFunctions = activationFunctionIds |> Seq.length
+  let mutationSequenceLength = mutations |> Seq.length
 
   let random = System.Random()
   let getRandomDoubleBetween minValue maxValue =
@@ -33,8 +38,9 @@ let mutateNeuralNetwork (mutations : MutationSequence)
   let selectRandomMutation _ =
     mutations |> Seq.item (totalNumberOfMutations |> random.Next)
   let pendingMutations =
+    let numberOfNodesInNodeRecords = nodeRecords |> Map.toSeq |> Seq.length
     let numberOfMutations =
-      random.NextDouble() * (sqrt (nodeRecords |> Map.toSeq |> Seq.length |> float))
+      random.NextDouble() * (sqrt (numberOfNodesInNodeRecords |> float))
       |> System.Math.Ceiling
       |> int
     sprintf "Selecting %i number of mutations" numberOfMutations
@@ -65,25 +71,38 @@ let mutateNeuralNetwork (mutations : MutationSequence)
           |> Seq.item randomNumber
         let selectRandomActivationFunctionId () =
           let randomNumber =
-            activationFunctionIds
-            |> Seq.length
+            numberOfActivationFunctions
             |> random.Next
           activationFunctionIds
           |> Seq.item randomNumber
-        let selectRandomSyncFunctionId () =
-          let randomNumber =
+        let selectRandomSyncFunctionId inUseSyncFunctionIds =
+          let availableIds = 
             syncFunctionIds
-            |> Seq.length
-            |> random.Next
-          syncFunctionIds
-          |> Seq.item randomNumber
-        let selectRandomOutputHookFunctionId () =
+            |> Seq.filter(fun syncFunctionId -> inUseSyncFunctionIds |> Seq.contains syncFunctionId |> not)
           let randomNumber =
-            outputHookFunctionIds
-            |> Seq.length
+            let numberOfAvailableIds =
+              availableIds |> Seq.length
+            numberOfAvailableIds
             |> random.Next
-          outputHookFunctionIds
+          availableIds
           |> Seq.item randomNumber
+        let selectRandomOutputHookFunctionId inUseOutputHooks =
+          let availableIds = 
+            outputHookFunctionIds
+            |> Seq.filter(fun outputHookId ->  inUseOutputHooks |> Seq.contains outputHookId |> not)
+          let randomNumber =
+            let numberOfAvailableIds =
+              availableIds |> Seq.length
+            numberOfAvailableIds
+            |> random.Next
+          availableIds
+          |> Seq.item randomNumber
+
+        let mutateRandomly () =
+          if (mutationSequenceLength = 1) then
+            nodeRecords
+          else
+            selectRandomMutation () |> mutate
 
         match mutation with
         | MutateActivationFunction ->
@@ -118,7 +137,7 @@ let mutateNeuralNetwork (mutations : MutationSequence)
                 nodeRecords
               else
                 sprintf "Neuron %A already has bias %f" neuronToAddBias.NodeId bias |> infoLog
-                selectRandomMutation () |> mutate
+                mutateRandomly()
           | None ->
             neuronToAddBias
             |> addBiasToNeuronAndSaveToRecords
@@ -143,13 +162,13 @@ let mutateNeuralNetwork (mutations : MutationSequence)
                   nodeRecords
                 else
                   sprintf "Neuron %A already has no bias already" neuronToRemoveBias.NodeId|> infoLog
-                  selectRandomMutation () |> mutate
+                  mutateRandomly()
             | None ->
               if totalNumberOfMutations = 1 then
                 nodeRecords
               else
                 sprintf "Neuron %A already has no bias already" neuronToRemoveBias.NodeId|> infoLog
-                selectRandomMutation () |> mutate
+                mutateRandomly()
         | MutateWeights ->
           let _, neuronToMutateWeights =
             nodeRecords
@@ -261,7 +280,7 @@ let mutateNeuralNetwork (mutations : MutationSequence)
             nodeRecords
             |> Map.filter determineSensorEligibility
           if (sensorRecordsThatCanHaveAnotherOutput |> Map.isEmpty) then
-            selectRandomMutation () |> mutate
+            mutateRandomly()
           else
             let _, sensorNode =
               sensorRecordsThatCanHaveAnotherOutput
@@ -293,76 +312,116 @@ let mutateNeuralNetwork (mutations : MutationSequence)
        // | RemoveSensorLink ->
        // | RemoveActuatorLink ->
         | AddSensor ->
-          let _,outboundNode =
-            nodeRecords
-            |> Map.filter(fun _ x -> x.NodeType = NodeRecordType.Neuron)
-            |> selectRandomNode
-          let blankSensorRecord =
-            let layer = 0.0
-            let outboundConnections = Map.empty
-            let nodeId =
+          let sensorRecords = 
+            nodeRecords 
+            |> Map.filter(fun _ record -> record.NodeType = NodeRecordType.Sensor)
+          let numberOfCurrentSensors = 
+            sensorRecords
+            |> Map.toSeq 
+            |> Seq.length
+          match numberOfSyncFunctions > numberOfCurrentSensors with 
+          | false -> 
+            mutateRandomly()
+          | true ->
+            let _,outboundNode =
               nodeRecords
-              |> Map.toSeq
-              |> Seq.maxBy(fun (nodeId,_) -> nodeId)
-              |> (fun (nodeId,_) -> nodeId + 1)
-            let syncFunctionId = selectRandomSyncFunctionId ()
+              |> Map.filter(fun _ x -> x.NodeType = NodeRecordType.Neuron)
+              |> selectRandomNode
+            let blankSensorRecord =
+              let layer = 0.0
+              let outboundConnections = Map.empty
+              let nodeId =
+                nodeRecords
+                |> Map.toSeq
+                |> Seq.maxBy(fun (nodeId,_) -> nodeId)
+                |> (fun (nodeId,_) -> nodeId + 1)
+              let inUseSyncFunctions = 
+                let extractSyncFunctionId (_, record) =
+                  match record.SyncFunctionId with
+                  | Some syncFunctionId -> syncFunctionId
+                  | None -> raise <| SensorRecordDoesNotHaveASyncFunctionException (sprintf "Record %A does not have a sync function" record)
+                sensorRecords 
+                |> Map.toSeq 
+                |> Seq.map extractSyncFunctionId 
+              let syncFunctionId = selectRandomSyncFunctionId inUseSyncFunctions
 
-            {
-              Layer = layer
-              NodeId = nodeId
-              NodeType = NodeRecordType.Sensor
-              OutboundConnections = outboundConnections
-              Bias = None
-              ActivationFunctionId = None
-              SyncFunctionId = Some syncFunctionId
-              OutputHookId = None
-              MaximumVectorLength = Some 1
-            }
-          let newSensorWithOutbound =
-            blankSensorRecord
-            |> addOutboundConnection outboundNode
-          nodeRecords
-          |> Map.add newSensorWithOutbound.NodeId newSensorWithOutbound
+              {
+                Layer = layer
+                NodeId = nodeId
+                NodeType = NodeRecordType.Sensor
+                OutboundConnections = outboundConnections
+                Bias = None
+                ActivationFunctionId = None
+                SyncFunctionId = Some syncFunctionId
+                OutputHookId = None
+                MaximumVectorLength = Some 1
+              }
+            let newSensorWithOutbound =
+              blankSensorRecord
+              |> addOutboundConnection outboundNode
+            nodeRecords
+            |> Map.add newSensorWithOutbound.NodeId newSensorWithOutbound
         | AddActuator ->
-          let _,inboundNode =
-            nodeRecords
-            |> Map.filter(fun _ x -> x.NodeType = NodeRecordType.Neuron)
-            |> selectRandomNode
-          let blankActuatorRecord =
-            let seqOfNodes =
+          let actuatorRecords =
+            nodeRecords 
+            |> Map.filter(fun _ record -> record.NodeType = NodeRecordType.Actuator)
+          let numberOfCurrentActuators = 
+            actuatorRecords
+            |> Map.toSeq 
+            |> Seq.length
+          match numberOfOutputHookFunctions > numberOfCurrentActuators with 
+          | false -> 
+            mutateRandomly()
+          | true ->
+            let _,inboundNode =
               nodeRecords
-              |> Map.toSeq
-            let layer =
-              let maxLayer =
+              |> Map.filter(fun _ x -> x.NodeType = NodeRecordType.Neuron)
+              |> selectRandomNode
+            let blankActuatorRecord =
+              let seqOfNodes =
+                nodeRecords
+                |> Map.toSeq
+              let layer =
+                let maxLayer =
+                  seqOfNodes
+                  |> Seq.maxBy(fun (_,nodeRecord) -> nodeRecord.Layer)
+                  |> (fun (_,record) -> record.Layer)
+                maxLayer
+                |> round
+              let outboundConnections = Map.empty
+              let nodeId =
                 seqOfNodes
-                |> Seq.maxBy(fun (_,nodeRecord) -> nodeRecord.Layer)
-                |> (fun (_,record) -> record.Layer)
-              maxLayer
-              |> round
-            let outboundConnections = Map.empty
-            let nodeId =
-              seqOfNodes
-              |> Seq.maxBy(fun (nodeId,_) -> nodeId)
-              |> (fun (nodeId,_) -> nodeId + 1)
-            let outputHookId = selectRandomOutputHookFunctionId ()
+                |> Seq.maxBy(fun (nodeId,_) -> nodeId)
+                |> (fun (nodeId,_) -> nodeId + 1)
 
-            {
-              Layer = layer
-              NodeId = nodeId
-              NodeType = NodeRecordType.Actuator
-              OutboundConnections = outboundConnections
-              Bias = None
-              ActivationFunctionId = None
-              SyncFunctionId = None
-              OutputHookId = Some outputHookId
-              MaximumVectorLength = None
-            }
-          let newInboundWithActuatorOutboundConnection =
-            inboundNode
-            |> addOutboundConnection blankActuatorRecord
-          nodeRecords
-          |> Map.add newInboundWithActuatorOutboundConnection.NodeId newInboundWithActuatorOutboundConnection
-          |> Map.add blankActuatorRecord.NodeId blankActuatorRecord
+              let inUseOutputHooks = 
+                let extractOutputHookId (_, record) =
+                  match record.OutputHookId with
+                  | Some syncFunctionId -> syncFunctionId
+                  | None -> raise <| ActuatorRecordDoesNotHaveAOutputHookIdException (sprintf "Record %A does not have a output hook function" record)
+                actuatorRecords
+                |> Map.toSeq 
+                |> Seq.map extractOutputHookId
+                
+              let outputHookId = selectRandomOutputHookFunctionId inUseOutputHooks
+
+              {
+                Layer = layer
+                NodeId = nodeId
+                NodeType = NodeRecordType.Actuator
+                OutboundConnections = outboundConnections
+                Bias = None
+                ActivationFunctionId = None
+                SyncFunctionId = None
+                OutputHookId = Some outputHookId
+                MaximumVectorLength = None
+              }
+            let newInboundWithActuatorOutboundConnection =
+              inboundNode
+              |> addOutboundConnection blankActuatorRecord
+            nodeRecords
+            |> Map.add newInboundWithActuatorOutboundConnection.NodeId newInboundWithActuatorOutboundConnection
+            |> Map.add blankActuatorRecord.NodeId blankActuatorRecord
        // | RemoveInboundConnection ->
        // | RemoveOutboundConnection ->
        // | RemoveNeuron ->
@@ -439,7 +498,7 @@ let evolveForXGenerations (evolutionProperties : EvolutionProperties)
     |> Map.ofArray
   let rec processGenerations (generationCounter : int) (generationRecords : GenerationRecords) : GenerationRecords =
     let scoredGenerationRecords : ScoredNodeRecords =
-      let scoreNeuralNetwork (nodeRecordsId : NodeRecordsId) (nodeRecords : NodeRecords) =
+      let createScoreKeeper (nodeRecordsId, nodeRecords) =
         let scoreKeeper =
           ScoreKeeperInstance.Start(fun inbox ->
             let rec loop outputBuffer =
@@ -468,6 +527,8 @@ let evolveForXGenerations (evolutionProperties : EvolutionProperties)
               }
             loop Map.empty
           )
+        (nodeRecordsId, scoreKeeper, nodeRecords)
+      let createLiveMind (nodeRecordsId, (scoreKeeper : ScoreKeeperInstance), nodeRecords) =
         let outputHooks : OutputHookFunctions =
           let scoringFunction outputHookId =
             (fun actuatorOutput ->
@@ -482,7 +543,7 @@ let evolveForXGenerations (evolutionProperties : EvolutionProperties)
             let sensorRecords =
               nodeRecords
               |> Map.filter (fun _ record -> record.NodeType = NodeRecordType.Sensor)
-            let getSyncFunctionId (sensorId,sensorRecord) =
+            let getSyncFunctionId (sensorId, sensorRecord : NodeRecord) =
               if (sensorRecord.SyncFunctionId.IsNone) then
                 raise(SensorRecordDoesNotHaveASyncFunctionException <| sprintf "Sensor Record %A" sensorRecord.NodeId)
               else
@@ -498,22 +559,50 @@ let evolveForXGenerations (evolutionProperties : EvolutionProperties)
           nodeRecords
           |> constructNeuralNetwork activationFunctions syncFunctions outputHooks
           |> createCortex
-        let thinkAndScore _ =
-          Think |> cortex.PostAndReply
-          let score =
-            GetScore |> scoreKeeper.PostAndReply
-          sprintf "Node Records Id %A scored %A" nodeRecordsId score |> infoLog
-          score
-        let sumScore : Score =
-          [0..maximumThinkCycles]
-          |> Seq.map thinkAndScore
-          |> Seq.sum
-        KillScoreKeeper |> scoreKeeper.PostAndReply
-        let updatedRecords = KillCortex |> cortex.PostAndReply
-        sumScore, updatedRecords
+        (nodeRecordsId,scoreKeeper,cortex)
+      let processThinkCycles (liveRecordsWithScoreKeepers : (NodeRecordsId*ScoreKeeperInstance*CortexInstance) array) : ScoredNodeRecords =
+        let scoreGenerationThinkCycle _ =
+          let generateAsyncThinkTokens (nodeRecordsId, scoreKeeper, (cortex : CortexInstance)) =
+            nodeRecordsId, scoreKeeper, Think |> cortex.PostAndAsyncReply, cortex
+          let scoreNeuralNetworkThinkCycle (nodeRecordsId, (scoreKeeper : ScoreKeeperInstance), asyncToken, (cortex : CortexInstance)) =
+            asyncToken |> Async.RunSynchronously
+            let score : Score =
+              GetScore |> scoreKeeper.PostAndReply
+            sprintf "Node Records Id %A scored %A" nodeRecordsId score |> infoLog
+            (nodeRecordsId,score)
+          liveRecordsWithScoreKeepers
+          |> Array.Parallel.map generateAsyncThinkTokens
+          |> Array.Parallel.map scoreNeuralNetworkThinkCycle
+
+        let scoredGeneration =
+          let sumScoreOfMind (nodeRecordsId, (scoreArray : ('a*Score) array)) =
+            let score =
+              scoreArray
+              |> Array.sumBy(fun (_, score) -> score)
+            nodeRecordsId, score
+          //This has to stay synchronous
+          //To maintain a steady clock of think cycles for all living minds
+          [|1..maximumThinkCycles|]
+          |> Array.map scoreGenerationThinkCycle 
+          |> Array.collect id
+          |> Array.groupBy(fun (nodeRecordsId, score) -> nodeRecordsId)
+          |> Array.Parallel.map sumScoreOfMind
+          |> Map.ofArray
+
+        let terminateExistenceAndCollectScore (nodeRecordsId, (scoreKeeper : ScoreKeeperInstance), (cortex : CortexInstance)) =
+          KillScoreKeeper |> scoreKeeper.PostAndReply
+          let updatedRecords = KillCortex |> cortex.PostAndReply
+          let score = scoredGeneration |> Map.find nodeRecordsId
+          (nodeRecordsId, (score, updatedRecords))
+
+        liveRecordsWithScoreKeepers
+        |> Array.Parallel.map terminateExistenceAndCollectScore
+
       generationRecords
       |> Map.toArray
-      |> Array.Parallel.map(fun (nodeRecordsId, nodeRecords) -> (nodeRecordsId, nodeRecords |> scoreNeuralNetwork nodeRecordsId))
+      |> Array.Parallel.map createScoreKeeper
+      |> Array.Parallel.map createLiveMind
+      |> processThinkCycles
     let halfThePopulation (scoredRecords : ScoredNodeRecords) : ScoredNodeRecords =
       let halfLength =
         let half = (scoredRecords |> Array.length) / 2
@@ -559,3 +648,171 @@ let evolveForXGenerations (evolutionProperties : EvolutionProperties)
   evolutionProperties.StartingRecords
   |> evolveGeneration
   |> processGenerations 0
+
+let getDefaultTrainingProperties 
+  (trainingSet : TrainingAnswerAndDataSet<'T>) 
+    (interpretActuatorOutputFunction : InterpretActuatorOutputFunction<'T>)
+      (scoreNeuralNetworkAnswerFunction : ScoreNeuralNetworkAnswerFunction<'T>)
+        (activationFunctions : ActivationFunctions) 
+          (outputHookFunctionIds : OutputHookFunctionIds)
+            : TrainingProperties<'T> =
+  let startingGenerationRecords : GenerationRecords =
+    let addNeuronToMap (neuronId, neuronInstance) =
+      Map.add neuronId neuronInstance
+    let startingRecordId = 0
+    let startingNodeRecords =
+      let actuator =
+        let layer = 1000.0
+        let fakeOutputHook = (fun x -> ())
+        let nodeId = 0
+        let outputHookId = 
+          match outputHookFunctionIds |> Seq.tryHead with
+          | Some outputHookId -> outputHookId
+          | None -> 0
+        createActuator nodeId layer fakeOutputHook outputHookId
+        |> createNeuronInstance
+      let neuron =
+        let bias = 0.0
+        let nodeId = 1
+        let layer = 2.0
+        let activationFunctionId, activationFunction = 
+          match activationFunctions |> Map.toSeq |> Seq.tryHead with 
+          | Some xTuple -> xTuple
+          | None ->
+            //TODO raise exception here
+            0, sigmoid
+        createNeuron nodeId layer activationFunction activationFunctionId bias
+        |> createNeuronInstance
+      let sensor =
+        let nodeId = 2
+        let syncFunctionId = 0
+        let maximumVectorLength = 1
+        createSensor nodeId (fun () -> Seq.empty) syncFunctionId maximumVectorLength
+        |> createNeuronInstance
+      let weight = 0.0
+      sensor |> connectSensorToNode neuron [weight]
+      neuron |> connectNodeToActuator actuator
+
+      let neuralNetwork =
+        Map.empty
+        |> addNeuronToMap actuator
+        |> addNeuronToMap neuron
+        |> addNeuronToMap sensor
+      let nodeRecords =
+        neuralNetwork
+        |> constructNodeRecords
+      neuralNetwork |> killNeuralNetwork
+      nodeRecords
+    Map.empty
+    |> Map.add startingRecordId startingNodeRecords
+
+  let outputHookFunctionIds = [0]
+
+  {
+    AmountOfGenerations = defaultEvolutionProperties.Generations
+    MaximumThinkCycles = defaultEvolutionProperties.MaximumThinkCycles
+    MaximumMinds = defaultEvolutionProperties.MaximumMinds
+    ActivationFunctions = activationFunctions
+    OutputHookFunctionIds = outputHookFunctionIds
+    EndOfGenerationFunctionOption = None
+    StartingRecords = startingGenerationRecords
+    //TODO Change this to default mutationSequence
+    MutationSequence = minimalMutationSequence
+    TrainingAnswerAndDataSet = trainingSet
+    InterpretActuatorOutputFunction = interpretActuatorOutputFunction 
+    ScoreNeuralNetworkAnswerFunction = scoreNeuralNetworkAnswerFunction
+    ShuffleDataSet = false
+  }
+
+let evolveFromTrainingSet (trainingProperties : TrainingProperties<'T>) =
+  let getDataGenerator (initialDataSet : TrainingAnswerAndDataSet<'T>) =
+    let maybeRandom = if (trainingProperties.ShuffleDataSet) then Some(System.Random()) else None
+    DataGeneratorInstance.Start(fun inbox ->
+      let rec loop buffer =
+        async {
+          let! msg = inbox.Receive ()
+          match msg with
+          | GetData (replyChannel, nodeRecordsId) ->
+            let updatedBuffer = 
+              let dataSet =
+                match buffer |> Map.containsKey nodeRecordsId with
+                | true -> 
+                  buffer |> Map.find nodeRecordsId |> snd
+                | false ->
+                  initialDataSet 
+              let expectedResult, data = 
+                match trainingProperties.ShuffleDataSet with
+                | true ->
+                  let randomNumber = 
+                    let random =  
+                      match maybeRandom with
+                      | Some x -> x
+                      | None -> raise <| ShuffleDataRandomOptionIsNoneException "Data Generator attempted to shuffle data but random is not accessible"
+                    dataSet |> Array.length |> random.Next
+                  match dataSet |> Array.tryItem randomNumber with
+                  | Some dataTuple -> dataTuple
+                  | None -> raise <| DataSetDoesNotHaveIndexException randomNumber
+                | false -> dataSet |> Array.head
+              data |> replyChannel.Reply
+              let updatedDataSet =
+                Array.append (dataSet |> Array.tail) [|(expectedResult, data)|]
+              buffer
+              |> Map.add nodeRecordsId (expectedResult, updatedDataSet)
+            return! loop updatedBuffer
+          | GetExpectedResult (replyChannel, nodeRecordsId) ->
+            let expectedResult =
+              match buffer |> Map.containsKey nodeRecordsId with
+              | true ->
+                buffer |> Map.find nodeRecordsId |> fst
+              | false ->
+                initialDataSet |> Array.head |> fst
+            expectedResult |> replyChannel.Reply
+            return! loop buffer
+          | ClearBuffer replyChannel ->
+            replyChannel.Reply()
+            return! loop Map.empty
+          | KillDataGenerator ->
+            ()
+      }
+      loop Map.empty
+    )
+
+  let dataGenerator = getDataGenerator trainingProperties.TrainingAnswerAndDataSet
+
+  let syncFunctionSource : SyncFunctionSource =
+    (fun nodeRecordsId ->
+      let getDataMsg = (fun r -> GetData(r,nodeRecordsId))
+      let syncFunction = (fun () -> getDataMsg |> dataGenerator.PostAndReply)
+      syncFunction
+    )
+
+  let syncFunctionSources = 
+    let syncFunctionId = 0
+    Map.empty |> Map.add syncFunctionId syncFunctionSource
+
+  let endOfGenerationFunction generationRecords =
+    ClearBuffer |> dataGenerator.PostAndReply
+    match trainingProperties.EndOfGenerationFunctionOption with
+    | Some eogFunc -> eogFunc generationRecords
+    | None -> ()
+
+  let fitnessFunction neuronRecordsId actuatorOutputs =
+    let expectedMsg = (fun r -> GetExpectedResult(r, neuronRecordsId)) |>  dataGenerator.PostAndReply
+    actuatorOutputs
+    |> trainingProperties.InterpretActuatorOutputFunction
+    |> trainingProperties.ScoreNeuralNetworkAnswerFunction expectedMsg
+
+  let evolutionProperties =
+    { defaultEvolutionProperties with 
+        MaximumThinkCycles = trainingProperties.MaximumThinkCycles
+        Generations = trainingProperties.AmountOfGenerations
+        MaximumMinds = trainingProperties.MaximumMinds
+        MutationSequence = trainingProperties.MutationSequence
+        FitnessFunction = fitnessFunction
+        ActivationFunctions = trainingProperties.ActivationFunctions
+        SyncFunctionSources = syncFunctionSources
+        OutputHookFunctionIds = trainingProperties.OutputHookFunctionIds 
+        EndOfGenerationFunctionOption = Some endOfGenerationFunction
+        StartingRecords = trainingProperties.StartingRecords
+    }
+  evolveForXGenerations evolutionProperties 

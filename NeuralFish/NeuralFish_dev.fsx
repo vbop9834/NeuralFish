@@ -2,6 +2,7 @@
 #I "../NeuralFish.Tests"
 
 #load "Types.fs"
+#load "Exceptions.fs"
 #load "NeuralFish.fs"
 #load "Exporter.fs"
 #load "Cortex.fs"

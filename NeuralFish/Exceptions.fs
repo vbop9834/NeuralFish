@@ -1,0 +1,9 @@
+module NeuralFish.Exceptions
+exception NodeRecordTypeException of string
+exception NeuronInstanceException of string
+exception NoBiasInRecordForNeuronException of string
+exception SensorRecordDoesNotHaveASyncFunctionException of string
+exception ActuatorRecordDoesNotHaveAOutputHookIdException of string
+exception ShuffleDataRandomOptionIsNoneException of string
+exception DataSetDoesNotHaveIndexException of int
+

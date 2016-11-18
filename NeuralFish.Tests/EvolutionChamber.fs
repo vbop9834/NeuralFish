@@ -543,6 +543,7 @@ let ``AddSensor mutation should add a new sensor and connect it randomly in the 
   let activationFunctionId = 0
   let activationFunction = id
   let syncFunctionId = 0
+  let secondSyncFunctionId = 1
   let syncFunction =
     let data =
       [1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0]
@@ -591,6 +592,7 @@ let ``AddSensor mutation should add a new sensor and connect it randomly in the 
   let syncFunctions =
     Map.empty
     |> Map.add syncFunctionId syncFunction
+    |> Map.add secondSyncFunctionId syncFunction
   let outputHooks =
     Map.empty
     |> Map.add outputHookId testHook
@@ -601,7 +603,7 @@ let ``AddSensor mutation should add a new sensor and connect it randomly in the 
     |> addNeuronToMap neuron
     |> addNeuronToMap sensor
     |> constructNodeRecords
-    |> mutateNeuralNetwork [AddSensor] [activationFunctionId] [syncFunctionId] [outputHookId]
+    |> mutateNeuralNetwork [AddSensor] [activationFunctionId] [syncFunctionId; secondSyncFunctionId] [outputHookId]
 
   [
     sensor
@@ -620,7 +622,7 @@ let ``AddSensor mutation should add a new sensor and connect it randomly in the 
   |> Map.filter (fun key record -> record.NodeType = NodeRecordType.Sensor)
   |> Map.toSeq
   |> Seq.length
-  |> should be (greaterThan 1)
+  |> should equal 2
 
   neuralNetwork |> synchronizeNN
   WaitForData
@@ -638,6 +640,7 @@ let ``AddActuator mutation should add a new actuator and connect it randomly in 
   let getNodeId = getNumberGenerator()
   let actuatorId = getNodeId()
   let outputHookId = 9001
+  let secondOutputHookId = 9002
   let activationFunctionId = 0
   let activationFunction = id
   let syncFunctionId = 0
@@ -691,6 +694,7 @@ let ``AddActuator mutation should add a new actuator and connect it randomly in 
   let outputHooks =
     Map.empty
     |> Map.add outputHookId testHook
+    |> Map.add secondOutputHookId testHook
 
   let nodeRecords =
     Map.empty
@@ -698,7 +702,7 @@ let ``AddActuator mutation should add a new actuator and connect it randomly in 
     |> addNeuronToMap neuron
     |> addNeuronToMap sensor
     |> constructNodeRecords
-    |> mutateNeuralNetwork [AddActuator] [activationFunctionId] [syncFunctionId] [outputHookId]
+    |> mutateNeuralNetwork [AddActuator] [activationFunctionId] [syncFunctionId] [outputHookId; secondOutputHookId]
 
   [
     sensor
@@ -717,7 +721,7 @@ let ``AddActuator mutation should add a new actuator and connect it randomly in 
   |> Map.filter (fun key record -> record.NodeType = NodeRecordType.Actuator)
   |> Map.toSeq
   |> Seq.length
-  |> should be (greaterThan 1)
+  |> should equal 2 
 
   neuralNetwork |> synchronizeNN
   WaitForData
