@@ -7,3 +7,4 @@ exception ActuatorRecordDoesNotHaveAOutputHookIdException of string
 exception ShuffleDataRandomOptionIsNoneException of string
 exception DataSetDoesNotHaveIndexException of int
 exception NeuronInstanceUnavailableException of string
+exception NeuronDoesNotHaveAnActivationFunction of string

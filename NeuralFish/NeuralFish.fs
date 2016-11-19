@@ -41,7 +41,7 @@ let killNeuralNetwork (liveNeurons : NeuralNetwork) =
 let activateActuators (neuralNetwork : NeuralNetwork) =
   let activateActuatorAsync (_,(_,liveNeuron : NeuronInstance)) =
     //TODO make the timeout configurable
-    liveNeuron.PostAndTryAsyncReply(ActivateActuator, timeout=5000)
+    liveNeuron.PostAndTryAsyncReply(ActivateActuator, timeout=10000)
   let processAsyncResult asyncResult =
     match asyncResult with
     | None ->

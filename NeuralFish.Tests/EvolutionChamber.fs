@@ -1274,3 +1274,68 @@ let ``Should be able to evolve x generations`` () =
   |> Map.toSeq
   |> Seq.length
   |> should be (greaterThan 0)
+
+type PsuedoAnswer =
+| RightAnswer
+| WrongAnswer
+
+[<Fact>]
+let ``Should be able to evolve x generations from training set`` () =
+  //Test setup
+  let outputHookId = 0
+  let activationFunctionId = 0
+  let activationFunction = sigmoid
+
+  let interpretActuatorOutputFunction : InterpretActuatorOutputFunction<PsuedoAnswer> =
+    (fun outputMap ->
+      outputMap
+      |> Map.containsKey outputHookId
+      |> should equal true
+
+      let numericalResult =
+        outputMap
+        |> Map.find outputHookId
+      if numericalResult > 0.99 then
+        WrongAnswer
+      else if numericalResult > 0.1 then
+        RightAnswer
+      else
+        WrongAnswer
+    )
+  let scoreAnswer : ScoreNeuralNetworkAnswerFunction<PsuedoAnswer> =
+    (fun correctAnswer guessedAnswer ->
+      if correctAnswer = guessedAnswer then
+        1.0
+      else
+        -1.0
+    )
+
+  let activationFunctions : ActivationFunctions =
+    Map.empty
+    |> Map.add activationFunctionId activationFunction
+
+  let outputHookFunctionIds : OutputHookFunctionIds =
+    [outputHookId] |> List.toSeq
+
+  let trainingSet : TrainingAnswerAndDataSet<PsuedoAnswer> =
+    [
+      RightAnswer,[0.0;1.5;2.2;3.1;4.5;5.2;6.66] |> List.toSeq
+      WrongAnswer,[5.9;2.8;2.2;7.2;6.4;2.1;6.66] |> List.toSeq
+      RightAnswer,[9.2;2.5] |> List.toSeq
+      WrongAnswer,[] |> List.toSeq
+    ] |> List.toArray
+
+  let maximumMinds = 4
+
+  let evolvedRecords =
+    let trainingProperties =
+      let defaultTrainingProperties = getDefaultTrainingProperties trainingSet interpretActuatorOutputFunction scoreAnswer activationFunctions outputHookFunctionIds
+      { defaultTrainingProperties with
+          ShuffleDataSet = true
+          MaximumMinds = maximumMinds
+      }
+    trainingProperties |> evolveFromTrainingSet
+  evolvedRecords
+  |> Map.toSeq
+  |> Seq.length
+  |> should equal maximumMinds

@@ -527,6 +527,7 @@ let evolveForXGenerations (evolutionProperties : EvolutionProperties)
               }
             loop Map.empty
           )
+          |> (fun x -> x.Error.Add(fun x -> sprintf "%A" x |> infoLog); x)
         (nodeRecordsId, scoreKeeper, nodeRecords)
       let createLiveMind (nodeRecordsId, (scoreKeeper : ScoreKeeperInstance), nodeRecords) =
         let outputHooks : OutputHookFunctions =
@@ -570,9 +571,19 @@ let evolveForXGenerations (evolutionProperties : EvolutionProperties)
             |> Async.Parallel
             |> Async.RunSynchronously
             |> ignore
+
             //return the current array for functional flow
             currentArray
           let scoreNeuralNetworkThinkCycle (nodeRecordsId, (scoreKeeper : ScoreKeeperInstance), asyncToken, (cortex : CortexInstance)) =
+            let rec waitOnScoreKeeper () =
+              if scoreKeeper.CurrentQueueLength <> 0 then
+                sprintf "Waiting on score keeper to finish gathering results from node records %A" nodeRecordsId
+                |> infoLog
+                System.Threading.Thread.Sleep(200)
+                waitOnScoreKeeper ()
+              else
+                ()
+            waitOnScoreKeeper ()
             let score : Score =
               GetScore |> scoreKeeper.PostAndReply
             sprintf "Node Records Id %A scored %A" nodeRecordsId score |> infoLog
@@ -676,19 +687,18 @@ let getDefaultTrainingProperties
         let outputHookId = 
           match outputHookFunctionIds |> Seq.tryHead with
           | Some outputHookId -> outputHookId
-          | None -> 0
+          | None -> raise <| ActuatorRecordDoesNotHaveAOutputHookIdException "Attempted to generate default training properties but no output hook ids were passed"
         createActuator nodeId layer fakeOutputHook outputHookId
         |> createNeuronInstance
       let neuron =
         let bias = 0.0
         let nodeId = 1
-        let layer = 2.0
+        let layer = 500.0
         let activationFunctionId, activationFunction = 
           match activationFunctions |> Map.toSeq |> Seq.tryHead with 
           | Some xTuple -> xTuple
           | None ->
-            //TODO raise exception here
-            0, sigmoid
+            raise <| NeuronDoesNotHaveAnActivationFunction "Attempted to generate default traing properties but no activation functions were passed"
         createNeuron nodeId layer activationFunction activationFunctionId bias
         |> createNeuronInstance
       let sensor =
@@ -713,8 +723,6 @@ let getDefaultTrainingProperties
       nodeRecords
     Map.empty
     |> Map.add startingRecordId startingNodeRecords
-
-  let outputHookFunctionIds = [0]
 
   {
     AmountOfGenerations = defaultEvolutionProperties.Generations
@@ -787,6 +795,7 @@ let evolveFromTrainingSet (trainingProperties : TrainingProperties<'T>) =
       }
       loop Map.empty
     )
+    |> (fun x -> x.Error.Add(fun x -> sprintf "%A" x |> infoLog); x)
 
   let dataGenerator = getDataGenerator trainingProperties.TrainingAnswerAndDataSet
 

@@ -60,9 +60,14 @@ let createCortex liveNeurons : CortexInstance =
           | Think replyChannel ->
             "Cortex - Starting think cycle" |> infoLog
             liveNeurons |> synchronizeNN
+            //Sleep to give the NN a chance to process initial messages
+            //TODO Think of a better way to handle this intermittent startup
+            System.Threading.Thread.Sleep(200)
+            "Cortex - Waiting on Neural Network to finish" |> infoLog
             liveNeurons |> waitOnAcutuators
+            "Cortex - Think cycle finished. Activating Actuators" |> infoLog
             liveNeurons |> activateActuators
-            "Cortex - Think cycle finished" |> infoLog
+            "Cortex - Actuators Activated" |> infoLog
             replyChannel.Reply ()
             return! loop liveNeurons
           | KillCortex replyChannel ->
