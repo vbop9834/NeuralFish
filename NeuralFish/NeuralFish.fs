@@ -1,8 +1,11 @@
 module NeuralFish.Core
 
 open NeuralFish.Types
+open NeuralFish.Exceptions
 
-let mutable InfoLogging = false
+let sigmoid = (fun x -> 1.0 / (1.0 + exp(-x)))
+
+let mutable InfoLogging = true
 let infoLog (message : string) =
   if (InfoLogging) then
     System.Console.WriteLine(message)
@@ -12,7 +15,14 @@ let killNeuralNetwork (liveNeurons : NeuralNetwork) =
     let checkIfNeuralNetworkIsActive (neuralNetwork : NeuralNetwork) =
       //returns true if active
       neuralNetwork
-      |> Map.forall(fun i (_,neuron) -> neuron.CurrentQueueLength <> 0)
+      |> Map.exists(fun i (nodeRecordId,neuron) -> 
+                    if neuron.CurrentQueueLength <> 0 then 
+                      sprintf "Waiting on node %A" nodeRecordId
+                      |> infoLog
+                      true
+                    else
+                      false
+                    )
     if neuralNetworkToWaitOn |> checkIfNeuralNetworkIsActive then
       //200 milliseconds of sleep seems plenty while waiting on the NN
       System.Threading.Thread.Sleep(200)
@@ -22,20 +32,30 @@ let killNeuralNetwork (liveNeurons : NeuralNetwork) =
   let killNeuralNetwork (neuralNetworkToKill : NeuralNetwork) =
     neuralNetworkToKill
     |> Map.toArray
-    |> Array.Parallel.iter(fun (_,(_,neuron)) -> Die |> neuron.PostAndReply)
+    |> Array.Parallel.iter(fun (_,(_,neuron)) -> neuron.TryPostAndReply (Die, timeout=500) |> ignore)
 
   liveNeurons
   |> waitOnNeuralNetwork
   |> killNeuralNetwork
 
 let activateActuators (neuralNetwork : NeuralNetwork) =
-  let activateActuator _ (_,liveNeuron : NeuronInstance) =
-    ActivateActuator |>  liveNeuron.Post
-  neuralNetwork |> Map.iter activateActuator
+  let activateActuatorAsync (_,(_,liveNeuron : NeuronInstance)) =
+    //TODO make the timeout configurable
+    liveNeuron.PostAndTryAsyncReply(ActivateActuator, timeout=10000)
+  let processAsyncResult asyncResult =
+    match asyncResult with
+    | None ->
+      raise <| NeuronInstanceUnavailableException "Core - Neuron unable to activate due to instance being unavailable"
+    | Some _ -> ()
+  neuralNetwork
+  |> Map.toArray
+  |> Array.Parallel.map activateActuatorAsync
+  |> Async.Parallel |> Async.RunSynchronously
+  |> Array.Parallel.iter processAsyncResult
 
 let synchronize (_, (_,sensor : NeuronInstance)) =
   Sync |> sensor.Post
-  
+
 let synchronizeNN (neuralNetwork : NeuralNetwork) =
   let synchronizeMap _ (_,instance) =
     (None, (None, instance)) |> synchronize
@@ -66,6 +86,7 @@ let createNeuron id layer activationFunction activationFunctionId bias =
     Record = record
     ActivationFunction = activationFunction
   } |> Neuron
+
 let createSensor id syncFunction syncFunctionId maximumVectorLength =
   let record =
     {
@@ -83,6 +104,7 @@ let createSensor id syncFunction syncFunctionId maximumVectorLength =
     Record = record
     SyncFunction = syncFunction
   } |> Sensor
+
 let createActuator id layer outputHook outputHookId =
   let record =
     {
@@ -200,7 +222,7 @@ let createNeuronInstance neuronType =
               let newMaximumVectorLength =
                 let actualDataVectorLength = unInflatedDataStream |> Seq.length
                 if (actualDataVectorLength > maximumVectorLength) then
-                  actualDataVectorLength 
+                  actualDataVectorLength
                 else
                   maximumVectorLength
               let dataStream =
@@ -215,7 +237,7 @@ let createNeuronInstance neuronType =
                     |> ReceiveInput
                     |> neuron.Post
                   let data = dataStream |> Seq.head
-                  let (connectionId, connection) = remainingConnections |> Seq.head 
+                  let (connectionId, connection) = remainingConnections |> Seq.head
                   sprintf "Sending %A to connection %A with a weight of %A" data connectionId connection.Weight |> infoLog
                   data |> sendSynapseToNeuron connection.Neuron connectionId connection.Weight
                   let newDataStream = (dataStream |> Seq.tail)
@@ -252,7 +274,7 @@ let createNeuronInstance neuronType =
             | Sensor _ ->
               //Sensors use the sync msg
               return! loop Map.empty inboundConnections outboundConnections maximumVectorLength maybeCortex
-          | AddOutboundConnection ((toNode,nodeId,outboundLayer,weight),replyChannel) ->
+          | NeuronActions.AddOutboundConnection ((toNode,nodeId,outboundLayer,weight),replyChannel) ->
               let neuronConnectionId = System.Guid.NewGuid()
               let updatedOutboundConnections =
                 let outboundConnection =
@@ -264,12 +286,12 @@ let createNeuronInstance neuronType =
                 outboundConnections |> Map.add neuronConnectionId outboundConnection
 
               (neuronConnectionId, replyChannel)
-              |> AddInboundConnection
+              |> NeuronActions.AddInboundConnection
               |> toNode.Post
 
               //queue up blank synapses for recurrent connections
               if (nodeLayer >= outboundLayer) then
-                sprintf "Sending recurrent blank synapse to %A via %A" nodeId neuronConnectionId |> infoLog 
+                sprintf "Sending recurrent blank synapse to %A via %A" nodeId neuronConnectionId |> infoLog
                 (neuronConnectionId, (nodeId,0.0,weight), false)
                 |> ReceiveInput
                 |> toNode.Post
@@ -277,7 +299,7 @@ let createNeuronInstance neuronType =
               sprintf "Node %A is adding Node %A as an outbound connection %A with weight %A" neuronType nodeId neuronConnectionId weight
               |> infoLog
               return! loop barrier inboundConnections updatedOutboundConnections maximumVectorLength maybeCortex
-            | AddInboundConnection (neuronConnectionId,replyChannel) ->
+            | NeuronActions.AddInboundConnection (neuronConnectionId,replyChannel) ->
               let updatedInboundConnections =
                 inboundConnections |> Seq.append(Seq.singleton neuronConnectionId)
               replyChannel.Reply()
@@ -302,7 +324,7 @@ let createNeuronInstance neuronType =
                           maximumVectorLength
                         else
                           previousMaximumVectorLength
-                      | None -> maximumVectorLength 
+                      | None -> maximumVectorLength
                   { props.Record with OutboundConnections = outboundNodeRecordConnections; MaximumVectorLength = Some maximumVectorLengthToRecord }
                 | Actuator props -> props.Record
               nodeRecord |> replyChannel.Reply
@@ -315,13 +337,14 @@ let createNeuronInstance neuronType =
               | Actuator _ ->
                 let someReadyToActivate = Some false
                 replyChannel.Reply ()
-                return! loop barrier inboundConnections outboundConnections maximumVectorLength someReadyToActivate 
+                return! loop barrier inboundConnections outboundConnections maximumVectorLength someReadyToActivate
               | _ ->
                 replyChannel.Reply ()
-                return! loop barrier inboundConnections outboundConnections maximumVectorLength maybeCortex 
-            | ActivateActuator ->
+                return! loop barrier inboundConnections outboundConnections maximumVectorLength maybeCortex
+            | ActivateActuator replyChannel ->
               match maybeCortex with
               | None ->
+                replyChannel.Reply()
                 return! loop barrier inboundConnections outboundConnections maximumVectorLength maybeCortex
               | Some readyToActivate ->
                 if readyToActivate then
@@ -329,21 +352,27 @@ let createNeuronInstance neuronType =
                   | Actuator _ ->
                     sprintf "Activating Actuator %A" nodeId |> infoLog
                     neuronType |> activateNeuron barrier outboundConnections
+                    replyChannel.Reply ()
                     let notReadyToActivate = Some false
                     return! loop Map.empty inboundConnections outboundConnections maximumVectorLength notReadyToActivate
                   | _ ->
+                    replyChannel.Reply ()
                     return! loop barrier inboundConnections outboundConnections maximumVectorLength maybeCortex
                 else
+                  replyChannel.Reply ()
                   return! loop barrier inboundConnections outboundConnections maximumVectorLength maybeCortex
-            | CheckActuatorStatus replyChannel ->  
+            | CheckActuatorStatus replyChannel ->
               match maybeCortex with
               | None ->
-                true |> replyChannel.Reply 
+                true |> replyChannel.Reply
               | Some readyToActivate ->
                 readyToActivate |> replyChannel.Reply
               return! loop barrier inboundConnections outboundConnections maximumVectorLength maybeCortex
       }
     loop Map.empty Seq.empty Map.empty 0 None
   )
+
+  //Add exception logging
+  neuronInstance |> (fun x -> x.Error.Add(fun x -> sprintf "%A" x |> infoLog))
 
   (nodeId, (nodeLayer, neuronInstance))

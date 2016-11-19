@@ -12,11 +12,6 @@ let fakeDataGenerator (buffer : (float seq) list) =
     let rec loop buffer =
       async {
         let! msg = inbox.Receive ()
-        let getData buffer =
-          if buffer |> List.isEmpty then
-            Seq.empty
-          else
-            buffer |> List.head
         match msg with
         | GetData replyChannel ->
           let data = buffer |> List.head
@@ -28,6 +23,7 @@ let fakeDataGenerator (buffer : (float seq) list) =
       }
     loop buffer
   )
+  //TODO these never die. Need to make a manager
   (fun () -> GetData |> generator.PostAndReply)
 
 type TestHookMsg =
@@ -70,7 +66,6 @@ let getTestHook () =
   let hookFunction = (fun data -> SendDataToBuffer data |> generator.Post)
   (hookFunction, generator)
 
-let sigmoid = (fun x -> 1.0 / (1.0 + exp(-x)))
 
 type NeuronIdGeneratorMsg =
   | GetIntId of AsyncReplyChannel<int>

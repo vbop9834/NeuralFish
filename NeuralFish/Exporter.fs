@@ -2,6 +2,7 @@ module NeuralFish.Exporter
 
 open NeuralFish.Core
 open NeuralFish.Types
+open NeuralFish.Exceptions
 
 let constructNodeRecords (liveNeurons : NeuralNetwork) : NodeRecords =
   let generateNodeRecord _ (_,(liveNeuron : NeuronInstance)) : Async<NodeRecord> =

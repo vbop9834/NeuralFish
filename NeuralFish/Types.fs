@@ -1,9 +1,5 @@
 module NeuralFish.Types
 
-exception NodeRecordTypeException of string
-exception NeuronInstanceException of string
-exception NoBiasInRecordForNeuronException of string
-
 type NeuronId = int
 
 type ActivationFunctionId = int
@@ -13,14 +9,21 @@ type OutputHookId = int
 type Bias = float
 type Weight = float
 type NeuronOutput = float
+type ActuatorOutput = float
+type SensorOutput = float seq
+
+type ActuatorOutputMap = Map<OutputHookId, ActuatorOutput>
 
 type ActivationFunction = NeuronOutput -> NeuronOutput
-type SyncFunction = unit -> NeuronOutput seq
-type OutputHookFunction = NeuronOutput -> unit
+type SyncFunction = unit -> SensorOutput
+type OutputHookFunction = ActuatorOutput -> unit
 
 type ActivationFunctions = Map<ActivationFunctionId,ActivationFunction>
 type SyncFunctions = Map<SyncFunctionId,SyncFunction>
 type OutputHookFunctions = Map<OutputHookId, OutputHookFunction>
+
+type OutputHookFunctionIds = OutputHookId seq
+type SyncFunctionIds = SyncFunctionId seq
 
 type NeuronLayerId = float
 
@@ -49,9 +52,9 @@ type NodeRecord =
     OutboundConnections: NodeRecordConnections
     Bias: Bias option
     ActivationFunctionId: ActivationFunctionId option
-    SyncFunctionId: ActivationFunctionId option
+    SyncFunctionId: SyncFunctionId option
     OutputHookId: OutputHookId option
-    MaximumVectorLength: int option 
+    MaximumVectorLength: int option
   }
 
 type NodeRecords = Map<NeuronId,NodeRecord>
@@ -80,6 +83,7 @@ type ActuatorProperties =
     Record: NodeRecord
   }
 
+
 type NeuronType =
   | Neuron of NeuronProperties
   | Sensor of SensorProperties
@@ -93,7 +97,7 @@ type NeuronActions =
   | GetNodeRecord of AsyncReplyChannel<NodeRecord>
   | Die of AsyncReplyChannel<unit>
   | RegisterCortex of CortexInstance*AsyncReplyChannel<unit>
-  | ActivateActuator
+  | ActivateActuator of AsyncReplyChannel<unit>
   | CheckActuatorStatus of AsyncReplyChannel<bool>
 
 type NeuronInstance = MailboxProcessor<NeuronActions>
@@ -111,3 +115,112 @@ type InboundNeuronConnections = NeuronConnectionId seq
 
 type NeuralNetwork = Map<NeuronId, NeuronLayerId*NeuronInstance>
 
+type Score = float
+
+type ScoreKeeperMsg =
+  | Gather of AsyncReplyChannel<unit>*OutputHookId*float
+  | GetScore of AsyncReplyChannel<float>
+  | KillScoreKeeper of AsyncReplyChannel<unit>
+
+type ScoreKeeperInstance = MailboxProcessor<ScoreKeeperMsg>
+
+type NodeRecordsId = int
+
+type ScoredNodeRecords = array<NodeRecordsId*(Score*NodeRecords)>
+
+type NeuralOutputs = Map<NeuronId, ActuatorOutput>
+
+type FitnessFunction = NodeRecordsId -> NeuralOutputs -> Score
+
+type GenerationRecords = Map<NodeRecordsId, NodeRecords>
+
+type EndOfGenerationFunction = ScoredNodeRecords -> unit
+
+type SyncFunctionSource = NodeRecordsId -> SyncFunction
+type SyncFunctionSources = Map<SyncFunctionId, SyncFunctionSource>
+
+type Mutation =
+  | MutateActivationFunction
+  | AddBias
+  | RemoveBias
+  | MutateWeights
+  // //Choose random neuron, perturb each weight with probability of
+  // //1/sqrt(# of weights)
+  // //Intensity chosen randomly between -pi/2 and pi/2
+  // | ResetWeights
+  // //Choose random neuron, reset all weights to random values
+  // // ranging between -pi/2 and pi/2
+  | AddInboundConnection
+  // //Choose a random neuron A, node B, and add a connection
+  | AddOutboundConnection
+  | AddNeuron
+  // //Create a new neuron A, position randomly in NN.
+  // //Random Activation Function
+  // //Random inbound and outbound
+  // | OutSplice
+  // | InSplice
+  // //Create a new neuron A and sandwich between two nodes
+  | AddSensorLink
+  | AddActuatorLink
+  // | RemoveSensorLink
+  // | RemoveActuatorLink
+  | AddSensor
+  | AddActuator
+  // | RemoveInboundConnection
+  // | RemoveOutboundConnection
+  // | RemoveNeuron
+  // //Remove neuron then connect inputs to outputs
+  // | DespliceOut
+  // | DespliceIn
+  // | RemoveSensor
+  // | RemoveActuator
+
+type MaximumThinkCycles = int
+type MaximumMinds = int 
+type AmountOfGenerations = int
+
+type MutationSequence = Mutation seq
+type EvolutionProperties =
+  {
+    MaximumMinds : MaximumThinkCycles
+    MaximumThinkCycles : MaximumMinds
+    Generations : AmountOfGenerations
+    MutationSequence : MutationSequence 
+    FitnessFunction : FitnessFunction
+    ActivationFunctions : ActivationFunctions
+    SyncFunctionSources : SyncFunctionSources
+    OutputHookFunctionIds : OutputHookFunctionIds
+    EndOfGenerationFunctionOption : EndOfGenerationFunction option
+    StartingRecords : GenerationRecords
+  }
+
+type DataGeneratorMsg<'T> =
+  | GetData of AsyncReplyChannel<float seq>*NodeRecordsId
+  | GetExpectedResult of AsyncReplyChannel<'T>*NodeRecordsId
+  | ClearBuffer of AsyncReplyChannel<unit>
+  | KillDataGenerator
+type DataGeneratorInstance<'T> = MailboxProcessor<DataGeneratorMsg<'T>>
+
+type TrainingAnswerAndDataSet<'T> = ('T*SensorOutput) array
+
+type InterpretActuatorOutputFunction<'T> = ActuatorOutputMap -> 'T
+
+//First 'T is correct Answer
+//Second 'T is neural network guessed answer
+type ScoreNeuralNetworkAnswerFunction<'T> = 'T -> 'T -> Score 
+
+type TrainingProperties<'T> =
+  {
+    AmountOfGenerations : AmountOfGenerations
+    MaximumThinkCycles : MaximumThinkCycles 
+    MaximumMinds : MaximumMinds
+    ActivationFunctions : ActivationFunctions
+    OutputHookFunctionIds : OutputHookFunctionIds
+    EndOfGenerationFunctionOption : EndOfGenerationFunction option
+    StartingRecords : GenerationRecords
+    MutationSequence : MutationSequence
+    TrainingAnswerAndDataSet : TrainingAnswerAndDataSet<'T> 
+    InterpretActuatorOutputFunction : InterpretActuatorOutputFunction<'T>
+    ScoreNeuralNetworkAnswerFunction : ScoreNeuralNetworkAnswerFunction<'T>
+    ShuffleDataSet : bool
+  }

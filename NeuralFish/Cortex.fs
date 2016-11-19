@@ -1,22 +1,44 @@
 module NeuralFish.Cortex
 
 open NeuralFish.Types
+open NeuralFish.Exceptions
 open NeuralFish.Core
 open NeuralFish.Exporter
-open NeuralFish.EvolutionChamber
 
 let createCortex liveNeurons : CortexInstance =
-  let rec waitOnNeuralNetwork neuralNetworkToWaitOn =
+  let rec waitOnAcutuators neuralNetworkToWaitOn =
     let checkIfActuatorsAreReady (neuralNetwork : NeuralNetwork) =
       //returns true if active
+      let actuatorIsActive (neuron : NeuronInstance) =
+        let maybeActuatorStatus =
+          CheckActuatorStatus
+          |> neuron.TryPostAndReply
+        match maybeActuatorStatus with
+        | None -> raise <| NeuronInstanceUnavailableException "Cortex - Neuron instance is not available when trying to check actuators"
+        | Some actuatorReady ->
+          match actuatorReady with
+          | true ->
+            true
+          | false ->
+            "Cortex - Actuator is not ready... Waiting" |> infoLog
+            System.Threading.Thread.Sleep(200)
+            false
+      let checkIfNeuronIsBusy (neuron : NeuronInstance) =
+        if neuron.CurrentQueueLength <> 0 then
+          "Cortex - Neuron is busy... Waiting" |> infoLog
+          System.Threading.Thread.Sleep(200)
+          true
+        else
+          false
       neuralNetwork
-      |> Map.forall(fun i (_,neuron) -> neuron.CurrentQueueLength = 0 && CheckActuatorStatus |> neuron.PostAndReply)
-    if neuralNetworkToWaitOn |> checkIfActuatorsAreReady |> not then
+      |> Map.exists(fun i (_,neuron) -> neuron |> checkIfNeuronIsBusy && not <| actuatorIsActive neuron  )
+    if neuralNetworkToWaitOn |> checkIfActuatorsAreReady then
       //200 milliseconds of sleep seems plenty while waiting on the NN
       System.Threading.Thread.Sleep(200)
-      waitOnNeuralNetwork neuralNetworkToWaitOn
+      waitOnAcutuators neuralNetworkToWaitOn
     else
-    ()
+      ()
+
   let registerCortex (neuralNetwork : NeuralNetwork) cortex =
     let sendCortexToActuatorAsync _ (_, neuronInstance : NeuronInstance) : Async<unit> =
       (fun r -> RegisterCortex (cortex,r)) |> neuronInstance.PostAndAsyncReply
@@ -38,18 +60,27 @@ let createCortex liveNeurons : CortexInstance =
           | Think replyChannel ->
             "Cortex - Starting think cycle" |> infoLog
             liveNeurons |> synchronizeNN
-            liveNeurons |> waitOnNeuralNetwork
+            //Sleep to give the NN a chance to process initial messages
+            //TODO Think of a better way to handle this intermittent startup
+            System.Threading.Thread.Sleep(200)
+            "Cortex - Waiting on Neural Network to finish" |> infoLog
+            liveNeurons |> waitOnAcutuators
+            "Cortex - Think cycle finished. Activating Actuators" |> infoLog
             liveNeurons |> activateActuators
-            "Cortex - Think cycle finished" |> infoLog
+            "Cortex - Actuators Activated" |> infoLog
             replyChannel.Reply ()
             return! loop liveNeurons
           | KillCortex replyChannel ->
-            "Cortex - Killing Neural Network" |> infoLog
+            "Cortex - Gathering Updated Node Records" |> infoLog
             let updatedNodeRecords = liveNeurons |> constructNodeRecords
+            "Cortex - Killing Neural Network" |> infoLog
             liveNeurons |> killNeuralNetwork
+            "Cortex - Replying with Updated records" |> infoLog
             updatedNodeRecords |> replyChannel.Reply
             () 
       }
     loop liveNeurons 
-  ) |> registerCortex liveNeurons
+  )
+  |> registerCortex liveNeurons
+  |> (fun x -> x.Error.Add(fun x -> sprintf "%A" x |> infoLog); x)
 
