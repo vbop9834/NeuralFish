@@ -1,6 +1,7 @@
 module NeuralFish.Core
 
 open NeuralFish.Types
+open NeuralFish.Exceptions
 
 let sigmoid = (fun x -> 1.0 / (1.0 + exp(-x)))
 
@@ -38,10 +39,19 @@ let killNeuralNetwork (liveNeurons : NeuralNetwork) =
   |> killNeuralNetwork
 
 let activateActuators (neuralNetwork : NeuralNetwork) =
-  let activateActuator _ (_,liveNeuron : NeuronInstance) =
-    //TODO make this async
-    ActivateActuator |>  liveNeuron.PostAndReply
-  neuralNetwork |> Map.iter activateActuator
+  let activateActuatorAsync (_,(_,liveNeuron : NeuronInstance)) =
+    //TODO make the timeout configurable
+    liveNeuron.PostAndTryAsyncReply(ActivateActuator, timeout=5000)
+  let processAsyncResult asyncResult =
+    match asyncResult with
+    | None ->
+      raise <| NeuronInstanceUnavailableException "Core - Neuron unable to activate due to instance being unavailable"
+    | Some _ -> ()
+  neuralNetwork
+  |> Map.toArray
+  |> Array.Parallel.map activateActuatorAsync
+  |> Async.Parallel |> Async.RunSynchronously
+  |> Array.Parallel.iter processAsyncResult
 
 let synchronize (_, (_,sensor : NeuronInstance)) =
   Sync |> sensor.Post
@@ -361,5 +371,8 @@ let createNeuronInstance neuronType =
       }
     loop Map.empty Seq.empty Map.empty 0 None
   )
+
+  //Add exception logging
+  neuronInstance |> (fun x -> x.Error.Add(fun x -> sprintf "%A" x |> infoLog))
 
   (nodeId, (nodeLayer, neuronInstance))

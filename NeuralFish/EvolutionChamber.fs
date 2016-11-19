@@ -564,14 +564,22 @@ let evolveForXGenerations (evolutionProperties : EvolutionProperties)
         let scoreGenerationThinkCycle _ =
           let generateAsyncThinkTokens (nodeRecordsId, scoreKeeper, (cortex : CortexInstance)) =
             nodeRecordsId, scoreKeeper, Think |> cortex.PostAndAsyncReply, cortex
+          let processAsyncTokenParallel currentArray =
+            currentArray
+            |> Array.Parallel.map(fun (_, _, token, _ ) -> token)
+            |> Async.Parallel
+            |> Async.RunSynchronously
+            |> ignore
+            //return the current array for functional flow
+            currentArray
           let scoreNeuralNetworkThinkCycle (nodeRecordsId, (scoreKeeper : ScoreKeeperInstance), asyncToken, (cortex : CortexInstance)) =
-            asyncToken |> Async.RunSynchronously
             let score : Score =
               GetScore |> scoreKeeper.PostAndReply
             sprintf "Node Records Id %A scored %A" nodeRecordsId score |> infoLog
             (nodeRecordsId,score)
           liveRecordsWithScoreKeepers
           |> Array.Parallel.map generateAsyncThinkTokens
+          |> processAsyncTokenParallel
           |> Array.Parallel.map scoreNeuralNetworkThinkCycle
 
         let scoredGeneration =
@@ -590,8 +598,8 @@ let evolveForXGenerations (evolutionProperties : EvolutionProperties)
           |> Map.ofArray
 
         let terminateExistenceAndCollectScore (nodeRecordsId, (scoreKeeper : ScoreKeeperInstance), (cortex : CortexInstance)) =
-          KillScoreKeeper |> scoreKeeper.PostAndReply
           let updatedRecords = KillCortex |> cortex.PostAndReply
+          KillScoreKeeper |> scoreKeeper.PostAndReply
           let score = scoredGeneration |> Map.find nodeRecordsId
           (nodeRecordsId, (score, updatedRecords))
 
@@ -725,54 +733,57 @@ let getDefaultTrainingProperties
   }
 
 let evolveFromTrainingSet (trainingProperties : TrainingProperties<'T>) =
+  let maybeRandom = if (trainingProperties.ShuffleDataSet) then Some(System.Random()) else None
   let getDataGenerator (initialDataSet : TrainingAnswerAndDataSet<'T>) =
-    let maybeRandom = if (trainingProperties.ShuffleDataSet) then Some(System.Random()) else None
     DataGeneratorInstance.Start(fun inbox ->
       let rec loop buffer =
         async {
-          let! msg = inbox.Receive ()
-          match msg with
-          | GetData (replyChannel, nodeRecordsId) ->
-            let updatedBuffer = 
-              let dataSet =
+          let! someMsg = inbox.TryReceive 250
+          match someMsg with
+          | None -> return! loop buffer
+          | Some msg ->
+            match msg with
+            | GetData (replyChannel, nodeRecordsId) ->
+              let updatedBuffer =
+                let dataSet =
+                  match buffer |> Map.containsKey nodeRecordsId with
+                  | true ->
+                    buffer |> Map.find nodeRecordsId |> snd
+                  | false ->
+                    initialDataSet
+                let expectedResult, data =
+                  match trainingProperties.ShuffleDataSet with
+                  | true ->
+                    let randomNumber =
+                      let random =
+                        match maybeRandom with
+                        | Some x -> x
+                        | None -> raise <| ShuffleDataRandomOptionIsNoneException "Data Generator attempted to shuffle data but random is not accessible"
+                      dataSet |> Array.length |> random.Next
+                    match dataSet |> Array.tryItem randomNumber with
+                    | Some dataTuple -> dataTuple
+                    | None -> raise <| DataSetDoesNotHaveIndexException randomNumber
+                  | false -> dataSet |> Array.head
+                data |> replyChannel.Reply
+                let updatedDataSet =
+                  Array.append (dataSet |> Array.tail) [|(expectedResult, data)|]
+                buffer
+                |> Map.add nodeRecordsId (expectedResult, updatedDataSet)
+              return! loop updatedBuffer
+            | GetExpectedResult (replyChannel, nodeRecordsId) ->
+              let expectedResult =
                 match buffer |> Map.containsKey nodeRecordsId with
-                | true -> 
-                  buffer |> Map.find nodeRecordsId |> snd
-                | false ->
-                  initialDataSet 
-              let expectedResult, data = 
-                match trainingProperties.ShuffleDataSet with
                 | true ->
-                  let randomNumber = 
-                    let random =  
-                      match maybeRandom with
-                      | Some x -> x
-                      | None -> raise <| ShuffleDataRandomOptionIsNoneException "Data Generator attempted to shuffle data but random is not accessible"
-                    dataSet |> Array.length |> random.Next
-                  match dataSet |> Array.tryItem randomNumber with
-                  | Some dataTuple -> dataTuple
-                  | None -> raise <| DataSetDoesNotHaveIndexException randomNumber
-                | false -> dataSet |> Array.head
-              data |> replyChannel.Reply
-              let updatedDataSet =
-                Array.append (dataSet |> Array.tail) [|(expectedResult, data)|]
-              buffer
-              |> Map.add nodeRecordsId (expectedResult, updatedDataSet)
-            return! loop updatedBuffer
-          | GetExpectedResult (replyChannel, nodeRecordsId) ->
-            let expectedResult =
-              match buffer |> Map.containsKey nodeRecordsId with
-              | true ->
-                buffer |> Map.find nodeRecordsId |> fst
-              | false ->
-                initialDataSet |> Array.head |> fst
-            expectedResult |> replyChannel.Reply
-            return! loop buffer
-          | ClearBuffer replyChannel ->
-            replyChannel.Reply()
-            return! loop Map.empty
-          | KillDataGenerator ->
-            ()
+                  buffer |> Map.find nodeRecordsId |> fst
+                | false ->
+                  initialDataSet |> Array.head |> fst
+              expectedResult |> replyChannel.Reply
+              return! loop buffer
+            | ClearBuffer replyChannel ->
+              replyChannel.Reply()
+              return! loop Map.empty
+            | KillDataGenerator ->
+              ()
       }
       loop Map.empty
     )

@@ -6,4 +6,4 @@ exception SensorRecordDoesNotHaveASyncFunctionException of string
 exception ActuatorRecordDoesNotHaveAOutputHookIdException of string
 exception ShuffleDataRandomOptionIsNoneException of string
 exception DataSetDoesNotHaveIndexException of int
-
+exception NeuronInstanceUnavailableException of string
