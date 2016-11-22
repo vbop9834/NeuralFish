@@ -1334,7 +1334,8 @@ let ``Should be able to evolve x generations from training set`` () =
 
   let evolvedRecords =
     let trainingProperties =
-      let defaultTrainingProperties = getDefaultTrainingProperties trainingSet interpretActuatorOutputFunction scoreAnswer activationFunctions outputHookFunctionIds
+      let learningAlgorithm = Hebbian 0.9
+      let defaultTrainingProperties = getDefaultTrainingProperties trainingSet interpretActuatorOutputFunction scoreAnswer activationFunctions outputHookFunctionIds learningAlgorithm
       { defaultTrainingProperties with
           ShuffleDataSet = true
           MaximumMinds = maximumMinds

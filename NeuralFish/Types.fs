@@ -232,6 +232,7 @@ type TrainingProperties<'T> =
     TrainingAnswerAndDataSet : TrainingAnswerAndDataSet<'T> 
     InterpretActuatorOutputFunction : InterpretActuatorOutputFunction<'T>
     ScoreNeuralNetworkAnswerFunction : ScoreNeuralNetworkAnswerFunction<'T>
+    NeuronLearningAlgorithm : NeuronLearningAlgorithm
     ShuffleDataSet : bool
   }
 

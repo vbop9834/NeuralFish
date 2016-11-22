@@ -679,7 +679,8 @@ let getDefaultTrainingProperties
       (scoreNeuralNetworkAnswerFunction : ScoreNeuralNetworkAnswerFunction<'T>)
         (activationFunctions : ActivationFunctions) 
           (outputHookFunctionIds : OutputHookFunctionIds)
-            : TrainingProperties<'T> =
+            (learningAlgorithm : NeuronLearningAlgorithm)
+              : TrainingProperties<'T> =
   let startingGenerationRecords : GenerationRecords =
     let addNeuronToMap (neuronId, neuronInstance) =
       Map.add neuronId neuronInstance
@@ -743,6 +744,7 @@ let getDefaultTrainingProperties
     InterpretActuatorOutputFunction = interpretActuatorOutputFunction 
     ScoreNeuralNetworkAnswerFunction = scoreNeuralNetworkAnswerFunction
     ShuffleDataSet = false
+    NeuronLearningAlgorithm = learningAlgorithm
   }
 
 let evolveFromTrainingSet (trainingProperties : TrainingProperties<'T>) =
