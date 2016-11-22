@@ -25,7 +25,8 @@ let mutateNeuralNetwork (mutations : MutationSequence)
   (activationFunctionIds : ActivationFunctionId seq)
     (syncFunctionIds : SyncFunctionId seq)
       (outputHookFunctionIds : OutputHookId seq)
-        (nodeRecords : NodeRecords) =
+        (learningAlgorithm : NeuronLearningAlgorithm)
+          (nodeRecords : NodeRecords) =
   let numberOfOutputHookFunctions = outputHookFunctionIds |> Seq.length
   let numberOfSyncFunctions = syncFunctionIds |> Seq.length
   let numberOfActivationFunctions = activationFunctionIds |> Seq.length
@@ -254,6 +255,7 @@ let mutateNeuralNetwork (mutations : MutationSequence)
               SyncFunctionId = None
               OutputHookId = None
               MaximumVectorLength = None
+              NeuronLearningAlgorithm = learningAlgorithm
             }
           let newNeuronRecordWithOutbound =
             blankNewNeuronRecord
@@ -355,6 +357,7 @@ let mutateNeuralNetwork (mutations : MutationSequence)
                 SyncFunctionId = Some syncFunctionId
                 OutputHookId = None
                 MaximumVectorLength = Some 1
+                NeuronLearningAlgorithm = NoLearning
               }
             let newSensorWithOutbound =
               blankSensorRecord
@@ -415,6 +418,7 @@ let mutateNeuralNetwork (mutations : MutationSequence)
                 SyncFunctionId = None
                 OutputHookId = Some outputHookId
                 MaximumVectorLength = None
+                NeuronLearningAlgorithm = NoLearning
               }
             let newInboundWithActuatorOutboundConnection =
               inboundNode
@@ -447,6 +451,7 @@ let defaultEvolutionProperties : EvolutionProperties =
     OutputHookFunctionIds = Seq.empty
     EndOfGenerationFunctionOption = None
     StartingRecords = Map.empty
+    NeuronLearningAlgorithm = Hebbian 0.5
   }
 
 let evolveForXGenerations (evolutionProperties : EvolutionProperties) 
@@ -486,7 +491,7 @@ let evolveForXGenerations (evolutionProperties : EvolutionProperties)
           let updatedPreviousGeneration =
             let tailGeneration = previousGeneration |> Array.tail
             Array.append tailGeneration [|(beingId, being)|]
-          let mutatedBeing : NodeRecords = being |> mutationFunction
+          let mutatedBeing : NodeRecords = being |> mutationFunction evolutionProperties.NeuronLearningAlgorithm
           let newId = newGeneration |> Array.length
           let updatedNewGeneration = Array.append newGeneration [|(newId,mutatedBeing)|]  
           processEvolutionLoop updatedNewGeneration updatedPreviousGeneration
@@ -699,7 +704,7 @@ let getDefaultTrainingProperties
           | Some xTuple -> xTuple
           | None ->
             raise <| NeuronDoesNotHaveAnActivationFunction "Attempted to generate default traing properties but no activation functions were passed"
-        createNeuron nodeId layer activationFunction activationFunctionId bias
+        createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
         |> createNeuronInstance
       let sensor =
         let nodeId = 2

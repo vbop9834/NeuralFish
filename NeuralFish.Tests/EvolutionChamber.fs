@@ -36,7 +36,7 @@ let ``AddBias mutation should add a bias to a neuron that has none`` () =
     let bias = 0.0
     let nodeId = getNodeId()
     let layer = 2.0
-    createNeuron nodeId layer activationFunction activationFunctionId bias
+    createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
   let sensor =
@@ -79,7 +79,7 @@ let ``AddBias mutation should add a bias to a neuron that has none`` () =
     |> addNeuronToMap neuron
     |> addNeuronToMap sensor
     |> constructNodeRecords
-    |> mutateNeuralNetwork [AddBias] [activationFunctionId] [syncFunctionId] [outputHookId]
+    |> mutateNeuralNetwork [AddBias] [activationFunctionId] [syncFunctionId] [outputHookId] NoLearning
 
   [
     sensor
@@ -141,7 +141,7 @@ let ``RemoveBias mutation should remove a bias to a neuron that has some bias`` 
     let bias = 5.0
     let nodeId = getNodeId()
     let layer = 2.0
-    createNeuron nodeId layer activationFunction activationFunctionId bias
+    createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
   let sensor =
@@ -184,7 +184,7 @@ let ``RemoveBias mutation should remove a bias to a neuron that has some bias`` 
     |> addNeuronToMap neuron
     |> addNeuronToMap sensor
     |> constructNodeRecords
-    |> mutateNeuralNetwork [RemoveBias] [activationFunctionId] [syncFunctionId] [outputHookId]
+    |> mutateNeuralNetwork [RemoveBias] [activationFunctionId] [syncFunctionId] [outputHookId] NoLearning
 
   [
     sensor
@@ -244,7 +244,7 @@ let ``MutateWeights mutation should mutate the weights of all outbound connectio
     let bias = 0.0
     let nodeId = getNodeId()
     let layer = 2.0
-    createNeuron nodeId layer activationFunction activationFunctionId bias
+    createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
   let sensor =
@@ -283,7 +283,7 @@ let ``MutateWeights mutation should mutate the weights of all outbound connectio
     |> addNeuronToMap neuron
     |> addNeuronToMap sensor
     |> constructNodeRecords
-    |> mutateNeuralNetwork [MutateWeights] [activationFunctionId] [syncFunctionId] [outputHookId]
+    |> mutateNeuralNetwork [MutateWeights] [activationFunctionId] [syncFunctionId] [outputHookId] NoLearning
  
   [
     sensor
@@ -363,7 +363,7 @@ let ``AddOutboundConnection mutation should mutate connect a neuron to a neuron 
     let bias = 0.0
     let nodeId = getNodeId()
     let layer = 2.0
-    createNeuron nodeId layer activationFunction activationFunctionId bias
+    createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
   let sensor =
@@ -402,7 +402,7 @@ let ``AddOutboundConnection mutation should mutate connect a neuron to a neuron 
     |> addNeuronToMap neuron
     |> addNeuronToMap sensor
     |> constructNodeRecords
-    |> mutateNeuralNetwork [AddOutboundConnection] [activationFunctionId] [syncFunctionId] [outputHookId]
+    |> mutateNeuralNetwork [AddOutboundConnection] [activationFunctionId] [syncFunctionId] [outputHookId] NoLearning
  
   [
     sensor
@@ -455,7 +455,7 @@ let ``AddNeuron mutation should add a new neuron and connect it randomly in the 
     let bias = 0.0
     let nodeId = getNodeId()
     let layer = 2.0
-    createNeuron nodeId layer activationFunction activationFunctionId bias
+    createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
   let sensor =
@@ -498,7 +498,7 @@ let ``AddNeuron mutation should add a new neuron and connect it randomly in the 
     |> addNeuronToMap neuron
     |> addNeuronToMap sensor
     |> constructNodeRecords
-    |> mutateNeuralNetwork [AddNeuron] [activationFunctionId] [syncFunctionId] [outputHookId]
+    |> mutateNeuralNetwork [AddNeuron] [activationFunctionId] [syncFunctionId] [outputHookId] NoLearning
 
   [
     sensor
@@ -559,7 +559,7 @@ let ``AddSensor mutation should add a new sensor and connect it randomly in the 
     let bias = 0.0
     let nodeId = getNodeId()
     let layer = 2.0
-    createNeuron nodeId layer activationFunction activationFunctionId bias
+    createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
   let sensor =
@@ -603,7 +603,7 @@ let ``AddSensor mutation should add a new sensor and connect it randomly in the 
     |> addNeuronToMap neuron
     |> addNeuronToMap sensor
     |> constructNodeRecords
-    |> mutateNeuralNetwork [AddSensor] [activationFunctionId] [syncFunctionId; secondSyncFunctionId] [outputHookId]
+    |> mutateNeuralNetwork [AddSensor] [activationFunctionId] [syncFunctionId; secondSyncFunctionId] [outputHookId] NoLearning
 
   [
     sensor
@@ -659,7 +659,7 @@ let ``AddActuator mutation should add a new actuator and connect it randomly in 
     let bias = 0.0
     let nodeId = getNodeId()
     let layer = 2.0
-    createNeuron nodeId layer activationFunction activationFunctionId bias
+    createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
   let sensor =
@@ -702,7 +702,7 @@ let ``AddActuator mutation should add a new actuator and connect it randomly in 
     |> addNeuronToMap neuron
     |> addNeuronToMap sensor
     |> constructNodeRecords
-    |> mutateNeuralNetwork [AddActuator] [activationFunctionId] [syncFunctionId] [outputHookId; secondOutputHookId]
+    |> mutateNeuralNetwork [AddActuator] [activationFunctionId] [syncFunctionId] [outputHookId; secondOutputHookId] NoLearning
 
   [
     sensor
@@ -758,7 +758,7 @@ let ``AddSensorLink mutation should add a sensor connection randomly in the neur
     let bias = 0.0
     let nodeId = getNodeId()
     let layer = 2.0
-    createNeuron nodeId layer activationFunction activationFunctionId bias
+    createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
   let sensor =
@@ -800,7 +800,7 @@ let ``AddSensorLink mutation should add a sensor connection randomly in the neur
     |> addNeuronToMap neuron
     |> addNeuronToMap sensor
     |> constructNodeRecords
-    |> mutateNeuralNetwork [AddSensorLink] [activationFunctionId] [syncFunctionId] [outputHookId]
+    |> mutateNeuralNetwork [AddSensorLink] [activationFunctionId] [syncFunctionId] [outputHookId] NoLearning
 
   [
     sensor
@@ -861,7 +861,7 @@ let ``AddActuatorLink mutation should add an actuaor connection randomly in the 
     let bias = 0.0
     let nodeId = getNodeId()
     let layer = 2.0
-    createNeuron nodeId layer activationFunction activationFunctionId bias
+    createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
   let sensor =
@@ -903,7 +903,7 @@ let ``AddActuatorLink mutation should add an actuaor connection randomly in the 
     |> addNeuronToMap neuron
     |> addNeuronToMap sensor
     |> constructNodeRecords
-    |> mutateNeuralNetwork [AddActuatorLink] [activationFunctionId] [syncFunctionId] [outputHookId]
+    |> mutateNeuralNetwork [AddActuatorLink] [activationFunctionId] [syncFunctionId] [outputHookId] NoLearning
 
   [
     sensor
@@ -975,7 +975,7 @@ let ``MutateActivationFunction mutation should mutate the activation function of
     let bias = 0.0
     let nodeId = getNodeId()
     let layer = 2.0
-    createNeuron nodeId layer activationFunction activationFunctionId bias
+    createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
   let sensor =
@@ -1018,7 +1018,7 @@ let ``MutateActivationFunction mutation should mutate the activation function of
     |> addNeuronToMap neuron
     |> addNeuronToMap sensor
     |> constructNodeRecords
-    |> mutateNeuralNetwork [MutateActivationFunction] [secondActivationFunctionId] [syncFunctionId] [outputHookId]
+    |> mutateNeuralNetwork [MutateActivationFunction] [secondActivationFunctionId] [syncFunctionId] [outputHookId] NoLearning
 
   [
     sensor
@@ -1078,7 +1078,7 @@ let ``MinimalMutationSequence should be capable of mutating records and executin
     let bias = 0.0
     let nodeId = getNodeId()
     let layer = 2.0
-    createNeuron nodeId layer activationFunction activationFunctionId bias
+    createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
   let sensor =
@@ -1121,7 +1121,7 @@ let ``MinimalMutationSequence should be capable of mutating records and executin
     |> addNeuronToMap neuron
     |> addNeuronToMap sensor
     |> constructNodeRecords
-    |> mutateNeuralNetwork minimalMutationSequence [activationFunctionId] [syncFunctionId] [outputHookId]
+    |> mutateNeuralNetwork minimalMutationSequence [activationFunctionId] [syncFunctionId] [outputHookId] NoLearning
 
   [
     sensor
@@ -1172,7 +1172,7 @@ let ``Should be able to evolve x generations`` () =
     let bias = 0.0
     let nodeId = getNodeId()
     let layer = 2.0
-    createNeuron nodeId layer activationFunction activationFunctionId bias
+    createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
   let syncFunction = syncFunctionSource 0
@@ -1213,13 +1213,17 @@ let ``Should be able to evolve x generations`` () =
   let outputHookFunctionIds : OutputHookFunctionIds =
     [outputHookId] |> List.toSeq
 
+  let learningAlgorithm = 
+    let learningCoefficient = 0.5
+    Hebbian learningCoefficient
+
   let nodeRecords =
     Map.empty
     |> addNeuronToMap actuator
     |> addNeuronToMap neuron
     |> addNeuronToMap sensor
     |> constructNodeRecords
-    |> mutateNeuralNetwork [AddBias] [activationFunctionId] [syncFunctionId] outputHookFunctionIds
+    |> mutateNeuralNetwork [AddBias] [activationFunctionId] [syncFunctionId] outputHookFunctionIds learningAlgorithm
 
   [
     sensor
@@ -1268,6 +1272,7 @@ let ``Should be able to evolve x generations`` () =
           OutputHookFunctionIds = outputHookFunctionIds
           EndOfGenerationFunctionOption = Some endOfGenerationFunction
           StartingRecords = generationRecords
+          NeuronLearningAlgorithm = learningAlgorithm
       }
     evolutionProperties |> evolveForXGenerations  
   evolvedRecords

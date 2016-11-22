@@ -83,7 +83,7 @@ let ``Should be able to export a simple neural network to a map of node records`
     let activationFunction = id
     let bias = 10.0
     let layer = 2.0
-    createNeuron neuronId layer activationFunction activationFunctionId bias
+    createNeuron neuronId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
   let sensorId = getNodeId()
@@ -149,7 +149,7 @@ let ``Should be able to construct a simple neural network from a map of node rec
     let bias = 10.0
     let id = getNodeId()
     let layer = 2.0
-    createNeuron id layer activationFunction activationFunctionId bias
+    createNeuron id layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
   let sensor =
     let id = getNodeId()
@@ -255,19 +255,19 @@ let ``Should be able to solve the XNOR problem with predefined weights, convert 
     let bias = -10.0
     let id = getNodeId()
     let layer = 3.0
-    createNeuron id layer activationFunction 0 bias
+    createNeuron id layer activationFunction 0 bias NoLearning
     |> createNeuronInstance
   let neuron_a2_2 =
     let bias = 10.0
     let id = getNodeId()
     let layer = 2.0
-    createNeuron id layer activationFunction activationFunctionId bias
+    createNeuron id layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
   let neuron_a2_1 =
     let bias = -30.0
     let id = getNodeId()
     let layer = 2.0
-    createNeuron id layer activationFunction activationFunctionId bias
+    createNeuron id layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
   let sensor_x1 =
     let id = getNodeId()
@@ -417,7 +417,7 @@ let ``Should be able to export a recurrent neural network to a map of node recor
     let activationFunction = id
     let bias = 10.0
     let layer = 2.0
-    createNeuron neuronId layer activationFunction activationFunctionId bias
+    createNeuron neuronId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
   let sensorId = getNodeId()
@@ -483,21 +483,21 @@ let ``Should be able to deconstruct then reconstruct recurrent neural network wi
     let bias = 10.0
     let nodeId = getNodeId()
     let layer = 1.0
-    createNeuron nodeId layer activationFunction activationFunctionId bias
+    createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
   let neuron_1b =
     let bias = 10.0
     let nodeId = getNodeId()
     let layer = 1.0
-    createNeuron nodeId layer activationFunction activationFunctionId bias
+    createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
   let neuron_2a =
     let bias = 10.0
     let nodeId = getNodeId()
     let layer = 2.0
-    createNeuron nodeId layer activationFunction activationFunctionId bias
+    createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
   let sensor =
@@ -625,14 +625,14 @@ let ``After reconstruction, Sensor should inflate data if there is not enough da
     let bias = 10.0
     let nodeId = getNodeId()
     let layer = 2.0
-    createNeuron nodeId layer activationFunction activationFunctionId bias
+    createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
   let neuron_1b =
     let bias = 0.0
     let nodeId = getNodeId()
     let layer = 2.0
-    createNeuron nodeId layer activationFunction activationFunctionId bias
+    createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
   let sensor =

@@ -62,14 +62,14 @@ let synchronizeNN (neuralNetwork : NeuralNetwork) =
   neuralNetwork
   |> Map.iter synchronizeMap
 
-let synapseDotProduct synapses =
+let synapseDotProduct (weightedSynapses : WeightedSynapses) =
   let rec loop synapses =
     match synapses with
     | [] -> 0.0
-    | (_,value,weight)::tail -> value*weight + (loop tail)
-  synapses |> Map.toList |> List.map snd |> loop
+    | ((_,value), weight)::tail -> value*weight + (loop tail)
+  weightedSynapses |> Map.toList |> List.map snd |> loop
 
-let createNeuron id layer activationFunction activationFunctionId bias =
+let createNeuron id layer activationFunction activationFunctionId bias learningAlgorithm =
   let record =
     {
       NodeId = id
@@ -81,6 +81,7 @@ let createNeuron id layer activationFunction activationFunctionId bias =
       SyncFunctionId = None
       OutputHookId = None
       MaximumVectorLength = None
+      NeuronLearningAlgorithm = learningAlgorithm
     }
   {
     Record = record
@@ -99,6 +100,7 @@ let createSensor id syncFunction syncFunctionId maximumVectorLength =
       SyncFunctionId = Some syncFunctionId
       OutputHookId = None
       MaximumVectorLength = Some maximumVectorLength
+      NeuronLearningAlgorithm = NoLearning
     }
   {
     Record = record
@@ -117,6 +119,7 @@ let createActuator id layer outputHook outputHookId =
       SyncFunctionId = None
       OutputHookId = Some outputHookId
       MaximumVectorLength = None
+      NeuronLearningAlgorithm = NoLearning
     }
   {
     Record = record
@@ -146,49 +149,46 @@ let createNeuronInstance neuronType =
         props.Record.NodeId, props.Record.Layer
   let isBarrierSatisifed (inboundNeuronConnections : InboundNeuronConnections) (barrier : IncomingSynapses) =
     inboundNeuronConnections
-    |> Seq.forall(fun connectionId -> barrier |> Map.containsKey connectionId)
-  let sendSynapseToNeurons (outputNeurons : NeuronConnections) outputValue =
-    let sendSynapseToNeuron outputValue neuronConnectionId outputNeuronConnection =
-      (neuronConnectionId, (outputNeuronConnection.NodeId, outputValue, outputNeuronConnection.Weight), true)
-      |> ReceiveInput
-      |> outputNeuronConnection.Neuron.Post
-    outputNeurons
-    |> Map.iter (sendSynapseToNeuron outputValue)
+    |> Map.forall(fun connectionId _ -> barrier |> Map.containsKey connectionId)
   let addBias bias outputVal =
     outputVal + bias
-  let activateNeuron (barrier : IncomingSynapses) (outboundConnections : NeuronConnections) neuronType =
-    match neuronType with
-    | Neuron props ->
-      let logNeuronOutput nodeId activationFunctionId bias outputValue =
-        sprintf "Neuron %A is outputting %A after activation %A and bias %A" nodeId outputValue activationFunctionId bias
-        |> infoLog
-        outputValue
+  let activateNeuron (barrier : WeightedSynapses) (outboundConnections : NeuronConnections) (neuronProps : NeuronProperties) =
+    let sendSynapseToNeurons (outputNeurons : NeuronConnections) outputValue =
+      let sendSynapseToNeuron outputValue neuronConnectionId outputNeuronConnection =
+        (neuronConnectionId, (outputNeuronConnection.NodeId, outputValue), true)
+        |> ReceiveInput
+        |> outputNeuronConnection.Neuron.Post
+      outputNeurons
+      |> Map.iter (sendSynapseToNeuron outputValue)
+      outputValue
+    let logNeuronOutput nodeId activationFunctionId bias outputValue =
+      sprintf "Neuron %A is outputting %A after activation %A and bias %A" nodeId outputValue activationFunctionId bias
+      |> infoLog
+      outputValue
 
-      let someBias =
-        match props.Record.Bias with
-        | Some bias -> bias
-        | None -> 0.0
-      barrier
-      |> synapseDotProduct
-      |> addBias someBias
-      |> props.ActivationFunction
-      |> logNeuronOutput props.Record.NodeId props.Record.ActivationFunctionId props.Record.Bias
-      |> sendSynapseToNeurons outboundConnections
-    | Actuator props ->
+    let someBias =
+      match neuronProps.Record.Bias with
+      | Some bias -> bias
+      | None -> 0.0
+    barrier
+    |> synapseDotProduct
+    |> addBias someBias
+    |> neuronProps.ActivationFunction
+    |> logNeuronOutput neuronProps.Record.NodeId neuronProps.Record.ActivationFunctionId neuronProps.Record.Bias
+    |> sendSynapseToNeurons outboundConnections
+  let activateActuator barrier actuatorProps =
       let logActuatorOutput nodeId outputHookId outputValue =
         sprintf "Actuator %A is outputting %A with output hook %A" nodeId outputValue outputHookId
         |> infoLog
         outputValue
       barrier
       |> Map.toSeq
-      |> Seq.sumBy (fun (_,(_,value,weight)) -> value)
-      |> logActuatorOutput props.Record.NodeId props.Record.OutputHookId
-      |> props.OutputHook
-    | Sensor _ ->
-      ()
+      |> Seq.sumBy (fun (_,(_,value)) -> value)
+      |> logActuatorOutput actuatorProps.Record.NodeId actuatorProps.Record.OutputHookId
+      |> actuatorProps.OutputHook
 
-  let createInactiveNeuronConnection activeNeuronConnection =
-    activeNeuronConnection.NodeId, activeNeuronConnection.Weight
+  let createInactiveNeuronConnection weight activeNeuronConnection =
+    activeNeuronConnection.NodeId, weight
 
   let neuronInstance = NeuronInstance.Start(fun inbox ->
     let rec loop (barrier : AxonHillockBarrier)
@@ -232,19 +232,27 @@ let createNeuronInstance neuronType =
                 if (dataStream |> Seq.isEmpty || remainingConnections |> Seq.isEmpty) then
                   ()
                 else
-                  let sendSynapseToNeuron (neuron : NeuronInstance) neuronConnectionId weight outputValue =
-                    (neuronConnectionId, (props.Record.NodeId, outputValue, weight), true)
+                  let sendSynapseToNeuron (neuron : NeuronInstance) neuronConnectionId outputValue =
+                    (neuronConnectionId, (props.Record.NodeId, outputValue), true)
                     |> ReceiveInput
                     |> neuron.Post
                   let data = dataStream |> Seq.head
                   let (connectionId, connection) = remainingConnections |> Seq.head
-                  sprintf "Sending %A to connection %A with a weight of %A" data connectionId connection.Weight |> infoLog
-                  data |> sendSynapseToNeuron connection.Neuron connectionId connection.Weight
+                  sprintf "Sending %A to connection %A" data connectionId |> infoLog
+                  data |> sendSynapseToNeuron connection.Neuron connectionId 
                   let newDataStream = (dataStream |> Seq.tail)
                   processSensorSync newDataStream (remainingConnections |> Seq.tail)
               processSensorSync dataStream outboundConnectionsSeq
               return! loop barrier inboundConnections outboundConnections newMaximumVectorLength maybeCortex
           | ReceiveInput (neuronConnectionId, package, activateIfBarrierIsFull) ->
+            let processLearning learningAlgorithm (weightedSynapses : WeightedSynapses) (neuronOutput : NeuronOutput) : InboundNeuronConnections =
+              let processLearningForConnection neuronConnectionId ((fromNeuronid, inputValue), weight) = 
+                match learningAlgorithm with
+                | NoLearning -> weight 
+                | Hebbian learningRateCoefficient -> weight + learningRateCoefficient*inputValue*neuronOutput
+              weightedSynapses
+              |> Map.map processLearningForConnection
+
             let updatedBarrier : IncomingSynapses =
               barrier
               |> Map.add neuronConnectionId package
@@ -252,8 +260,19 @@ let createNeuronInstance neuronType =
             | Neuron props ->
               if (activateIfBarrierIsFull && updatedBarrier |> isBarrierSatisifed inboundConnections) then
                 sprintf "Barrier is satisfied for Neuron %A. Received %A from %A" props.Record.NodeId package neuronConnectionId |> infoLog
-                neuronType |> activateNeuron updatedBarrier outboundConnections
-                return! loop Map.empty inboundConnections outboundConnections maximumVectorLength maybeCortex
+                let weightedSynapses : WeightedSynapses =
+                  let getWeightedSynapse neuronConnectionId (synapse : Synapse)  : WeightedSynapse =
+                    let weight = 
+                      match inboundConnections |> Map.tryFind neuronConnectionId with
+                      | None -> raise <| MissingInboundConnectionException(sprintf "Neuron %A is missing inbound connection %A" nodeId neuronConnectionId)
+                      | Some x -> x
+                    synapse, weight
+                  updatedBarrier
+                  |> Map.map getWeightedSynapse
+                let neuronOutput = props |> activateNeuron weightedSynapses outboundConnections
+                let updatedInboundConnections =
+                  processLearning props.Record.NeuronLearningAlgorithm weightedSynapses neuronOutput
+                return! loop Map.empty updatedInboundConnections outboundConnections maximumVectorLength maybeCortex
               else
                 sprintf "Barrier not satisfied for Neuron %A. Received %A from %A" props.Record.NodeId package neuronConnectionId |> infoLog
                 return! loop updatedBarrier inboundConnections outboundConnections maximumVectorLength maybeCortex
@@ -262,7 +281,7 @@ let createNeuronInstance neuronType =
                 match maybeCortex with
                 | None ->
                   sprintf "Barrier is satisifed for Actuator %A" props.Record.NodeId |> infoLog
-                  neuronType |> activateNeuron updatedBarrier outboundConnections
+                  props |> activateActuator updatedBarrier 
                   return! loop Map.empty inboundConnections outboundConnections maximumVectorLength maybeCortex
                 | Some _ ->
                   sprintf "Barrier is satisifed for Actuator %A. Not activating due to registered cortex. Waiting for a signal from the cortex" props.Record.NodeId |> infoLog
@@ -281,53 +300,65 @@ let createNeuronInstance neuronType =
                  {
                   NodeId = nodeId
                   Neuron = toNode
-                  Weight = weight
                  }
                 outboundConnections |> Map.add neuronConnectionId outboundConnection
 
-              (neuronConnectionId, replyChannel)
+              (neuronConnectionId, weight, replyChannel)
               |> NeuronActions.AddInboundConnection
               |> toNode.Post
 
               //queue up blank synapses for recurrent connections
               if (nodeLayer >= outboundLayer) then
                 sprintf "Sending recurrent blank synapse to %A via %A" nodeId neuronConnectionId |> infoLog
-                (neuronConnectionId, (nodeId,0.0,weight), false)
+                (neuronConnectionId, (nodeId,0.0), false)
                 |> ReceiveInput
                 |> toNode.Post
 
               sprintf "Node %A is adding Node %A as an outbound connection %A with weight %A" neuronType nodeId neuronConnectionId weight
               |> infoLog
               return! loop barrier inboundConnections updatedOutboundConnections maximumVectorLength maybeCortex
-            | NeuronActions.AddInboundConnection (neuronConnectionId,replyChannel) ->
+            | NeuronActions.AddInboundConnection (neuronConnectionId, weight, replyChannel) ->
               let updatedInboundConnections =
-                inboundConnections |> Seq.append(Seq.singleton neuronConnectionId)
+                inboundConnections 
+                |> Map.add neuronConnectionId weight 
               replyChannel.Reply()
               sprintf "Added inbound neuron connection %A" neuronConnectionId
               |> infoLog
               return! loop barrier updatedInboundConnections outboundConnections maximumVectorLength maybeCortex
             | GetNodeRecord replyChannel ->
-              let getOutboundNodeRecordConnections () : NodeRecordConnections =
-                outboundConnections
-                |> Map.map (fun neuronConnectionId neuronConnection -> neuronConnection |> createInactiveNeuronConnection)
-              let nodeRecord =
-                match neuronType with
-                | Neuron props ->
-                  let outboundNodeRecordConnections = getOutboundNodeRecordConnections ()
-                  { props.Record with OutboundConnections = outboundNodeRecordConnections }
-                | Sensor props ->
-                  let outboundNodeRecordConnections = getOutboundNodeRecordConnections ()
-                  let maximumVectorLengthToRecord =
-                    match props.Record.MaximumVectorLength with
-                      | Some previousMaximumVectorLength ->
-                        if (maximumVectorLength > previousMaximumVectorLength) then
-                          maximumVectorLength
-                        else
-                          previousMaximumVectorLength
-                      | None -> maximumVectorLength
-                  { props.Record with OutboundConnections = outboundNodeRecordConnections; MaximumVectorLength = Some maximumVectorLengthToRecord }
-                | Actuator props -> props.Record
-              nodeRecord |> replyChannel.Reply
+              async {
+                let getOutboundNodeRecordConnections () : NodeRecordConnections =
+                  let getOutboundNodeRecordConnection neuronConnectionId (neuronConnection : NeuronConnection) : InactiveNeuronConnection = 
+                    let weight = 
+                      let maybePost =
+                        (fun r -> GetConnectionWeight(neuronConnectionId, r)) 
+                        |> (fun msg -> neuronConnection.Neuron.TryPostAndReply(msg, timeout=5000))
+                      match maybePost with
+                      | None -> raise <| NeuronInstanceUnavailableException(sprintf "Node Records - Neuron %A is dead when trying to get updated weight" neuronConnection.NodeId)
+                      | Some x -> x
+                    neuronConnection
+                    |> createInactiveNeuronConnection weight
+                  outboundConnections
+                  |> Map.map getOutboundNodeRecordConnection
+                let nodeRecord =
+                  match neuronType with
+                  | Neuron props ->
+                    let outboundNodeRecordConnections = getOutboundNodeRecordConnections ()
+                    { props.Record with OutboundConnections = outboundNodeRecordConnections }
+                  | Sensor props ->
+                    let outboundNodeRecordConnections = getOutboundNodeRecordConnections ()
+                    let maximumVectorLengthToRecord =
+                      match props.Record.MaximumVectorLength with
+                        | Some previousMaximumVectorLength ->
+                          if (maximumVectorLength > previousMaximumVectorLength) then
+                            maximumVectorLength
+                          else
+                            previousMaximumVectorLength
+                        | None -> maximumVectorLength
+                    { props.Record with OutboundConnections = outboundNodeRecordConnections; MaximumVectorLength = Some maximumVectorLengthToRecord }
+                  | Actuator props -> props.Record
+                nodeRecord |> replyChannel.Reply
+              } |> Async.Start |> ignore
               return! loop barrier inboundConnections outboundConnections maximumVectorLength maybeCortex
             | Die replyChannel ->
               replyChannel.Reply()
@@ -349,9 +380,9 @@ let createNeuronInstance neuronType =
               | Some readyToActivate ->
                 if readyToActivate then
                   match neuronType with
-                  | Actuator _ ->
+                  | Actuator props ->
                     sprintf "Activating Actuator %A" nodeId |> infoLog
-                    neuronType |> activateNeuron barrier outboundConnections
+                    props |> activateActuator barrier 
                     replyChannel.Reply ()
                     let notReadyToActivate = Some false
                     return! loop Map.empty inboundConnections outboundConnections maximumVectorLength notReadyToActivate
@@ -368,8 +399,16 @@ let createNeuronInstance neuronType =
               | Some readyToActivate ->
                 readyToActivate |> replyChannel.Reply
               return! loop barrier inboundConnections outboundConnections maximumVectorLength maybeCortex
+            | GetConnectionWeight (neuronConnectionId, replyChannel) ->
+              match neuronType with
+              | Neuron props ->
+                inboundConnections
+                |> Map.find neuronConnectionId
+                |> replyChannel.Reply
+              | _ -> 0.0 |> replyChannel.Reply
+              return! loop barrier inboundConnections outboundConnections maximumVectorLength maybeCortex
       }
-    loop Map.empty Seq.empty Map.empty 0 None
+    loop Map.empty Map.empty Map.empty 0 None
   )
 
   //Add exception logging
