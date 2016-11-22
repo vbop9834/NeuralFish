@@ -29,7 +29,7 @@ let constructNeuralNetwork (activationFunctions : ActivationFunctions)
           match nodeRecord.Bias with
           | Some bias -> bias
           | None -> 0.0
-        createNeuron nodeId nodeRecord.Layer activationFunction nodeRecord.ActivationFunctionId.Value bias
+        createNeuron nodeId nodeRecord.Layer activationFunction nodeRecord.ActivationFunctionId.Value bias nodeRecord.NeuronLearningAlgorithm
         |> createNeuronInstance
       | NodeRecordType.Sensor ->
         if (nodeRecord.SyncFunctionId |> Option.isNone) then

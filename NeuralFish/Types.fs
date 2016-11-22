@@ -29,9 +29,11 @@ type NeuronLayerId = float
 
 type NeuronConnectionId = System.Guid
 
-type Synapse = NeuronId*NeuronOutput*Weight
+type Synapse = NeuronId*NeuronOutput
+type WeightedSynapse = Synapse*Weight
+type WeightedSynapses = Map<NeuronConnectionId, WeightedSynapse>
 
-type AxonHillockBarrier = Map<NeuronConnectionId,Synapse>
+type AxonHillockBarrier = Map<NeuronConnectionId, Synapse>
 
 type IncomingSynapses = Map<NeuronConnectionId, Synapse>
 
@@ -44,6 +46,12 @@ type NodeRecordType =
 
 type NodeRecordConnections = Map<NeuronConnectionId,InactiveNeuronConnection>
 
+type LearningRateCoefficient = float
+
+type NeuronLearningAlgorithm =
+  | Hebbian of LearningRateCoefficient 
+  | NoLearning
+
 type NodeRecord =
   {
     Layer: NeuronLayerId
@@ -55,6 +63,7 @@ type NodeRecord =
     SyncFunctionId: SyncFunctionId option
     OutputHookId: OutputHookId option
     MaximumVectorLength: int option
+    NeuronLearningAlgorithm : NeuronLearningAlgorithm 
   }
 
 type NodeRecords = Map<NeuronId,NodeRecord>
@@ -93,12 +102,13 @@ type NeuronActions =
   | Sync
   | ReceiveInput of NeuronConnectionId*Synapse*bool
   | AddOutboundConnection of (MailboxProcessor<NeuronActions>*NeuronId*NeuronLayerId*Weight)*AsyncReplyChannel<unit>
-  | AddInboundConnection of NeuronConnectionId*AsyncReplyChannel<unit>
+  | AddInboundConnection of NeuronConnectionId*Weight*AsyncReplyChannel<unit>
   | GetNodeRecord of AsyncReplyChannel<NodeRecord>
   | Die of AsyncReplyChannel<unit>
   | RegisterCortex of CortexInstance*AsyncReplyChannel<unit>
   | ActivateActuator of AsyncReplyChannel<unit>
   | CheckActuatorStatus of AsyncReplyChannel<bool>
+  | GetConnectionWeight of NeuronConnectionId*AsyncReplyChannel<Weight>
 
 type NeuronInstance = MailboxProcessor<NeuronActions>
 
@@ -106,12 +116,11 @@ type NeuronConnection =
   {
     Neuron: NeuronInstance
     NodeId: NeuronId
-    Weight: Weight
   }
 
 type NeuronConnections = Map<NeuronConnectionId,NeuronConnection>
 type RecurrentNeuronConnections = Map<NeuronConnectionId,NeuronConnection>
-type InboundNeuronConnections = NeuronConnectionId seq
+type InboundNeuronConnections = Map<NeuronConnectionId,Weight> 
 
 type NeuralNetwork = Map<NeuronId, NeuronLayerId*NeuronInstance>
 
@@ -192,6 +201,7 @@ type EvolutionProperties =
     OutputHookFunctionIds : OutputHookFunctionIds
     EndOfGenerationFunctionOption : EndOfGenerationFunction option
     StartingRecords : GenerationRecords
+    NeuronLearningAlgorithm : NeuronLearningAlgorithm
   }
 
 type DataGeneratorMsg<'T> =
@@ -222,5 +232,7 @@ type TrainingProperties<'T> =
     TrainingAnswerAndDataSet : TrainingAnswerAndDataSet<'T> 
     InterpretActuatorOutputFunction : InterpretActuatorOutputFunction<'T>
     ScoreNeuralNetworkAnswerFunction : ScoreNeuralNetworkAnswerFunction<'T>
+    NeuronLearningAlgorithm : NeuronLearningAlgorithm
     ShuffleDataSet : bool
   }
+

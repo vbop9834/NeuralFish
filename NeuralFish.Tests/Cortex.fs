@@ -34,7 +34,7 @@ let ``Cortex should be able to synchronize neural activity`` () =
     let activationFunction = id
     let bias = 10.0
     let layer = 2.0
-    createNeuron neuronId layer activationFunction activationFunctionId bias
+    createNeuron neuronId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
   let sensorId = getNodeId()
