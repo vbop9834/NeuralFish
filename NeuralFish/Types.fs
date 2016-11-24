@@ -189,6 +189,7 @@ type MaximumMinds = int
 type AmountOfGenerations = int
 
 type MutationSequence = Mutation seq
+
 type EvolutionProperties =
   {
     MaximumMinds : MaximumThinkCycles
@@ -202,6 +203,7 @@ type EvolutionProperties =
     EndOfGenerationFunctionOption : EndOfGenerationFunction option
     StartingRecords : GenerationRecords
     NeuronLearningAlgorithm : NeuronLearningAlgorithm
+    DividePopulationBy : int
   }
 
 type DataGeneratorMsg<'T> =
@@ -234,5 +236,6 @@ type TrainingProperties<'T> =
     ScoreNeuralNetworkAnswerFunction : ScoreNeuralNetworkAnswerFunction<'T>
     NeuronLearningAlgorithm : NeuronLearningAlgorithm
     ShuffleDataSet : bool
+    DividePopulationBy : int
   }
 

@@ -452,6 +452,7 @@ let defaultEvolutionProperties : EvolutionProperties =
     EndOfGenerationFunctionOption = None
     StartingRecords = Map.empty
     NeuronLearningAlgorithm = Hebbian 0.5
+    DividePopulationBy = 2
   }
 
 let evolveForXGenerations (evolutionProperties : EvolutionProperties) 
@@ -627,16 +628,16 @@ let evolveForXGenerations (evolutionProperties : EvolutionProperties)
       |> Array.Parallel.map createScoreKeeper
       |> Array.Parallel.map createLiveMind
       |> processThinkCycles
-    let halfThePopulation (scoredRecords : ScoredNodeRecords) : ScoredNodeRecords =
-      let halfLength =
-        let half = (scoredRecords |> Array.length) / 2
-        if (half < 2) then
+    let divdeThePopulation (scoredRecords : ScoredNodeRecords) : ScoredNodeRecords =
+      let dividedLength =
+        let length = (scoredRecords |> Array.length) / evolutionProperties.DividePopulationBy
+        if (length < 2) then
           2
         else
-          half
+          length
       scoredRecords
       |> Array.sortByDescending(fun (_,(score,_)) -> score)
-      |> Array.chunkBySize halfLength
+      |> Array.chunkBySize dividedLength
       |> Array.head
     let convertToGenerationRecords (scoredNodeRecords : ScoredNodeRecords) : GenerationRecords =
       scoredNodeRecords
@@ -665,7 +666,7 @@ let evolveForXGenerations (evolutionProperties : EvolutionProperties)
       |> convertToGenerationRecords 
     else
       scoredGenerationRecords
-      |> halfThePopulation
+      |> divdeThePopulation
       |> convertToGenerationRecords 
       |> evolveGeneration
       |> processGenerations (generationCounter + 1)
@@ -745,6 +746,7 @@ let getDefaultTrainingProperties
     ScoreNeuralNetworkAnswerFunction = scoreNeuralNetworkAnswerFunction
     ShuffleDataSet = false
     NeuronLearningAlgorithm = learningAlgorithm
+    DividePopulationBy = 2 
   }
 
 let evolveFromTrainingSet (trainingProperties : TrainingProperties<'T>) =
