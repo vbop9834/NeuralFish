@@ -62,7 +62,7 @@ let ``Cortex should be able to synchronize neural activity`` () =
 
   let cortex = neuralNetwork |> createCortex
 
-  Think |> cortex.PostAndReply
+  ThinkAndAct |> cortex.PostAndReply
   WaitForData
   |> testHookMailbox.PostAndReply
   |> (should equal 110.0)

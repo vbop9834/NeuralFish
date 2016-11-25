@@ -20,13 +20,9 @@ let createCortex liveNeurons : CortexInstance =
           | true ->
             true
           | false ->
-            "Cortex - Actuator is not ready... Waiting" |> infoLog
-            System.Threading.Thread.Sleep(200)
             false
       let checkIfNeuronIsBusy (neuron : NeuronInstance) =
         if neuron.CurrentQueueLength <> 0 then
-          "Cortex - Neuron is busy... Waiting" |> infoLog
-          System.Threading.Thread.Sleep(200)
           true
         else
           false
@@ -40,6 +36,7 @@ let createCortex liveNeurons : CortexInstance =
       ()
 
   let registerCortex (neuralNetwork : NeuralNetwork) cortex =
+    //TODO do this right. Remove the synchronous behavior and map manipulation
     let sendCortexToActuatorAsync _ (_, neuronInstance : NeuronInstance) : Async<unit> =
       (fun r -> RegisterCortex (cortex,r)) |> neuronInstance.PostAndAsyncReply
     neuralNetwork
@@ -57,7 +54,7 @@ let createCortex liveNeurons : CortexInstance =
           return! loop liveNeurons 
         | Some msg ->
           match msg with
-          | Think replyChannel ->
+          | ThinkAndAct replyChannel ->
             "Cortex - Starting think cycle" |> infoLog
             liveNeurons |> synchronizeNN
             //Sleep to give the NN a chance to process initial messages

@@ -69,7 +69,7 @@ type NodeRecord =
 type NodeRecords = Map<NeuronId,NodeRecord>
 
 type CortexMessage =
-    | Think of AsyncReplyChannel<unit>
+    | ThinkAndAct of AsyncReplyChannel<unit>
     | KillCortex of AsyncReplyChannel<NodeRecords>
 
 type CortexInstance = MailboxProcessor<CortexMessage>

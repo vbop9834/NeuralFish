@@ -39,19 +39,15 @@ let killNeuralNetwork (liveNeurons : NeuralNetwork) =
   |> killNeuralNetwork
 
 let activateActuators (neuralNetwork : NeuralNetwork) =
-  let activateActuatorAsync (_,(_,liveNeuron : NeuronInstance)) =
-    //TODO make the timeout configurable
-    liveNeuron.PostAndTryAsyncReply(ActivateActuator, timeout=10000)
-  let processAsyncResult asyncResult =
-    match asyncResult with
+  let activateActuator (_,(_,liveNeuron : NeuronInstance)) =
+    let didPost = ActivateActuator |> liveNeuron.TryPostAndReply 
+    match didPost with
     | None ->
       raise <| NeuronInstanceUnavailableException "Core - Neuron unable to activate due to instance being unavailable"
     | Some _ -> ()
   neuralNetwork
   |> Map.toArray
-  |> Array.Parallel.map activateActuatorAsync
-  |> Async.Parallel |> Async.RunSynchronously
-  |> Array.Parallel.iter processAsyncResult
+  |> Array.Parallel.iter activateActuator
 
 let synchronize (_, (_,sensor : NeuronInstance)) =
   Sync |> sensor.Post
