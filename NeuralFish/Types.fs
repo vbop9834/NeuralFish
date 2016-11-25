@@ -69,7 +69,7 @@ type NodeRecord =
 type NodeRecords = Map<NeuronId,NodeRecord>
 
 type CortexMessage =
-    | Think of AsyncReplyChannel<unit>
+    | ThinkAndAct of AsyncReplyChannel<unit>
     | KillCortex of AsyncReplyChannel<NodeRecords>
 
 type CortexInstance = MailboxProcessor<CortexMessage>
@@ -108,12 +108,12 @@ type NeuronActions =
   | RegisterCortex of CortexInstance*AsyncReplyChannel<unit>
   | ActivateActuator of AsyncReplyChannel<unit>
   | CheckActuatorStatus of AsyncReplyChannel<bool>
-  | GetConnectionWeight of NeuronConnectionId*AsyncReplyChannel<Weight>
 
 type NeuronInstance = MailboxProcessor<NeuronActions>
 
 type NeuronConnection =
   {
+    InitialWeight : Weight
     Neuron: NeuronInstance
     NodeId: NeuronId
   }
@@ -189,6 +189,7 @@ type MaximumMinds = int
 type AmountOfGenerations = int
 
 type MutationSequence = Mutation seq
+
 type EvolutionProperties =
   {
     MaximumMinds : MaximumThinkCycles
@@ -202,6 +203,7 @@ type EvolutionProperties =
     EndOfGenerationFunctionOption : EndOfGenerationFunction option
     StartingRecords : GenerationRecords
     NeuronLearningAlgorithm : NeuronLearningAlgorithm
+    DividePopulationBy : int
   }
 
 type DataGeneratorMsg<'T> =
@@ -234,5 +236,6 @@ type TrainingProperties<'T> =
     ScoreNeuralNetworkAnswerFunction : ScoreNeuralNetworkAnswerFunction<'T>
     NeuronLearningAlgorithm : NeuronLearningAlgorithm
     ShuffleDataSet : bool
+    DividePopulationBy : int
   }
 
