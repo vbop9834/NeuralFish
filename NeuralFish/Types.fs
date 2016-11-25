@@ -108,12 +108,12 @@ type NeuronActions =
   | RegisterCortex of CortexInstance*AsyncReplyChannel<unit>
   | ActivateActuator of AsyncReplyChannel<unit>
   | CheckActuatorStatus of AsyncReplyChannel<bool>
-  | GetConnectionWeight of NeuronConnectionId*AsyncReplyChannel<Weight>
 
 type NeuronInstance = MailboxProcessor<NeuronActions>
 
 type NeuronConnection =
   {
+    InitialWeight : Weight
     Neuron: NeuronInstance
     NodeId: NeuronId
   }

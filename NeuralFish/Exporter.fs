@@ -29,7 +29,8 @@ let constructNeuralNetwork (activationFunctions : ActivationFunctions)
           match nodeRecord.Bias with
           | Some bias -> bias
           | None -> 0.0
-        createNeuron nodeId nodeRecord.Layer activationFunction nodeRecord.ActivationFunctionId.Value bias nodeRecord.NeuronLearningAlgorithm
+        nodeRecord
+        |> createNeuronFromRecord activationFunction 
         |> createNeuronInstance
       | NodeRecordType.Sensor ->
         if (nodeRecord.SyncFunctionId |> Option.isNone) then
@@ -39,13 +40,15 @@ let constructNeuralNetwork (activationFunctions : ActivationFunctions)
           match nodeRecord.MaximumVectorLength with
             | Some x -> x
             | None -> 1
-        createSensor nodeId syncFunction nodeRecord.SyncFunctionId.Value maximumVectorLength
+        nodeRecord
+        |> createSensorFromRecord syncFunction 
         |> createNeuronInstance
       | NodeRecordType.Actuator ->
         if (nodeRecord.OutputHookId |> Option.isNone) then
           raise (NodeRecordTypeException <| sprintf "Actuator with id %A does not have a Output Hook function id" nodeRecord.NodeId)
         let outputHook = outputHooks |> Map.find nodeRecord.OutputHookId.Value
-        createActuator nodeId nodeRecord.Layer outputHook nodeRecord.OutputHookId.Value
+        nodeRecord
+        |> createActuatorFromRecord outputHook
         |> createNeuronInstance
     neuronInstance
 

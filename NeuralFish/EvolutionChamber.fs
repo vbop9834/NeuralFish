@@ -774,7 +774,9 @@ let evolveFromTrainingSet (trainingProperties : TrainingProperties<'T>) =
                   | false -> dataSet |> Array.head
                 data |> replyChannel.Reply
                 let updatedDataSet =
-                  Array.append (dataSet |> Array.tail) [|(expectedResult, data)|]
+                  match trainingProperties.ShuffleDataSet with
+                  | true -> dataSet
+                  | false -> Array.append (dataSet |> Array.tail) [|(expectedResult, data)|]
                 buffer
                 |> Map.add nodeRecordsId (expectedResult, updatedDataSet)
               return! loop updatedBuffer
