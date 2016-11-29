@@ -68,6 +68,17 @@ type NodeRecord =
 
 type NodeRecords = Map<NeuronId,NodeRecord>
 
+type InfoLogFunction = string -> unit
+
+type ConstructNeuralNetworkProperties =
+  {
+    ActivationFunctions : ActivationFunctions
+    SyncFunctions : SyncFunctions
+    OutputHooks : OutputHookFunctions
+    NodeRecords : NodeRecords
+    InfoLog : InfoLogFunction
+  }
+
 type CortexMessage =
     | ThinkAndAct of AsyncReplyChannel<unit>
     | KillCortex of AsyncReplyChannel<NodeRecords>
@@ -190,6 +201,17 @@ type AmountOfGenerations = int
 
 type MutationSequence = Mutation seq
 
+type MutationProperties = 
+ {
+   Mutations : MutationSequence
+   ActivationFunctionIds : ActivationFunctionId seq 
+   SyncFunctionIds : SyncFunctionId seq
+   OutputHookFunctionIds : OutputHookId seq
+   LearningAlgorithm : NeuronLearningAlgorithm
+   NodeRecords : NodeRecords
+   InfoLog : InfoLogFunction
+ }
+
 type EvolutionProperties =
   {
     MaximumMinds : MaximumThinkCycles
@@ -204,6 +226,7 @@ type EvolutionProperties =
     StartingRecords : GenerationRecords
     NeuronLearningAlgorithm : NeuronLearningAlgorithm
     DividePopulationBy : int
+    InfoLog : InfoLogFunction
   }
 
 type DataGeneratorMsg<'T> =
@@ -237,5 +260,5 @@ type TrainingProperties<'T> =
     NeuronLearningAlgorithm : NeuronLearningAlgorithm
     ShuffleDataSet : bool
     DividePopulationBy : int
+    InfoLog : InfoLogFunction
   }
-

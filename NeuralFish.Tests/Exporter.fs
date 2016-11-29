@@ -209,8 +209,13 @@ let ``Should be able to construct a simple neural network from a map of node rec
   |> killNeuralNetwork
 
   let neuralNetwork =
-   nodeRecords
-   |> constructNeuralNetwork activationFunctions syncFunctions outputHooks
+   {
+     ActivationFunctions = activationFunctions
+     SyncFunctions = syncFunctions
+     OutputHooks = outputHooks
+     NodeRecords = nodeRecords
+     InfoLog = defaultInfoLog
+   } |> constructNeuralNetwork 
 
   let sensor =
     let sensorId = (fst sensor)
@@ -346,8 +351,13 @@ let ``Should be able to solve the XNOR problem with predefined weights, convert 
     |> Map.add outputHookId testHook
 
   let neuralNetwork =
-    nodeRecords
-    |> constructNeuralNetwork activationFunctions syncFunctions outputHooks
+   {
+     ActivationFunctions = activationFunctions
+     SyncFunctions = syncFunctions
+     OutputHooks = outputHooks
+     NodeRecords = nodeRecords
+     InfoLog = defaultInfoLog
+   } |> constructNeuralNetwork 
 
   let sensorX1, sensorX2 =
     let sensorIdX1 =
@@ -576,8 +586,13 @@ let ``Should be able to deconstruct then reconstruct recurrent neural network wi
     |> Map.add outputHookId testHook
 
   let neuralNetwork =
-    nodeRecords
-    |> constructNeuralNetwork activationFunctions syncFunctions outputHooks
+   {
+     ActivationFunctions = activationFunctions
+     SyncFunctions = syncFunctions
+     OutputHooks = outputHooks
+     NodeRecords = nodeRecords
+     InfoLog = defaultInfoLog
+   } |> constructNeuralNetwork 
 
   synchronizeNN neuralNetwork
   WaitForData
@@ -694,8 +709,13 @@ let ``After reconstruction, Sensor should inflate data if there is not enough da
     |> Map.add outputHookId testHook
 
   let neuralNetwork =
-    nodeRecords
-    |> constructNeuralNetwork activationFunctions syncFunctions outputHooks
+   {
+     ActivationFunctions = activationFunctions
+     SyncFunctions = syncFunctions
+     OutputHooks = outputHooks
+     NodeRecords = nodeRecords
+     InfoLog = defaultInfoLog
+   } |> constructNeuralNetwork 
 
   synchronizeNN neuralNetwork
   WaitForData

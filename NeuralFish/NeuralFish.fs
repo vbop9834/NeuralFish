@@ -5,24 +5,15 @@ open NeuralFish.Exceptions
 
 let sigmoid = (fun x -> 1.0 / (1.0 + exp(-x)))
 
-let mutable InfoLogging = true
-let infoLog (message : string) =
-  if (InfoLogging) then
-    System.Console.WriteLine(message)
+let defaultInfoLog (message : string) =
+  message |> System.Console.WriteLine
 
 let killNeuralNetwork (liveNeurons : NeuralNetwork) =
   let rec waitOnNeuralNetwork neuralNetworkToWaitOn : NeuralNetwork =
     let checkIfNeuralNetworkIsActive (neuralNetwork : NeuralNetwork) =
       //returns true if active
       neuralNetwork
-      |> Map.exists(fun i (nodeRecordId,neuron) -> 
-                    if neuron.CurrentQueueLength <> 0 then 
-                      sprintf "Waiting on node %A" nodeRecordId
-                      |> infoLog
-                      true
-                    else
-                      false
-                    )
+      |> Map.exists(fun i (nodeRecordId,neuron) -> neuron.CurrentQueueLength <> 0)
     if neuralNetworkToWaitOn |> checkIfNeuralNetworkIsActive then
       //200 milliseconds of sleep seems plenty while waiting on the NN
       System.Threading.Thread.Sleep(200)
@@ -138,7 +129,7 @@ let connectSensorToNode toNode weights sensor =
    sensor |> connectNodeToNeuron toNode weight
  weights |> Seq.iter (sensor |> createConnectionsFromWeight toNode )
 
-let createNeuronInstance neuronType =
+let createNeuronInstance infoLog neuronType =
   let nodeId, nodeLayer =
     match neuronType with
       | Neuron props ->

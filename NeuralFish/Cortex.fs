@@ -5,7 +5,7 @@ open NeuralFish.Exceptions
 open NeuralFish.Core
 open NeuralFish.Exporter
 
-let createCortex liveNeurons : CortexInstance =
+let createCortex infoLog liveNeurons : CortexInstance =
   let rec waitOnAcutuators neuralNetworkToWaitOn =
     let checkIfActuatorsAreReady (neuralNetwork : NeuralNetwork) =
       //returns true if active

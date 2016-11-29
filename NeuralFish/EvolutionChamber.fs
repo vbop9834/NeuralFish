@@ -21,12 +21,15 @@ let minimalMutationSequence : MutationSequence =
     AddActuatorLink
   ] |> List.toSeq
 
-let mutateNeuralNetwork (mutations : MutationSequence)
-  (activationFunctionIds : ActivationFunctionId seq)
-    (syncFunctionIds : SyncFunctionId seq)
-      (outputHookFunctionIds : OutputHookId seq)
-        (learningAlgorithm : NeuronLearningAlgorithm)
-          (nodeRecords : NodeRecords) =
+let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords =
+  let outputHookFunctionIds = mutationProperties.OutputHookFunctionIds
+  let syncFunctionIds = mutationProperties.SyncFunctionIds
+  let activationFunctionIds = mutationProperties.ActivationFunctionIds
+  let mutations = mutationProperties.Mutations
+  let learningAlgorithm = mutationProperties.LearningAlgorithm
+  let nodeRecords = mutationProperties.NodeRecords
+  let infoLog = mutationProperties.InfoLog
+
   let numberOfOutputHookFunctions = outputHookFunctionIds |> Seq.length
   let numberOfSyncFunctions = syncFunctionIds |> Seq.length
   let numberOfActivationFunctions = activationFunctionIds |> Seq.length
@@ -453,6 +456,7 @@ let defaultEvolutionProperties : EvolutionProperties =
     StartingRecords = Map.empty
     NeuronLearningAlgorithm = Hebbian 0.5
     DividePopulationBy = 2
+    InfoLog = defaultInfoLog
   }
 
 let evolveForXGenerations (evolutionProperties : EvolutionProperties) 
@@ -463,6 +467,8 @@ let evolveForXGenerations (evolutionProperties : EvolutionProperties)
   let maximumMinds = evolutionProperties.MaximumMinds
   let maximumThinkCycles = evolutionProperties.MaximumThinkCycles
   let fitnessFunction = evolutionProperties.FitnessFunction
+  let infoLog = evolutionProperties.InfoLog
+
   let endOfGenerationFunction =
     match evolutionProperties.EndOfGenerationFunctionOption with
     | Some endOfGenerationFunction -> endOfGenerationFunction
@@ -479,7 +485,17 @@ let evolveForXGenerations (evolutionProperties : EvolutionProperties)
       syncFunctionSources
       |> Map.toSeq
       |> Seq.map (fun (id,_) -> id)
-    (fun records -> records |> mutateNeuralNetwork mutationSequence activationFunctionIds syncFunctionIds outputHookFunctionIds)
+    let completeMutationProperties (records : NodeRecords) : MutationProperties =
+      {
+        Mutations = mutationSequence
+        ActivationFunctionIds = activationFunctionIds
+        SyncFunctionIds = syncFunctionIds
+        OutputHookFunctionIds = outputHookFunctionIds
+        LearningAlgorithm = evolutionProperties.NeuronLearningAlgorithm
+        InfoLog = evolutionProperties.InfoLog
+        NodeRecords = records
+      }
+    (fun records -> records |> completeMutationProperties |> mutateNeuralNetwork )
 
   let evolveGeneration (generationRecords : GenerationRecords) : GenerationRecords =
     let processEvolution currentGen = 
@@ -492,7 +508,7 @@ let evolveForXGenerations (evolutionProperties : EvolutionProperties)
           let updatedPreviousGeneration =
             let tailGeneration = previousGeneration |> Array.tail
             Array.append tailGeneration [|(beingId, being)|]
-          let mutatedBeing : NodeRecords = being |> mutationFunction evolutionProperties.NeuronLearningAlgorithm
+          let mutatedBeing : NodeRecords = being |> mutationFunction
           let newId = newGeneration |> Array.length
           let updatedNewGeneration = Array.append newGeneration [|(newId,mutatedBeing)|]  
           processEvolutionLoop updatedNewGeneration updatedPreviousGeneration
@@ -563,9 +579,14 @@ let evolveForXGenerations (evolutionProperties : EvolutionProperties)
           |> Map.filter(fun key _ -> neededSyncFunctionIds |> Seq.exists(fun neededId -> key = neededId))
           |> Map.map (fun key syncFunctionSource -> syncFunctionSource nodeRecordsId)
         let cortex =
-          nodeRecords
-          |> constructNeuralNetwork activationFunctions syncFunctions outputHooks
-          |> createCortex
+          {
+            ActivationFunctions = activationFunctions
+            SyncFunctions = syncFunctions
+            OutputHooks = outputHooks
+            InfoLog = infoLog
+            NodeRecords = nodeRecords
+          } |> constructNeuralNetwork 
+          |> createCortex infoLog
         (nodeRecordsId,scoreKeeper,cortex)
       let processThinkCycles (liveRecordsWithScoreKeepers : (NodeRecordsId*ScoreKeeperInstance*CortexInstance) array) : ScoredNodeRecords =
         let scoreGenerationThinkCycle _ =
@@ -672,6 +693,7 @@ let getDefaultTrainingProperties
         (activationFunctions : ActivationFunctions) 
           (outputHookFunctionIds : OutputHookFunctionIds)
             (learningAlgorithm : NeuronLearningAlgorithm)
+              (infoLog : InfoLogFunction)
               : TrainingProperties<'T> =
   let startingGenerationRecords : GenerationRecords =
     let addNeuronToMap (neuronId, neuronInstance) =
@@ -687,7 +709,7 @@ let getDefaultTrainingProperties
           | Some outputHookId -> outputHookId
           | None -> raise <| ActuatorRecordDoesNotHaveAOutputHookIdException "Attempted to generate default training properties but no output hook ids were passed"
         createActuator nodeId layer fakeOutputHook outputHookId
-        |> createNeuronInstance
+        |> createNeuronInstance infoLog
       let neuron =
         let bias = 0.0
         let nodeId = 1
@@ -698,13 +720,13 @@ let getDefaultTrainingProperties
           | None ->
             raise <| NeuronDoesNotHaveAnActivationFunction "Attempted to generate default traing properties but no activation functions were passed"
         createNeuron nodeId layer activationFunction activationFunctionId bias learningAlgorithm
-        |> createNeuronInstance
+        |> createNeuronInstance infoLog
       let sensor =
         let nodeId = 2
         let syncFunctionId = 0
         let maximumVectorLength = 1
         createSensor nodeId (fun () -> Seq.empty) syncFunctionId maximumVectorLength
-        |> createNeuronInstance
+        |> createNeuronInstance infoLog
       let weight = 0.0
       sensor |> connectSensorToNode neuron [weight]
       neuron |> connectNodeToActuator actuator
@@ -738,6 +760,7 @@ let getDefaultTrainingProperties
     ShuffleDataSet = false
     NeuronLearningAlgorithm = learningAlgorithm
     DividePopulationBy = 2 
+    InfoLog = infoLog
   }
 
 let evolveFromTrainingSet (trainingProperties : TrainingProperties<'T>) =
@@ -797,7 +820,7 @@ let evolveFromTrainingSet (trainingProperties : TrainingProperties<'T>) =
       }
       loop Map.empty
     )
-    |> (fun x -> x.Error.Add(fun x -> sprintf "%A" x |> infoLog); x)
+    |> (fun x -> x.Error.Add(fun x -> sprintf "%A" x |> trainingProperties.InfoLog); x)
 
   let dataGenerator = getDataGenerator trainingProperties.TrainingAnswerAndDataSet
 
