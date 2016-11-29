@@ -6,9 +6,7 @@ open NeuralFish.Exceptions
 
 let constructNodeRecords (liveNeurons : NeuralNetwork) : NodeRecords =
   liveNeurons
-  |> Map.toArray
-  |> Array.Parallel.map(fun (nodeRecordId, (_,neuronInstance)) -> (nodeRecordId, GetNodeRecord |> neuronInstance.PostAndReply))
-  |> Map.ofArray
+  |> Map.map(fun nodeRecordId (_,neuronInstance) -> GetNodeRecord |> neuronInstance.PostAndReply)
 
 let constructNeuralNetwork (neuralNetProperties : ConstructNeuralNetworkProperties) : NeuralNetwork =
   let activationFunctions = neuralNetProperties.ActivationFunctions
