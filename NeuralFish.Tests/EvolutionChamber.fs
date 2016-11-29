@@ -1433,8 +1433,7 @@ let ``Should be able to evolve x generations`` () =
       }
     evolutionProperties |> evolveForXGenerations  
   evolvedRecords
-  |> Map.toSeq
-  |> Seq.length
+  |> Array.length
   |> should be (greaterThan 0)
 
 type PsuedoAnswer =
@@ -1499,6 +1498,5 @@ let ``Should be able to evolve x generations from training set`` () =
       }
     trainingProperties |> trainSingleScopeProblem
   evolvedRecords
-  |> Map.toSeq
-  |> Seq.length
+  |> Array.length
   |> should equal maximumMinds

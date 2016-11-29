@@ -460,7 +460,7 @@ let defaultEvolutionProperties : EvolutionProperties =
   }
 
 let evolveForXGenerations (evolutionProperties : EvolutionProperties) 
-                   : GenerationRecords =
+                   : ScoredNodeRecords =
   let activationFunctions = evolutionProperties.ActivationFunctions
   let syncFunctionSources = evolutionProperties.SyncFunctionSources
   let outputHookFunctionIds = evolutionProperties.OutputHookFunctionIds
@@ -518,7 +518,7 @@ let evolveForXGenerations (evolutionProperties : EvolutionProperties)
     |> Map.toArray
     |> processEvolution
     |> Map.ofArray
-  let rec processGenerations (generationCounter : int) (generationRecords : GenerationRecords) : GenerationRecords =
+  let rec processGenerations (generationCounter : int) (generationRecords : GenerationRecords) : ScoredNodeRecords =
     let scoredGenerationRecords : ScoredNodeRecords =
       let createScoreKeeper (nodeRecordsId, nodeRecords) =
         let scoreKeeper =
@@ -675,7 +675,6 @@ let evolveForXGenerations (evolutionProperties : EvolutionProperties)
 
       scoredGenerationRecords
       |> printScores
-      |> convertToGenerationRecords 
     else
       scoredGenerationRecords
       |> divdeThePopulation
