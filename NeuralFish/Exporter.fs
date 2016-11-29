@@ -5,19 +5,15 @@ open NeuralFish.Types
 open NeuralFish.Exceptions
 
 let constructNodeRecords (liveNeurons : NeuralNetwork) : NodeRecords =
-  let generateNodeRecord _ (_,(liveNeuron : NeuronInstance)) : Async<NodeRecord> =
-     GetNodeRecord |> liveNeuron.PostAndAsyncReply
   liveNeurons
-  |> Map.map generateNodeRecord
-  |> Map.map (fun _ asyncthingy -> asyncthingy |> Async.RunSynchronously)
+  |> Map.map(fun nodeRecordId (_,neuronInstance) -> GetNodeRecord |> neuronInstance.PostAndReply)
 
-type private NeuronIdGeneratorMsg =
-  | GetIntId of AsyncReplyChannel<int>
-
-let constructNeuralNetwork (activationFunctions : ActivationFunctions)
-  (syncFunctions : SyncFunctions)
-    (outputHooks : OutputHookFunctions)
-      (nodeRecords : NodeRecords) : NeuralNetwork =
+let constructNeuralNetwork (neuralNetProperties : ConstructNeuralNetworkProperties) : NeuralNetwork =
+  let activationFunctions = neuralNetProperties.ActivationFunctions
+  let syncFunctions = neuralNetProperties.SyncFunctions
+  let outputHooks = neuralNetProperties.OutputHooks
+  let nodeRecords = neuralNetProperties.NodeRecords
+  let infoLog = neuralNetProperties.InfoLog
   let createNeuronFromRecord nodeId (nodeRecord : NodeRecord) =
     let (neuronId, neuronInstance) =
       match nodeRecord.NodeType with
@@ -25,31 +21,23 @@ let constructNeuralNetwork (activationFunctions : ActivationFunctions)
         if (nodeRecord.ActivationFunctionId |> Option.isNone) then
           raise (NodeRecordTypeException <| sprintf "Neuron with id %A does not have a Activation function id" nodeRecord.NodeId)
         let activationFunction = activationFunctions |> Map.find nodeRecord.ActivationFunctionId.Value
-        let bias =
-          match nodeRecord.Bias with
-          | Some bias -> bias
-          | None -> 0.0
         nodeRecord
         |> createNeuronFromRecord activationFunction 
-        |> createNeuronInstance
+        |> createNeuronInstance infoLog
       | NodeRecordType.Sensor ->
         if (nodeRecord.SyncFunctionId |> Option.isNone) then
           raise (NodeRecordTypeException <| sprintf "Sensor with id %A does not have a sync function id" nodeRecord.NodeId)
         let syncFunction = syncFunctions |> Map.find nodeRecord.SyncFunctionId.Value
-        let maximumVectorLength = 
-          match nodeRecord.MaximumVectorLength with
-            | Some x -> x
-            | None -> 1
         nodeRecord
         |> createSensorFromRecord syncFunction 
-        |> createNeuronInstance
+        |> createNeuronInstance infoLog
       | NodeRecordType.Actuator ->
         if (nodeRecord.OutputHookId |> Option.isNone) then
           raise (NodeRecordTypeException <| sprintf "Actuator with id %A does not have a Output Hook function id" nodeRecord.NodeId)
         let outputHook = outputHooks |> Map.find nodeRecord.OutputHookId.Value
         nodeRecord
         |> createActuatorFromRecord outputHook
-        |> createNeuronInstance
+        |> createNeuronInstance infoLog
     neuronInstance
 
   let connectNeurons (liveNeurons : Map<NeuronId,NeuronLayerId*NeuronInstance>) =

@@ -1,7 +1,10 @@
 module NeuralFish.Tests.TestHelper
 
 open NeuralFish.Core
-open NeuralFish.Types
+open NeuralFish.Cortex
+
+let createNeuronInstance = createNeuronInstance defaultInfoLog
+let createCortex = createCortex defaultInfoLog
 
 type GeneratorMsg =
   | GetData of AsyncReplyChannel<float seq>

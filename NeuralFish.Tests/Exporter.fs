@@ -67,7 +67,6 @@ let assertNodeRecordsContainsNode (nodeRecords : NodeRecords) (neuronId, (_, liv
 let ``Should be able to export a simple neural network to a map of node records`` () =
   let testHook = (fun x -> printfn "Actuator output %f" x)
   let getNodeId = getNumberGenerator()
-  let getNeuronConnectionId = getNumberGenerator()
   let syncFunctionId = 9001
   let outputHookId = 9000
   let activationFunctionId = 777
@@ -209,12 +208,16 @@ let ``Should be able to construct a simple neural network from a map of node rec
   |> killNeuralNetwork
 
   let neuralNetwork =
-   nodeRecords
-   |> constructNeuralNetwork activationFunctions syncFunctions outputHooks
+   {
+     ActivationFunctions = activationFunctions
+     SyncFunctions = syncFunctions
+     OutputHooks = outputHooks
+     NodeRecords = nodeRecords
+     InfoLog = defaultInfoLog
+   } |> constructNeuralNetwork 
 
   let sensor =
     let sensorId = (fst sensor)
-    let layer = 1.0
     (sensorId,
      neuralNetwork
      |> Map.find sensorId)
@@ -346,38 +349,35 @@ let ``Should be able to solve the XNOR problem with predefined weights, convert 
     |> Map.add outputHookId testHook
 
   let neuralNetwork =
-    nodeRecords
-    |> constructNeuralNetwork activationFunctions syncFunctions outputHooks
+   {
+     ActivationFunctions = activationFunctions
+     SyncFunctions = syncFunctions
+     OutputHooks = outputHooks
+     NodeRecords = nodeRecords
+     InfoLog = defaultInfoLog
+   } |> constructNeuralNetwork 
 
-  let sensorX1, sensorX2 =
-    let sensorIdX1 =
-      let id = (fst sensor_x1)
-      (id,1, neuralNetwork|> Map.find id)
-    let sensorIdX2 =
-      let id = (fst sensor_x2)
-      (id,1, neuralNetwork|> Map.find id)
-    (sensor_x1, sensor_x2)
 
-  synchronize sensorX1
-  synchronize sensorX2
+  synchronize sensor_x1
+  synchronize sensor_x2
   WaitForData
   |> testHookMailbox.PostAndReply
   |> (should be (greaterThan 0.99))
 
-  synchronize sensorX1
-  synchronize sensorX2
+  synchronize sensor_x1
+  synchronize sensor_x2
   WaitForData
   |> testHookMailbox.PostAndReply
   |> (should be (lessThan 0.01))
 
-  synchronize sensorX1
-  synchronize sensorX2
+  synchronize sensor_x1
+  synchronize sensor_x2
   WaitForData
   |> testHookMailbox.PostAndReply
   |> (should be (lessThan 0.01))
 
-  synchronize sensorX1
-  synchronize sensorX2
+  synchronize sensor_x1
+  synchronize sensor_x2
   WaitForData
   |> testHookMailbox.PostAndReply
   |> (should be (greaterThan 0.99))
@@ -401,7 +401,6 @@ let ``Should be able to solve the XNOR problem with predefined weights, convert 
 let ``Should be able to export a recurrent neural network to a map of node records`` () =
   let testHook = (fun x -> printfn "Actuator output %f" x)
   let getNodeId = getNumberGenerator()
-  let getNeuronConnectionId = getNumberGenerator()
   let syncFunctionId = 9001
   let outputHookId = 9000
   let activationFunctionId = 777
@@ -576,8 +575,13 @@ let ``Should be able to deconstruct then reconstruct recurrent neural network wi
     |> Map.add outputHookId testHook
 
   let neuralNetwork =
-    nodeRecords
-    |> constructNeuralNetwork activationFunctions syncFunctions outputHooks
+   {
+     ActivationFunctions = activationFunctions
+     SyncFunctions = syncFunctions
+     OutputHooks = outputHooks
+     NodeRecords = nodeRecords
+     InfoLog = defaultInfoLog
+   } |> constructNeuralNetwork 
 
   synchronizeNN neuralNetwork
   WaitForData
@@ -694,8 +698,13 @@ let ``After reconstruction, Sensor should inflate data if there is not enough da
     |> Map.add outputHookId testHook
 
   let neuralNetwork =
-    nodeRecords
-    |> constructNeuralNetwork activationFunctions syncFunctions outputHooks
+   {
+     ActivationFunctions = activationFunctions
+     SyncFunctions = syncFunctions
+     OutputHooks = outputHooks
+     NodeRecords = nodeRecords
+     InfoLog = defaultInfoLog
+   } |> constructNeuralNetwork 
 
   synchronizeNN neuralNetwork
   WaitForData
