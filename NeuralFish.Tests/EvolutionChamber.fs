@@ -1497,7 +1497,7 @@ let ``Should be able to evolve x generations from training set`` () =
           ShuffleDataSet = true
           MaximumMinds = maximumMinds
       }
-    trainingProperties |> evolveFromTrainingSet
+    trainingProperties |> trainSingleScopeProblem
   evolvedRecords
   |> Map.toSeq
   |> Seq.length

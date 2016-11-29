@@ -21,10 +21,6 @@ let constructNeuralNetwork (neuralNetProperties : ConstructNeuralNetworkProperti
         if (nodeRecord.ActivationFunctionId |> Option.isNone) then
           raise (NodeRecordTypeException <| sprintf "Neuron with id %A does not have a Activation function id" nodeRecord.NodeId)
         let activationFunction = activationFunctions |> Map.find nodeRecord.ActivationFunctionId.Value
-        let bias =
-          match nodeRecord.Bias with
-          | Some bias -> bias
-          | None -> 0.0
         nodeRecord
         |> createNeuronFromRecord activationFunction 
         |> createNeuronInstance infoLog
@@ -32,10 +28,6 @@ let constructNeuralNetwork (neuralNetProperties : ConstructNeuralNetworkProperti
         if (nodeRecord.SyncFunctionId |> Option.isNone) then
           raise (NodeRecordTypeException <| sprintf "Sensor with id %A does not have a sync function id" nodeRecord.NodeId)
         let syncFunction = syncFunctions |> Map.find nodeRecord.SyncFunctionId.Value
-        let maximumVectorLength = 
-          match nodeRecord.MaximumVectorLength with
-            | Some x -> x
-            | None -> 1
         nodeRecord
         |> createSensorFromRecord syncFunction 
         |> createNeuronInstance infoLog

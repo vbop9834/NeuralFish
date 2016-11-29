@@ -763,7 +763,7 @@ let getDefaultTrainingProperties
     InfoLog = infoLog
   }
 
-let evolveFromTrainingSet (trainingProperties : TrainingProperties<'T>) =
+let trainSingleScopeProblem (trainingProperties : TrainingProperties<'T>) =
   let maybeRandom = if (trainingProperties.ShuffleDataSet) then Some(System.Random()) else None
   let getDataGenerator (initialDataSet : TrainingAnswerAndDataSet<'T>) =
     DataGeneratorInstance.Start(fun inbox ->
