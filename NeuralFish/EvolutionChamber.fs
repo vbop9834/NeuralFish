@@ -591,42 +591,45 @@ let evolveForXGenerations (evolutionProperties : EvolutionProperties)
         (nodeRecordsId,scoreKeeper,cortex)
       let processThinkCycles (liveRecordsWithScoreKeepers : (NodeRecordsId*ScoreKeeperInstance*CortexInstance) array) : ScoredNodeRecords =
         let rec scoreThinkCycles scoredThinkCycles =
-          let scoreGenerationThinkCycle =
-            let processThink (nodeRecordsId, scoreKeeper, (cortex : CortexInstance)) =
-              ThinkAndAct |> cortex.PostAndReply
-              nodeRecordsId, scoreKeeper, cortex
-            let processScoring =
-              let scoreNeuralNetworkThinkCycle (nodeRecordsId, (scoreKeeper : ScoreKeeperInstance), (cortex : CortexInstance)) =
-                let rec waitOnScoreKeeper () =
-                  if scoreKeeper.CurrentQueueLength <> 0 then
-                    sprintf "Waiting on score keeper to finish gathering results from node records %A" nodeRecordsId
-                    |> infoLog
-                    System.Threading.Thread.Sleep(200)
-                    waitOnScoreKeeper ()
-                  else
-                    ()
-                waitOnScoreKeeper ()
-                let (score : Score), endOfGenerationOption =
-                  GetScore |> scoreKeeper.PostAndReply
-                sprintf "Node Records Id %A scored %A" nodeRecordsId score |> infoLog
-                (nodeRecordsId,score, endOfGenerationOption)
-              if (evolutionProperties.AsynchronousScoring) then
-                Array.Parallel.map scoreNeuralNetworkThinkCycle
-              else
-                Array.map scoreNeuralNetworkThinkCycle
-            liveRecordsWithScoreKeepers
-            |> Array.Parallel.map processThink
-            |> processScoring
-          let updatedScoredThinkCycles =
-            let currentThinkCycle =
-              scoreGenerationThinkCycle
-              |> Array.Parallel.map(fun (nodeRecordsId,score, _) -> nodeRecordsId, score)
+          if (scoredThinkCycles |> Array.length) >= maximumThinkCycles then
             scoredThinkCycles
-            |> Array.append currentThinkCycle
-          if (scoreGenerationThinkCycle |> Array.exists(fun (_, _, endGenerationOption) -> endGenerationOption = EndGeneration)) then
-            updatedScoredThinkCycles
           else
-            scoreThinkCycles updatedScoredThinkCycles
+            let scoreGenerationThinkCycle =
+              let processThink (nodeRecordsId, scoreKeeper, (cortex : CortexInstance)) =
+                ThinkAndAct |> cortex.PostAndReply
+                nodeRecordsId, scoreKeeper, cortex
+              let processScoring =
+                let scoreNeuralNetworkThinkCycle (nodeRecordsId, (scoreKeeper : ScoreKeeperInstance), (cortex : CortexInstance)) =
+                  let rec waitOnScoreKeeper () =
+                    if scoreKeeper.CurrentQueueLength <> 0 then
+                      sprintf "Waiting on score keeper to finish gathering results from node records %A" nodeRecordsId
+                      |> infoLog
+                      System.Threading.Thread.Sleep(200)
+                      waitOnScoreKeeper ()
+                    else
+                      ()
+                  waitOnScoreKeeper ()
+                  let (score : Score), endOfGenerationOption =
+                    GetScore |> scoreKeeper.PostAndReply
+                  sprintf "Node Records Id %A scored %A" nodeRecordsId score |> infoLog
+                  (nodeRecordsId,score, endOfGenerationOption)
+                if (evolutionProperties.AsynchronousScoring) then
+                  Array.Parallel.map scoreNeuralNetworkThinkCycle
+                else
+                  Array.map scoreNeuralNetworkThinkCycle
+              liveRecordsWithScoreKeepers
+              |> Array.Parallel.map processThink
+              |> processScoring
+            let updatedScoredThinkCycles =
+              let currentThinkCycle =
+                scoreGenerationThinkCycle
+                |> Array.Parallel.map(fun (nodeRecordsId,score, _) -> nodeRecordsId, score)
+              scoredThinkCycles
+              |> Array.append currentThinkCycle
+            if (scoreGenerationThinkCycle |> Array.exists(fun (_, _, endGenerationOption) -> endGenerationOption = EndGeneration)) then
+              updatedScoredThinkCycles
+            else
+              scoreThinkCycles updatedScoredThinkCycles
         let scoredGeneration =
           let sumScoreOfMind (nodeRecordsId, (scoreArray : ('a*Score) array)) =
             let score =
