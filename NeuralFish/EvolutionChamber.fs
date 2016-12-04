@@ -400,15 +400,15 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
                 |> Seq.maxBy(fun (nodeId,_) -> nodeId)
                 |> (fun (nodeId,_) -> nodeId + 1)
 
-              let inUseOutputHooks = 
+              let inUseOutputHooks =
                 let extractOutputHookId (_, record) =
                   match record.OutputHookId with
                   | Some syncFunctionId -> syncFunctionId
                   | None -> raise <| ActuatorRecordDoesNotHaveAOutputHookIdException (sprintf "Record %A does not have a output hook function" record)
                 actuatorRecords
-                |> Map.toSeq 
+                |> Map.toSeq
                 |> Seq.map extractOutputHookId
-                
+
               let outputHookId = selectRandomOutputHookFunctionId inUseOutputHooks
 
               {
@@ -447,8 +447,8 @@ let defaultEvolutionProperties : EvolutionProperties =
     MaximumMinds = 5
     MaximumThinkCycles = 5
     Generations = 5
-    MutationSequence = minimalMutationSequence 
-    FitnessFunction = (fun _ _ -> 0.0)
+    MutationSequence = minimalMutationSequence
+    FitnessFunction = (fun _ _ -> 0.0, ContinueGeneration)
     ActivationFunctions = Map.empty
     SyncFunctionSources = Map.empty
     OutputHookFunctionIds = Seq.empty
@@ -457,6 +457,7 @@ let defaultEvolutionProperties : EvolutionProperties =
     NeuronLearningAlgorithm = Hebbian 0.5
     DividePopulationBy = 2
     InfoLog = defaultInfoLog
+    AsynchronousScoring = true
   }
 
 let evolveForXGenerations (evolutionProperties : EvolutionProperties) 
@@ -473,7 +474,7 @@ let evolveForXGenerations (evolutionProperties : EvolutionProperties)
     match evolutionProperties.EndOfGenerationFunctionOption with
     | Some endOfGenerationFunction -> endOfGenerationFunction
     | None -> (fun _ -> ())
-  let generations = evolutionProperties.Generations 
+  let generations = evolutionProperties.Generations
 
   let mutationFunction =
     let mutationSequence = evolutionProperties.MutationSequence
@@ -561,7 +562,7 @@ let evolveForXGenerations (evolutionProperties : EvolutionProperties)
           outputHookFunctionIds
           |> Seq.map(fun id -> (id, id |> scoringFunction) )
           |> Map.ofSeq
-        let syncFunctions = 
+        let syncFunctions =
           let neededSyncFunctionIds =
             let sensorRecords =
               nodeRecords
@@ -589,28 +590,43 @@ let evolveForXGenerations (evolutionProperties : EvolutionProperties)
           |> createCortex infoLog
         (nodeRecordsId,scoreKeeper,cortex)
       let processThinkCycles (liveRecordsWithScoreKeepers : (NodeRecordsId*ScoreKeeperInstance*CortexInstance) array) : ScoredNodeRecords =
-        let scoreGenerationThinkCycle _ =
-          let processThink (nodeRecordsId, scoreKeeper, (cortex : CortexInstance)) =
-            ThinkAndAct |> cortex.PostAndReply
-            nodeRecordsId, scoreKeeper, cortex
-          let scoreNeuralNetworkThinkCycle (nodeRecordsId, (scoreKeeper : ScoreKeeperInstance), (cortex : CortexInstance)) =
-            let rec waitOnScoreKeeper () =
-              if scoreKeeper.CurrentQueueLength <> 0 then
-                sprintf "Waiting on score keeper to finish gathering results from node records %A" nodeRecordsId
-                |> infoLog
-                System.Threading.Thread.Sleep(200)
+        let rec scoreThinkCycles scoredThinkCycles =
+          let scoreGenerationThinkCycle =
+            let processThink (nodeRecordsId, scoreKeeper, (cortex : CortexInstance)) =
+              ThinkAndAct |> cortex.PostAndReply
+              nodeRecordsId, scoreKeeper, cortex
+            let processScoring =
+              let scoreNeuralNetworkThinkCycle (nodeRecordsId, (scoreKeeper : ScoreKeeperInstance), (cortex : CortexInstance)) =
+                let rec waitOnScoreKeeper () =
+                  if scoreKeeper.CurrentQueueLength <> 0 then
+                    sprintf "Waiting on score keeper to finish gathering results from node records %A" nodeRecordsId
+                    |> infoLog
+                    System.Threading.Thread.Sleep(200)
+                    waitOnScoreKeeper ()
+                  else
+                    ()
                 waitOnScoreKeeper ()
+                let (score : Score), endOfGenerationOption =
+                  GetScore |> scoreKeeper.PostAndReply
+                sprintf "Node Records Id %A scored %A" nodeRecordsId score |> infoLog
+                (nodeRecordsId,score, endOfGenerationOption)
+              if (evolutionProperties.AsynchronousScoring) then
+                Array.Parallel.map scoreNeuralNetworkThinkCycle
               else
-                ()
-            waitOnScoreKeeper ()
-            let score : Score =
-              GetScore |> scoreKeeper.PostAndReply
-            sprintf "Node Records Id %A scored %A" nodeRecordsId score |> infoLog
-            (nodeRecordsId,score)
-          liveRecordsWithScoreKeepers
-          |> Array.Parallel.map processThink
-          |> Array.Parallel.map scoreNeuralNetworkThinkCycle
-
+                Array.map scoreNeuralNetworkThinkCycle
+            liveRecordsWithScoreKeepers
+            |> Array.Parallel.map processThink
+            |> processScoring
+          let updatedScoredThinkCycles =
+            let currentThinkCycle =
+              scoreGenerationThinkCycle
+              |> Array.Parallel.map(fun (nodeRecordsId,score, _) -> nodeRecordsId, score)
+            scoredThinkCycles
+            |> Array.append currentThinkCycle
+          if (scoreGenerationThinkCycle |> Array.exists(fun (_, _, endGenerationOption) -> endGenerationOption = EndGeneration)) then
+            updatedScoredThinkCycles
+          else
+            scoreThinkCycles updatedScoredThinkCycles
         let scoredGeneration =
           let sumScoreOfMind (nodeRecordsId, (scoreArray : ('a*Score) array)) =
             let score =
@@ -619,9 +635,7 @@ let evolveForXGenerations (evolutionProperties : EvolutionProperties)
             nodeRecordsId, score
           //This has to stay synchronous
           //To maintain a steady clock of think cycles for all living minds
-          [|1..maximumThinkCycles|]
-          |> Array.map scoreGenerationThinkCycle 
-          |> Array.collect id
+          scoreThinkCycles Array.empty
           |> Array.groupBy(fun (nodeRecordsId, score) -> nodeRecordsId)
           |> Array.Parallel.map sumScoreOfMind
           |> Map.ofArray
@@ -695,51 +709,8 @@ let getDefaultTrainingProperties
               (infoLog : InfoLogFunction)
               : TrainingProperties<'T> =
   let startingGenerationRecords : GenerationRecords =
-    let addNeuronToMap (neuronId, neuronInstance) =
-      Map.add neuronId neuronInstance
     let startingRecordId = 0
-    let startingNodeRecords =
-      let actuator =
-        let layer = 1000.0
-        let fakeOutputHook = (fun x -> ())
-        let nodeId = 0
-        let outputHookId = 
-          match outputHookFunctionIds |> Seq.tryHead with
-          | Some outputHookId -> outputHookId
-          | None -> raise <| ActuatorRecordDoesNotHaveAOutputHookIdException "Attempted to generate default training properties but no output hook ids were passed"
-        createActuator nodeId layer fakeOutputHook outputHookId
-        |> createNeuronInstance infoLog
-      let neuron =
-        let bias = 0.0
-        let nodeId = 1
-        let layer = 500.0
-        let activationFunctionId, activationFunction = 
-          match activationFunctions |> Map.toSeq |> Seq.tryHead with 
-          | Some xTuple -> xTuple
-          | None ->
-            raise <| NeuronDoesNotHaveAnActivationFunction "Attempted to generate default traing properties but no activation functions were passed"
-        createNeuron nodeId layer activationFunction activationFunctionId bias learningAlgorithm
-        |> createNeuronInstance infoLog
-      let sensor =
-        let nodeId = 2
-        let syncFunctionId = 0
-        let maximumVectorLength = 1
-        createSensor nodeId (fun () -> Seq.empty) syncFunctionId maximumVectorLength
-        |> createNeuronInstance infoLog
-      let weight = 0.0
-      sensor |> connectSensorToNode neuron [weight]
-      neuron |> connectNodeToActuator actuator
-
-      let neuralNetwork =
-        Map.empty
-        |> addNeuronToMap actuator
-        |> addNeuronToMap neuron
-        |> addNeuronToMap sensor
-      let nodeRecords =
-        neuralNetwork
-        |> constructNodeRecords
-      neuralNetwork |> killNeuralNetwork
-      nodeRecords
+    let startingNodeRecords = getDefaultNodeRecords activationFunctions outputHookFunctionIds 0 learningAlgorithm infoLog
     Map.empty
     |> Map.add startingRecordId startingNodeRecords
 
@@ -758,7 +729,7 @@ let getDefaultTrainingProperties
     ScoreNeuralNetworkAnswerFunction = scoreNeuralNetworkAnswerFunction
     ShuffleDataSet = false
     NeuronLearningAlgorithm = learningAlgorithm
-    DividePopulationBy = 2 
+    DividePopulationBy = 2
     InfoLog = infoLog
   }
 
@@ -830,7 +801,7 @@ let trainSingleScopeProblem (trainingProperties : TrainingProperties<'T>) =
       syncFunction
     )
 
-  let syncFunctionSources = 
+  let syncFunctionSources =
     let syncFunctionId = 0
     Map.empty |> Map.add syncFunctionId syncFunctionSource
 
@@ -845,9 +816,10 @@ let trainSingleScopeProblem (trainingProperties : TrainingProperties<'T>) =
     actuatorOutputs
     |> trainingProperties.InterpretActuatorOutputFunction
     |> trainingProperties.ScoreNeuralNetworkAnswerFunction expectedMsg
+    |> (fun score -> score, ContinueGeneration)
 
   let evolutionProperties =
-    { defaultEvolutionProperties with 
+    { defaultEvolutionProperties with
         MaximumThinkCycles = trainingProperties.MaximumThinkCycles
         Generations = trainingProperties.AmountOfGenerations
         MaximumMinds = trainingProperties.MaximumMinds
@@ -860,4 +832,4 @@ let trainSingleScopeProblem (trainingProperties : TrainingProperties<'T>) =
         StartingRecords = trainingProperties.StartingRecords
         NeuronLearningAlgorithm = trainingProperties.NeuronLearningAlgorithm
     }
-  evolveForXGenerations evolutionProperties 
+  evolveForXGenerations evolutionProperties

@@ -1371,7 +1371,7 @@ let ``Should be able to evolve x generations`` () =
   let outputHookFunctionIds : OutputHookFunctionIds =
     [outputHookId] |> List.toSeq
 
-  let learningAlgorithm = 
+  let learningAlgorithm =
     let learningCoefficient = 0.5
     Hebbian learningCoefficient
 
@@ -1396,6 +1396,7 @@ let ``Should be able to evolve x generations`` () =
   let fitnessFunction : FitnessFunction =
     (fun nodeRecordsId neuralOutputs ->
      random.NextDouble() * (10.0 - 1.0) + 1.0
+     |> (fun score -> score, ContinueGeneration)
     )
   let syncFunctionSources : SyncFunctionSources =
     Map.empty

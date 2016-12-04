@@ -80,3 +80,52 @@ let constructNeuralNetwork (neuralNetProperties : ConstructNeuralNetworkProperti
   |> Map.map createNeuronFromRecord
   |> connectNeurons
   |> waitOnNeuralNetwork
+
+let getDefaultNodeRecords activationFunctions
+  outputHookFunctionIds
+    syncFunctionId
+      learningAlgorithm
+        infoLog : NodeRecords =
+  let addNeuronToMap (neuronId, neuronInstance) =
+    Map.add neuronId neuronInstance
+  let actuator =
+    let layer = 100000.0
+    let fakeOutputHook = (fun x -> ())
+    let nodeId = 0
+    let outputHookId =
+      match outputHookFunctionIds |> Seq.tryHead with
+      | Some outputHookId -> outputHookId
+      | None -> raise <| ActuatorRecordDoesNotHaveAOutputHookIdException "Attempted to generate default training properties but no output hook ids were passed"
+    createActuator nodeId layer fakeOutputHook outputHookId
+    |> createNeuronInstance infoLog
+  let neuron =
+    let bias = 0.0
+    let nodeId = 1
+    let layer = 50000.0
+    let activationFunctionId, activationFunction = 
+      match activationFunctions |> Map.toSeq |> Seq.tryHead with 
+      | Some xTuple -> xTuple
+      | None ->
+        raise <| NeuronDoesNotHaveAnActivationFunction "Attempted to generate default traing properties but no activation functions were passed"
+    createNeuron nodeId layer activationFunction activationFunctionId bias learningAlgorithm
+    |> createNeuronInstance infoLog
+  let sensor =
+    let nodeId = 2
+    let syncFunctionId = 0
+    let maximumVectorLength = 1
+    createSensor nodeId (fun () -> Seq.empty) syncFunctionId maximumVectorLength
+    |> createNeuronInstance infoLog
+  let weight = 0.0
+  sensor |> connectSensorToNode neuron [weight]
+  neuron |> connectNodeToActuator actuator
+
+  let neuralNetwork =
+    Map.empty
+    |> addNeuronToMap actuator
+    |> addNeuronToMap neuron
+    |> addNeuronToMap sensor
+  let nodeRecords =
+    neuralNetwork
+    |> constructNodeRecords
+  neuralNetwork |> killNeuralNetwork
+  nodeRecords

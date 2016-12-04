@@ -49,7 +49,7 @@ type NodeRecordConnections = Map<NeuronConnectionId,InactiveNeuronConnection>
 type LearningRateCoefficient = float
 
 type NeuronLearningAlgorithm =
-  | Hebbian of LearningRateCoefficient 
+  | Hebbian of LearningRateCoefficient
   | NoLearning
 
 type NodeRecord =
@@ -63,7 +63,7 @@ type NodeRecord =
     SyncFunctionId: SyncFunctionId option
     OutputHookId: OutputHookId option
     MaximumVectorLength: int option
-    NeuronLearningAlgorithm : NeuronLearningAlgorithm 
+    NeuronLearningAlgorithm : NeuronLearningAlgorithm
   }
 
 type NodeRecords = Map<NeuronId,NodeRecord>
@@ -137,9 +137,13 @@ type NeuralNetwork = Map<NeuronId, NeuronLayerId*NeuronInstance>
 
 type Score = float
 
+type EndGenerationOption =
+  | EndGeneration
+  | ContinueGeneration
+
 type ScoreKeeperMsg =
   | Gather of AsyncReplyChannel<unit>*OutputHookId*float
-  | GetScore of AsyncReplyChannel<float>
+  | GetScore of AsyncReplyChannel<float*EndGenerationOption>
   | KillScoreKeeper of AsyncReplyChannel<unit>
 
 type ScoreKeeperInstance = MailboxProcessor<ScoreKeeperMsg>
@@ -150,7 +154,7 @@ type ScoredNodeRecords = array<NodeRecordsId*(Score*NodeRecords)>
 
 type NeuralOutputs = Map<NeuronId, ActuatorOutput>
 
-type FitnessFunction = NodeRecordsId -> NeuralOutputs -> Score
+type FitnessFunction = NodeRecordsId -> NeuralOutputs -> Score*EndGenerationOption
 
 type GenerationRecords = Map<NodeRecordsId, NodeRecords>
 
@@ -196,15 +200,15 @@ type Mutation =
   // | RemoveActuator
 
 type MaximumThinkCycles = int
-type MaximumMinds = int 
+type MaximumMinds = int
 type AmountOfGenerations = int
 
 type MutationSequence = Mutation seq
 
-type MutationProperties = 
+type MutationProperties =
  {
    Mutations : MutationSequence
-   ActivationFunctionIds : ActivationFunctionId seq 
+   ActivationFunctionIds : ActivationFunctionId seq
    SyncFunctionIds : SyncFunctionId seq
    OutputHookFunctionIds : OutputHookId seq
    LearningAlgorithm : NeuronLearningAlgorithm
@@ -217,7 +221,7 @@ type EvolutionProperties =
     MaximumMinds : MaximumThinkCycles
     MaximumThinkCycles : MaximumMinds
     Generations : AmountOfGenerations
-    MutationSequence : MutationSequence 
+    MutationSequence : MutationSequence
     FitnessFunction : FitnessFunction
     ActivationFunctions : ActivationFunctions
     SyncFunctionSources : SyncFunctionSources
@@ -227,6 +231,7 @@ type EvolutionProperties =
     NeuronLearningAlgorithm : NeuronLearningAlgorithm
     DividePopulationBy : int
     InfoLog : InfoLogFunction
+    AsynchronousScoring : bool
   }
 
 type DataGeneratorMsg<'T> =
