@@ -1501,3 +1501,135 @@ let ``Should be able to evolve x generations from training set`` () =
   evolvedRecords
   |> Array.length
   |> should equal maximumMinds
+
+[<Fact>]
+let ``Should be able to end a generation via the fitness function`` () =
+  //Test setup
+  let (testHook, testHookMailbox) = getTestHook ()
+  let getNodeId = getNumberGenerator()
+  let actuatorId = getNodeId()
+  let outputHookId = 9001
+  let activationFunctionId = 0
+  let activationFunction = id
+  let syncFunctionId = 0
+  let syncFunctionSource : SyncFunctionSource =
+    (fun nodeRecordsId -> 
+      let data =
+        [1.0; 1.0; 1.0; 1.0; 1.0]
+        |> List.toSeq
+      fakeDataGenerator([data])
+    )
+
+  //Create Neurons
+  let actuator =
+    let layer = 3.0
+    createActuator actuatorId layer testHook outputHookId
+    |> createNeuronInstance
+  let neuron =
+    let bias = 0.0
+    let nodeId = getNodeId()
+    let layer = 2.0
+    createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
+    |> createNeuronInstance
+
+  let syncFunction = syncFunctionSource 0
+  let sensor =
+    let id = getNodeId()
+    createSensor id syncFunction syncFunctionId 1
+    |> createNeuronInstance
+
+  //Connect Neurons
+  let weights =
+    [
+      20.0
+      20.0
+      20.0
+      20.0
+      20.0
+    ] |> List.toSeq
+
+  sensor |> connectSensorToNode neuron weights
+  neuron |> connectNodeToActuator actuator
+
+  //Synchronize and Assert!
+  synchronize sensor
+  WaitForData
+  |> testHookMailbox.PostAndReply
+  |> (should equal 100.0)
+
+  let activationFunctions : ActivationFunctions =
+    Map.empty
+    |> Map.add activationFunctionId activationFunction
+
+  let outputHookFunctionIds : OutputHookFunctionIds =
+    [outputHookId] |> List.toSeq
+
+  let learningAlgorithm =
+    let learningCoefficient = 0.5
+    Hebbian learningCoefficient
+
+  let nodeRecords =
+    Map.empty
+    |> addNeuronToMap actuator
+    |> addNeuronToMap neuron
+    |> addNeuronToMap sensor
+    |> constructNodeRecords
+
+  [
+    sensor
+    neuron
+    actuator
+  ]
+  |> Map.ofList
+  |> killNeuralNetwork
+
+  Die |> testHookMailbox.PostAndReply
+
+  let random = System.Random()
+  let fitnessFunction : FitnessFunction =
+    (fun nodeRecordsId neuralOutputs ->
+     random.NextDouble() * (10.0 - 1.0) + 1.0
+     |> (fun score -> score, EndGeneration)
+    )
+  let syncFunctionSources : SyncFunctionSources =
+    Map.empty
+    |> Map.add syncFunctionId syncFunctionSource
+  let endOfGenerationFunction : EndOfGenerationFunction =
+    (fun scoredNodeRecords ->
+     ()
+    )
+  let mutationSequence =
+    [
+      MutateActivationFunction
+      AddBias
+      RemoveBias
+      MutateWeights
+      AddInboundConnection
+      AddOutboundConnection
+      AddNeuron
+      AddSensorLink
+      AddActuatorLink
+    ] |> List.toSeq
+  let maximumMinds = 5
+  let evolvedRecords =
+    let generationRecords =
+      Map.empty
+      |> Map.add 0 nodeRecords
+    let evolutionProperties =
+      { defaultEvolutionProperties with
+          MaximumMinds = 5
+          Generations = 10
+          MaximumThinkCycles = 99999
+          MutationSequence = mutationSequence
+          FitnessFunction = fitnessFunction
+          ActivationFunctions = activationFunctions
+          SyncFunctionSources = syncFunctionSources
+          OutputHookFunctionIds = outputHookFunctionIds
+          EndOfGenerationFunctionOption = Some endOfGenerationFunction
+          StartingRecords = generationRecords
+          NeuronLearningAlgorithm = learningAlgorithm
+      }
+    evolutionProperties |> evolveForXGenerations  
+  evolvedRecords
+  |> Array.length
+  |> should equal maximumMinds
