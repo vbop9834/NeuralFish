@@ -383,6 +383,6 @@ let createNeuronInstance infoLog neuronType =
   )
 
   //Add exception logging
-  neuronInstance |> (fun x -> x.Error.Add(fun x -> sprintf "%A" x |> infoLog))
+  neuronInstance |> (fun x -> x.Error.Add(fun err -> sprintf "%A" err |> infoLog))
 
   (nodeId, (nodeLayer, neuronInstance))

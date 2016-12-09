@@ -499,7 +499,7 @@ let evolveForXGenerations (evolutionProperties : EvolutionProperties)
     (fun records -> records |> completeMutationProperties |> mutateNeuralNetwork )
 
   let evolveGeneration (generationRecords : GenerationRecords) : GenerationRecords =
-    let processEvolution currentGen = 
+    let processEvolution currentGen =
       let rec processEvolutionLoop newGeneration previousGeneration =
         if ((newGeneration |> Array.length) >= maximumMinds) then
           sprintf "New Generation %A" newGeneration |> infoLog
@@ -836,3 +836,148 @@ let trainSingleScopeProblem (trainingProperties : TrainingProperties<'T>) =
         NeuronLearningAlgorithm = trainingProperties.NeuronLearningAlgorithm
     }
   evolveForXGenerations evolutionProperties
+
+let getLiveEvolutionInstance liveEvolutionProperties =
+  let infoLog = liveEvolutionProperties.InfoLog
+  let mutationFunction =
+    let mutationSequence = liveEvolutionProperties.MutationSequence
+    let activationFunctionIds =
+      liveEvolutionProperties.ActivationFunctions
+      |> Map.toSeq
+      |> Seq.map (fun (id,_) -> id)
+    let syncFunctionIds =
+      liveEvolutionProperties.SyncFunctions
+      |> Map.toSeq
+      |> Seq.map (fun (id,_) -> id)
+    let outputHookFunctionIds =
+      liveEvolutionProperties.OutputHookFunctions
+      |> Map.toSeq
+      |> Seq.map (fun (id,_) -> id)
+    let completeMutationProperties (records : NodeRecords) : MutationProperties =
+      {
+        Mutations = mutationSequence
+        ActivationFunctionIds = activationFunctionIds
+        SyncFunctionIds = syncFunctionIds
+        OutputHookFunctionIds = outputHookFunctionIds
+        LearningAlgorithm = liveEvolutionProperties.NeuronLearningAlgorithm
+        InfoLog = liveEvolutionProperties.InfoLog
+        NodeRecords = records
+      }
+    (fun records -> records |> completeMutationProperties |> mutateNeuralNetwork )
+
+  let evolveGeneration (generationRecords : GenerationRecords) : GenerationRecords =
+    let processEvolution currentGen =
+      let rec processEvolutionLoop newGeneration previousGeneration =
+        if ((newGeneration |> Array.length) >= liveEvolutionProperties.MaximumMindsPerGeneration) then
+          newGeneration
+        else
+          let nodeRecordsId, nodeRecords = previousGeneration |> Array.head
+          let updatedPreviousGeneration =
+            let tailGeneration = previousGeneration |> Array.tail
+            Array.append tailGeneration [|(nodeRecordsId, nodeRecords)|]
+          let mutatedRecords : NodeRecords = nodeRecords |> mutationFunction
+          let newId = newGeneration |> Array.length
+          let updatedNewGeneration = Array.append newGeneration [|(newId, mutatedRecords)|]  
+          processEvolutionLoop updatedNewGeneration updatedPreviousGeneration
+      processEvolutionLoop Array.empty currentGen
+    //TODO optimize this
+    generationRecords
+    |> Map.toArray
+    |> processEvolution
+    |> Map.ofArray
+  let createNewActiveCortex nodeRecords =
+    {
+      ActivationFunctions = liveEvolutionProperties.ActivationFunctions
+      SyncFunctions = liveEvolutionProperties.SyncFunctions
+      OutputHooks = liveEvolutionProperties.OutputHookFunctions
+      InfoLog = infoLog
+      NodeRecords = nodeRecords
+    } |> constructNeuralNetwork
+    |> createCortex infoLog
+
+  LiveEvolutionInstance.Start(fun inbox ->
+    let rec loop (currentGeneration : GenerationRecords)
+                   (activeCortexAndId : NodeRecordsId*CortexInstance)
+                     (thinkCycleCounter : int)
+                       (scoresBuffer : ActiveCortexBuffer)
+                         (scoredGenerationRecords : ScoredNodeRecords) =
+      async {
+        let! someMsg = inbox.TryReceive 250
+        match someMsg with
+        | None ->
+          return! loop currentGeneration activeCortexAndId thinkCycleCounter scoresBuffer scoredGenerationRecords
+        | Some msg ->
+          match msg with
+          | SynchronizeActiveCortex replyChannel ->
+            let nodeRecordsId, activeCortex = activeCortexAndId
+            ThinkAndAct |> activeCortex.PostAndReply
+            let score, thinkCycleOption =
+              liveEvolutionProperties.FitnessFunction nodeRecordsId
+            let updatedScoresBuffer =
+              scoresBuffer
+              |> Array.append [|score|]
+            let updatedThinkCycleCounter = thinkCycleCounter + 1
+            if thinkCycleOption = EndThinkCycle || (liveEvolutionProperties.MaximumThinkCycles.IsSome && updatedThinkCycleCounter >= liveEvolutionProperties.MaximumThinkCycles.Value) then
+              let updatedRecords = KillCortex |> activeCortex.PostAndReply
+              let scoreSum = updatedScoresBuffer |> Array.sum
+              let updatedScoredGenerationRecords =
+                Array.append scoredGenerationRecords [| (nodeRecordsId, (scoreSum, updatedRecords)) |]
+              let amountOfScoredRecords =
+                updatedScoredGenerationRecords
+                |> Array.length
+
+              if amountOfScoredRecords >= liveEvolutionProperties.MaximumMindsPerGeneration then
+                // Process end generation, mutate, then create active cortex
+                match liveEvolutionProperties.EndOfGenerationFunctionOption with
+                | None -> ()
+                | Some endOfGenerationFunction ->
+                  updatedScoredGenerationRecords
+                  |> endOfGenerationFunction
+                let newGeneration =
+                  updatedScoredGenerationRecords
+                  |> liveEvolutionProperties.FitPopulationSelectionFunction
+                  |> evolveGeneration
+                let starterNodeRecordsId, starterNodeRecords =
+                  newGeneration
+                  |> Map.toSeq
+                  |> Seq.head
+                let newActiveCortexAndId =
+                  let newActiveCortex = starterNodeRecords |> createNewActiveCortex
+                  starterNodeRecordsId, newActiveCortex
+
+                replyChannel.Reply()
+                return! loop newGeneration newActiveCortexAndId 0 Array.empty updatedScoredGenerationRecords
+              else
+                let desiredNodeRecordsId = (nodeRecordsId+1)
+                let desiredNodeRecords =
+                  currentGeneration
+                  |> Map.find desiredNodeRecordsId
+                let newActiveCortex =
+                  desiredNodeRecords
+                  |> createNewActiveCortex
+                replyChannel.Reply()
+                return! loop currentGeneration (desiredNodeRecordsId, newActiveCortex) 0 Array.empty updatedScoredGenerationRecords
+            else
+              replyChannel.Reply()
+              return! loop currentGeneration activeCortexAndId updatedThinkCycleCounter updatedScoresBuffer scoredGenerationRecords
+          | EndEvolution replyChannel ->
+            let nodeRecordsId, activeCortex = activeCortexAndId
+            let updatedNodeRecords = KillCortex |> activeCortex.PostAndReply
+            let updatedScoredGenerationRecords : ScoredNodeRecords =
+              let scoreSum = scoresBuffer |> Array.sum
+              Array.append scoredGenerationRecords [| (nodeRecordsId, (scoreSum, updatedNodeRecords)) |]
+            updatedScoredGenerationRecords
+            |> replyChannel.Reply
+      }
+    let starterRecords =
+      liveEvolutionProperties.StarterRecords
+      |> evolveGeneration
+    let starterNodeRecordsId, nodeRecords =
+      starterRecords
+      |> Map.toSeq
+      |> Seq.head
+    let newActiveCortex =
+      nodeRecords
+      |> createNewActiveCortex
+    loop starterRecords (starterNodeRecordsId, newActiveCortex) 0 Array.empty Array.empty
+  ) |> (fun x -> x.Error.Add(fun err -> sprintf "%A" err |> infoLog); x)

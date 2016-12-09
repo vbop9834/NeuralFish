@@ -15,19 +15,10 @@ let createCortex infoLog liveNeurons : CortexInstance =
           |> neuron.TryPostAndReply
         match maybeActuatorStatus with
         | None -> raise <| NeuronInstanceUnavailableException "Cortex - Neuron instance is not available when trying to check actuators"
-        | Some actuatorReady ->
-          match actuatorReady with
-          | true ->
-            true
-          | false ->
-            false
-      let checkIfNeuronIsBusy (neuron : NeuronInstance) =
-        if neuron.CurrentQueueLength <> 0 then
-          true
-        else
-          false
+        | Some actuatorReady -> actuatorReady
+      let checkIfNeuronIsBusy (neuron : NeuronInstance) = neuron.CurrentQueueLength <> 0
       neuralNetwork
-      |> Map.exists(fun i (_,neuron) -> neuron |> checkIfNeuronIsBusy && not <| actuatorIsActive neuron  )
+      |> Map.exists(fun i (_,neuron) -> neuron |> checkIfNeuronIsBusy || not <| actuatorIsActive neuron  )
     if neuralNetworkToWaitOn |> checkIfActuatorsAreReady then
       //200 milliseconds of sleep seems plenty while waiting on the NN
       System.Threading.Thread.Sleep(200)
@@ -51,7 +42,7 @@ let createCortex infoLog liveNeurons : CortexInstance =
         let! someMsg = inbox.TryReceive 250
         match someMsg with
         | None ->
-          return! loop liveNeurons 
+          return! loop liveNeurons
         | Some msg ->
           match msg with
           | ThinkAndAct replyChannel ->
