@@ -156,6 +156,12 @@ type NeuralOutputs = Map<NeuronId, ActuatorOutput>
 
 type FitnessFunction = NodeRecordsId -> NeuralOutputs -> Score*EndGenerationOption
 
+type ThinkCycleOption =
+  | EndThinkCycle
+  | ContinueThinkCycle
+
+type LiveFitnessFunction = NodeRecordsId -> Score*ThinkCycleOption
+
 type GenerationRecords = Map<NodeRecordsId, NodeRecords>
 
 type EndOfGenerationFunction = ScoredNodeRecords -> unit
@@ -205,6 +211,8 @@ type AmountOfGenerations = int
 
 type MutationSequence = Mutation seq
 
+type FitPopulationSelectionFunction = ScoredNodeRecords -> GenerationRecords
+
 type MutationProperties =
  {
    Mutations : MutationSequence
@@ -247,23 +255,47 @@ type InterpretActuatorOutputFunction<'T> = ActuatorOutputMap -> 'T
 
 //First 'T is correct Answer
 //Second 'T is neural network guessed answer
-type ScoreNeuralNetworkAnswerFunction<'T> = 'T -> 'T -> Score 
+type ScoreNeuralNetworkAnswerFunction<'T> = 'T -> 'T -> Score
 
 type TrainingProperties<'T> =
   {
     AmountOfGenerations : AmountOfGenerations
-    MaximumThinkCycles : MaximumThinkCycles 
+    MaximumThinkCycles : MaximumThinkCycles
     MaximumMinds : MaximumMinds
     ActivationFunctions : ActivationFunctions
     OutputHookFunctionIds : OutputHookFunctionIds
     EndOfGenerationFunctionOption : EndOfGenerationFunction option
     StartingRecords : GenerationRecords
     MutationSequence : MutationSequence
-    TrainingAnswerAndDataSet : TrainingAnswerAndDataSet<'T> 
+    TrainingAnswerAndDataSet : TrainingAnswerAndDataSet<'T>
     InterpretActuatorOutputFunction : InterpretActuatorOutputFunction<'T>
     ScoreNeuralNetworkAnswerFunction : ScoreNeuralNetworkAnswerFunction<'T>
     NeuronLearningAlgorithm : NeuronLearningAlgorithm
     ShuffleDataSet : bool
     DividePopulationBy : int
+    InfoLog : InfoLogFunction
+  }
+
+type LiveEvolutionMsg =
+  | SynchronizeActiveCortex of AsyncReplyChannel<unit>
+  | EndEvolution of AsyncReplyChannel<ScoredNodeRecords>
+
+type LiveEvolutionInstance = MailboxProcessor<LiveEvolutionMsg>
+
+type ActiveCortexBuffer = Score array
+
+type LiveEvolutionProperties =
+  {
+    StarterRecords : GenerationRecords
+    MutationSequence : MutationSequence
+    NeuronLearningAlgorithm : NeuronLearningAlgorithm
+    FitnessFunction : LiveFitnessFunction
+    FitPopulationSelectionFunction : FitPopulationSelectionFunction
+    MaximumMindsPerGeneration : MaximumMinds
+    MaximumThinkCycles : MaximumThinkCycles
+    SyncFunctions : SyncFunctions
+    OutputHookFunctions : OutputHookFunctions
+    ActivationFunctions : ActivationFunctions
+    EndOfGenerationFunctionOption : EndOfGenerationFunction option
     InfoLog : InfoLogFunction
   }
