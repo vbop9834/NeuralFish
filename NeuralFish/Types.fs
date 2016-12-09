@@ -292,7 +292,7 @@ type LiveEvolutionProperties =
     FitnessFunction : LiveFitnessFunction
     FitPopulationSelectionFunction : FitPopulationSelectionFunction
     MaximumMindsPerGeneration : MaximumMinds
-    MaximumThinkCycles : MaximumThinkCycles
+    MaximumThinkCycles : MaximumThinkCycles option
     SyncFunctions : SyncFunctions
     OutputHookFunctions : OutputHookFunctions
     ActivationFunctions : ActivationFunctions

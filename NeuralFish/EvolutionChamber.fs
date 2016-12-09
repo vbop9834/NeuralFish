@@ -917,7 +917,7 @@ let getLiveEvolutionInstance liveEvolutionProperties =
               scoresBuffer
               |> Array.append [|score|]
             let updatedThinkCycleCounter = thinkCycleCounter + 1
-            if thinkCycleOption = EndThinkCycle || updatedThinkCycleCounter >= liveEvolutionProperties.MaximumThinkCycles then
+            if thinkCycleOption = EndThinkCycle || (liveEvolutionProperties.MaximumThinkCycles.IsSome && updatedThinkCycleCounter >= liveEvolutionProperties.MaximumThinkCycles.Value) then
               let updatedRecords = KillCortex |> activeCortex.PostAndReply
               let scoreSum = updatedScoresBuffer |> Array.sum
               let updatedScoredGenerationRecords =
