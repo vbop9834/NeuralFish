@@ -89,7 +89,7 @@ let ``AddBias mutation should add a bias to a neuron that has none`` () =
       LearningAlgorithm = NoLearning
       InfoLog = defaultInfoLog
       NodeRecords = initialNodeRecords
-    } |> mutateNeuralNetwork 
+    } |> mutateNeuralNetwork
 
   [
     sensor
@@ -107,7 +107,7 @@ let ``AddBias mutation should add a bias to a neuron that has none`` () =
      OutputHooks = outputHooks
      NodeRecords = nodeRecords
      InfoLog = defaultInfoLog
-   } |> constructNeuralNetwork 
+   } |> constructNeuralNetwork
   let newSensor =
     let sensorId = (fst sensor)
     (sensorId,
@@ -209,7 +209,7 @@ let ``RemoveBias mutation should remove a bias to a neuron that has some bias`` 
       LearningAlgorithm = NoLearning
       InfoLog = defaultInfoLog
       NodeRecords = initialNodeRecords
-    } |> mutateNeuralNetwork 
+    } |> mutateNeuralNetwork
 
   [
     sensor
@@ -226,7 +226,7 @@ let ``RemoveBias mutation should remove a bias to a neuron that has some bias`` 
      OutputHooks = outputHooks
      NodeRecords = nodeRecords
      InfoLog = defaultInfoLog
-   } |> constructNeuralNetwork 
+   } |> constructNeuralNetwork
   let newSensor =
     let sensorId = (fst sensor)
     let layer = 1.0
@@ -323,8 +323,8 @@ let ``MutateWeights mutation should mutate the weights of all outbound connectio
       LearningAlgorithm = NoLearning
       InfoLog = defaultInfoLog
       NodeRecords = initialNodeRecords
-    } |> mutateNeuralNetwork 
- 
+    } |> mutateNeuralNetwork
+
   [
     sensor
     neuron
@@ -340,36 +340,39 @@ let ``MutateWeights mutation should mutate the weights of all outbound connectio
      OutputHooks = outputHooks
      NodeRecords = nodeRecords
      InfoLog = defaultInfoLog
-   } |> constructNeuralNetwork 
+   } |> constructNeuralNetwork
+
+  let sensorId = (fst sensor)
   let newSensor =
-    let sensorId = (fst sensor)
     (sensorId,
      neuralNetwork
      |> Map.find sensorId)
 
   let newWeight =
-    let neuronOutboundConnections =
-      let neuronId = neuron |> fst
-      let neuron =
+    let actuatorInboundConnections =
+      let actuatorId = actuator |> fst
+      let actuator =
         nodeRecords
-        |> Map.find neuronId
-      neuron.OutboundConnections
+        |> Map.find actuatorId
+      actuator.InboundConnections
       |> Map.toSeq
 
-    let sensorId = newSensor |> fst
-    let sensor = 
+    let neuronId = neuron |> fst
+    let neuron =
       nodeRecords
-      |> Map.find sensorId
+      |> Map.find neuronId
 
-    sensor.OutboundConnections
-    |> Map.toSeq
-    |> Seq.append neuronOutboundConnections
+    let combinedConnections =
+      neuron.InboundConnections
+      |> Map.toSeq
+    combinedConnections
+    |> Seq.append actuatorInboundConnections
     |> Seq.exists(fun (key,(_,weight)) -> weight <> 20.0)
     |> should equal true
 
     let _,(_,weight) =
-      sensor.OutboundConnections
-      |> Map.toSeq
+      combinedConnections
+      |> Seq.filter(fun (_,(fromNodeId,_)) -> fromNodeId = sensorId)
       |> Seq.head
     weight
 
@@ -457,8 +460,8 @@ let ``AddOutboundConnection mutation should mutate connect a neuron to a neuron 
       LearningAlgorithm = NoLearning
       InfoLog = defaultInfoLog
       NodeRecords = initialNodeRecords
-    } |> mutateNeuralNetwork 
- 
+    } |> mutateNeuralNetwork
+
   [
     sensor
     neuron
@@ -474,7 +477,7 @@ let ``AddOutboundConnection mutation should mutate connect a neuron to a neuron 
      OutputHooks = outputHooks
      NodeRecords = nodeRecords
      InfoLog = defaultInfoLog
-   } |> constructNeuralNetwork 
+   } |> constructNeuralNetwork
   let newSensor =
     let sensorId = (fst sensor)
     (sensorId,
@@ -489,7 +492,7 @@ let ``AddOutboundConnection mutation should mutate connect a neuron to a neuron 
   neuralNetwork |> killNeuralNetwork
 
   Die |> testHookMailbox.PostAndReply
- 
+
 [<Fact>]
 let ``AddNeuron mutation should add a new neuron and connect it randomly in the neural network`` () =
   //Test setup
@@ -568,7 +571,7 @@ let ``AddNeuron mutation should add a new neuron and connect it randomly in the 
       LearningAlgorithm = NoLearning
       InfoLog = defaultInfoLog
       NodeRecords = initialNodeRecords
-    } |> mutateNeuralNetwork 
+    } |> mutateNeuralNetwork
 
   [
     sensor
@@ -586,7 +589,7 @@ let ``AddNeuron mutation should add a new neuron and connect it randomly in the 
      OutputHooks = outputHooks
      NodeRecords = nodeRecords
      InfoLog = defaultInfoLog
-   } |> constructNeuralNetwork 
+   } |> constructNeuralNetwork
   let newSensor =
     let sensorId = (fst sensor)
     (sensorId,
@@ -688,7 +691,7 @@ let ``AddSensor mutation should add a new sensor and connect it randomly in the 
       LearningAlgorithm = NoLearning
       InfoLog = defaultInfoLog
       NodeRecords = initialNodeRecords
-    } |> mutateNeuralNetwork 
+    } |> mutateNeuralNetwork
 
   [
     sensor
@@ -706,7 +709,7 @@ let ``AddSensor mutation should add a new sensor and connect it randomly in the 
      OutputHooks = outputHooks
      NodeRecords = nodeRecords
      InfoLog = defaultInfoLog
-   } |> constructNeuralNetwork 
+   } |> constructNeuralNetwork
 
   nodeRecords
   |> Map.filter (fun key record -> record.NodeType = NodeRecordType.Sensor)
@@ -802,7 +805,7 @@ let ``AddActuator mutation should add a new actuator and connect it randomly in 
       LearningAlgorithm = NoLearning
       InfoLog = defaultInfoLog
       NodeRecords = initialNodeRecords
-    } |> mutateNeuralNetwork 
+    } |> mutateNeuralNetwork
 
   [
     sensor
@@ -820,13 +823,13 @@ let ``AddActuator mutation should add a new actuator and connect it randomly in 
      OutputHooks = outputHooks
      NodeRecords = nodeRecords
      InfoLog = defaultInfoLog
-   } |> constructNeuralNetwork 
+   } |> constructNeuralNetwork
 
   nodeRecords
   |> Map.filter (fun key record -> record.NodeType = NodeRecordType.Actuator)
   |> Map.toSeq
   |> Seq.length
-  |> should equal 2 
+  |> should equal 2
 
   neuralNetwork |> synchronizeNN
   WaitForData
@@ -915,7 +918,7 @@ let ``AddSensorLink mutation should add a sensor connection randomly in the neur
       LearningAlgorithm = NoLearning
       InfoLog = defaultInfoLog
       NodeRecords = initialNodeRecords
-    } |> mutateNeuralNetwork 
+    } |> mutateNeuralNetwork
 
   [
     sensor
@@ -932,19 +935,29 @@ let ``AddSensorLink mutation should add a sensor connection randomly in the neur
      OutputHooks = outputHooks
      NodeRecords = nodeRecords
      InfoLog = defaultInfoLog
-   } |> constructNeuralNetwork 
+   } |> constructNeuralNetwork
 
-  let _,sensor = 
+  let totalSensorOutboundConnections =
     let sensorId = sensor |> fst
+    let sensorToNeuronConnections =
+      let neuronId = neuron |> fst
+      nodeRecords
+      |> Map.find neuronId
+      |> (fun x -> x.InboundConnections)
+      |> Map.filter(fun _ (fromNodeId, weight) -> fromNodeId = sensorId)
+      |> Seq.length
+    let sensorToActuatorConnections =
+      let actuatorId = actuator |> fst
+      nodeRecords
+      |> Map.find actuatorId
+      |> (fun x -> x.InboundConnections)
+      |> Map.filter(fun _ (fromNodeId, weight) -> fromNodeId = sensorId)
+      |> Seq.length
+    sensorToNeuronConnections + sensorToActuatorConnections
 
-    nodeRecords
-    |> Map.toSeq
-    |> Seq.item sensorId
   let previousWeightLength = weights |> List.length
 
-  sensor.OutboundConnections
-  |> Map.toSeq
-  |> Seq.length
+  totalSensorOutboundConnections
   |> should be (greaterThan previousWeightLength)
 
   neuralNetwork |> synchronizeNN
@@ -1033,7 +1046,7 @@ let ``AddActuatorLink mutation should add an actuaor connection randomly in the 
       LearningAlgorithm = NoLearning
       InfoLog = defaultInfoLog
       NodeRecords = initialNodeRecords
-    } |> mutateNeuralNetwork 
+    } |> mutateNeuralNetwork
 
   [
     sensor
@@ -1050,29 +1063,49 @@ let ``AddActuatorLink mutation should add an actuaor connection randomly in the 
      OutputHooks = outputHooks
      NodeRecords = nodeRecords
      InfoLog = defaultInfoLog
-   } |> constructNeuralNetwork 
+   } |> constructNeuralNetwork
 
   //Adding 1 for the neuron to actuator connection
-  let previousNumberOfConnections = (weights |> List.length) + 1 
+  let previousNumberOfConnections = (weights |> List.length) + 1
 
-  let sensorConnectionLength = 
-    let _,sensor = 
-      let sensorId = sensor |> fst
-  
-      nodeRecords
-      |> Map.toSeq
-      |> Seq.item sensorId
-    sensor.OutboundConnections |> Map.toSeq |> Seq.length
-  let neuronConnectionLength = 
-    let _,neuron = 
-      let neuronId = neuron |> fst
+  let neuronId = neuron |> fst
+  let neuronRecord =
+    nodeRecords
+    |> Map.find neuronId
+  let actuatorRecord =
+    let actuatorId = actuator |> fst
+    nodeRecords
+    |> Map.find actuatorId
+  let sensorId = sensor |> fst
+  let sensorRecord =
+    nodeRecords
+    |> Map.find sensorId
+  let totalSensorOutboundConnections =
+    let sensorToNeuronConnections =
+      neuronRecord
+      |> (fun x -> x.InboundConnections)
+      |> Map.filter(fun _ (fromNodeId, weight) -> fromNodeId = sensorId)
+      |> Seq.length
+    let sensorToActuatorConnections =
+      actuatorRecord
+      |> (fun x -> x.InboundConnections)
+      |> Map.filter(fun _ (fromNodeId, weight) -> fromNodeId = sensorId)
+      |> Seq.length
+    sensorToNeuronConnections + sensorToActuatorConnections
+  let totalNeuronOutboundConnections =
+    let neuronToSensorConnections =
+      sensorRecord
+      |> (fun x -> x.InboundConnections)
+      |> Map.filter(fun _ (fromNodeId, weight) -> fromNodeId = neuronId)
+      |> Seq.length
+    let neuronToActuatorConnections =
+      actuatorRecord
+      |> (fun x -> x.InboundConnections)
+      |> Map.filter(fun _ (fromNodeId, weight) -> fromNodeId = neuronId)
+      |> Seq.length
+    neuronToSensorConnections + neuronToActuatorConnections
 
-      nodeRecords
-      |> Map.toSeq
-      |> Seq.item neuronId
-    neuron.OutboundConnections |> Map.toSeq |> Seq.length
-
-  (sensorConnectionLength + neuronConnectionLength)
+  (totalSensorOutboundConnections + totalNeuronOutboundConnections)
   |> should be (greaterThan previousNumberOfConnections)
 
   neuralNetwork |> synchronizeNN
@@ -1163,7 +1196,7 @@ let ``MutateActivationFunction mutation should mutate the activation function of
       LearningAlgorithm = NoLearning
       InfoLog = defaultInfoLog
       NodeRecords = initialNodeRecords
-    } |> mutateNeuralNetwork 
+    } |> mutateNeuralNetwork
 
   [
     sensor
@@ -1181,7 +1214,7 @@ let ``MutateActivationFunction mutation should mutate the activation function of
      OutputHooks = outputHooks
      NodeRecords = nodeRecords
      InfoLog = defaultInfoLog
-   } |> constructNeuralNetwork 
+   } |> constructNeuralNetwork
   let newSensor =
     let sensorId = (fst sensor)
     (sensorId,
@@ -1280,7 +1313,7 @@ let ``MinimalMutationSequence should be capable of mutating records and executin
       LearningAlgorithm = NoLearning
       InfoLog = defaultInfoLog
       NodeRecords = initialNodeRecords
-    } |> mutateNeuralNetwork 
+    } |> mutateNeuralNetwork
 
   [
     sensor
@@ -1298,7 +1331,7 @@ let ``MinimalMutationSequence should be capable of mutating records and executin
      OutputHooks = outputHooks
      NodeRecords = nodeRecords
      InfoLog = defaultInfoLog
-   } |> constructNeuralNetwork 
+   } |> constructNeuralNetwork
 
   synchronizeNN neuralNetwork
   WaitForData
@@ -1320,7 +1353,7 @@ let ``Should be able to evolve x generations`` () =
   let activationFunction = id
   let syncFunctionId = 0
   let syncFunctionSource : SyncFunctionSource =
-    (fun nodeRecordsId -> 
+    (fun nodeRecordsId ->
       let data =
         [1.0; 1.0; 1.0; 1.0; 1.0]
         |> List.toSeq
@@ -1432,7 +1465,7 @@ let ``Should be able to evolve x generations`` () =
           StartingRecords = generationRecords
           NeuronLearningAlgorithm = learningAlgorithm
       }
-    evolutionProperties |> evolveForXGenerations  
+    evolutionProperties |> evolveForXGenerations
   evolvedRecords
   |> Array.length
   |> should be (greaterThan 0)
@@ -1513,7 +1546,7 @@ let ``Should be able to end a generation via the fitness function`` () =
   let activationFunction = id
   let syncFunctionId = 0
   let syncFunctionSource : SyncFunctionSource =
-    (fun nodeRecordsId -> 
+    (fun nodeRecordsId ->
       let data =
         [1.0; 1.0; 1.0; 1.0; 1.0]
         |> List.toSeq
@@ -1629,7 +1662,7 @@ let ``Should be able to end a generation via the fitness function`` () =
           StartingRecords = generationRecords
           NeuronLearningAlgorithm = learningAlgorithm
       }
-    evolutionProperties |> evolveForXGenerations  
+    evolutionProperties |> evolveForXGenerations
   evolvedRecords
   |> Array.length
   |> should equal maximumMinds

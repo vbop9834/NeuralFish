@@ -37,8 +37,8 @@ let assertNodeRecordsContainsNode (nodeRecords : NodeRecords) (neuronId, (_, liv
       nodeRecord.NodeType |> should equal NodeRecordType.Neuron
       nodeRecord.Layer |> should equal liveNeuronNodeRecord.Layer
 
-      liveNeuronNodeRecord.OutboundConnections
-      |> Map.iter (assertRecordConnectionIsIdenticalTo nodeRecord.OutboundConnections)
+      liveNeuronNodeRecord.InboundConnections
+      |> Map.iter (assertRecordConnectionIsIdenticalTo nodeRecord.InboundConnections)
 
     | NodeRecordType.Sensor ->
       let nodeRecord =
@@ -50,8 +50,8 @@ let assertNodeRecordsContainsNode (nodeRecords : NodeRecords) (neuronId, (_, liv
       nodeRecord.NodeType |> should equal NodeRecordType.Sensor
       nodeRecord.Layer |> should equal 0.0
 
-      liveNeuronNodeRecord.OutboundConnections
-      |> Map.iter (assertRecordConnectionIsIdenticalTo nodeRecord.OutboundConnections)
+      liveNeuronNodeRecord.InboundConnections
+      |> Map.iter (assertRecordConnectionIsIdenticalTo nodeRecord.InboundConnections)
     | NodeRecordType.Actuator ->
       let nodeRecord =
         liveNeuronNodeRecord.NodeId
@@ -60,7 +60,7 @@ let assertNodeRecordsContainsNode (nodeRecords : NodeRecords) (neuronId, (_, liv
       nodeRecord.ActivationFunctionId |> should equal Option.None
       nodeRecord.Bias |> should equal Option.None
       nodeRecord.NodeType |> should equal NodeRecordType.Actuator
-      nodeRecord.OutboundConnections |> Seq.isEmpty |> should equal true
+      nodeRecord.InboundConnections |> Seq.isEmpty |> should equal true
       nodeRecord.Layer |> should equal liveNeuronNodeRecord.Layer
 
 [<Fact>]
@@ -128,16 +128,17 @@ let ``Should be able to construct a simple neural network from a map of node rec
   let getNodeId = getNumberGenerator()
 
   let syncFunction =
-      let data =
-        [1.0; 1.0; 1.0; 1.0; 1.0]
-        |> List.toSeq
-      fakeDataGenerator([data;data])
+    let data =
+      [1.0; 1.0; 1.0; 1.0; 1.0]
+      |> List.toSeq
+    fakeDataGenerator([data;data])
+  syncFunction ()
   let syncFunctionId = 9001
 
   let outputHookId = 9000
   let activationFunction = id
   let activationFunctionId = 777
-  let actuatorId = getNodeId()
+  let actuatorId = getNodeId  ()
 
   //Create Neurons
   let actuator =

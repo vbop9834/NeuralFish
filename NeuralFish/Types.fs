@@ -29,8 +29,15 @@ type NeuronLayerId = float
 
 type NeuronConnectionId = System.Guid
 
+type InboundNeuronConnection =
+  {
+    FromNodeId : NeuronId
+    Weight : Weight
+    InitialWeight : Weight
+  }
+
 type Synapse = NeuronId*NeuronOutput
-type WeightedSynapse = Synapse*Weight
+type WeightedSynapse = Synapse*InboundNeuronConnection
 type WeightedSynapses = Map<NeuronConnectionId, WeightedSynapse>
 
 type AxonHillockBarrier = Map<NeuronConnectionId, Synapse>
@@ -57,7 +64,7 @@ type NodeRecord =
     Layer: NeuronLayerId
     NodeId: NeuronId
     NodeType: NodeRecordType
-    OutboundConnections: NodeRecordConnections
+    InboundConnections: NodeRecordConnections
     Bias: Bias option
     ActivationFunctionId: ActivationFunctionId option
     SyncFunctionId: SyncFunctionId option
@@ -113,7 +120,7 @@ type NeuronActions =
   | Sync
   | ReceiveInput of NeuronConnectionId*Synapse*bool
   | AddOutboundConnection of (MailboxProcessor<NeuronActions>*NeuronId*NeuronLayerId*Weight)*AsyncReplyChannel<unit>
-  | AddInboundConnection of NeuronConnectionId*Weight*AsyncReplyChannel<unit>
+  | AddInboundConnection of NeuronConnectionId*NeuronId*Weight*AsyncReplyChannel<unit>
   | GetNodeRecord of AsyncReplyChannel<NodeRecord>
   | Die of AsyncReplyChannel<unit>
   | RegisterCortex of CortexInstance*AsyncReplyChannel<unit>
@@ -131,7 +138,8 @@ type NeuronConnection =
 
 type NeuronConnections = Map<NeuronConnectionId,NeuronConnection>
 type RecurrentNeuronConnections = Map<NeuronConnectionId,NeuronConnection>
-type InboundNeuronConnections = Map<NeuronConnectionId,Weight> 
+
+type InboundNeuronConnections = Map<NeuronConnectionId,InboundNeuronConnection> 
 
 type NeuralNetwork = Map<NeuronId, NeuronLayerId*NeuronInstance>
 

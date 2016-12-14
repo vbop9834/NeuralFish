@@ -10,3 +10,4 @@ exception NeuronInstanceUnavailableException of string
 exception NeuronDoesNotHaveAnActivationFunction of string
 exception MissingInboundConnectionException of string
 exception NodeRecordMissingOutboundConnection of string
+exception SensorInstanceDoesNotHaveAnyOutboundConnections of string

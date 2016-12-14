@@ -21,6 +21,7 @@ let createCortex infoLog liveNeurons : CortexInstance =
       |> Map.exists(fun i (_,neuron) -> neuron |> checkIfNeuronIsBusy || not <| actuatorIsActive neuron  )
     if neuralNetworkToWaitOn |> checkIfActuatorsAreReady then
       //200 milliseconds of sleep seems plenty while waiting on the NN
+      //TODO make this configurable
       System.Threading.Thread.Sleep(200)
       waitOnAcutuators neuralNetworkToWaitOn
     else

@@ -29,14 +29,15 @@ let ``When the Sensor receives the sync message, the neural circuit should activ
     let layer = 2.0
     createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
-
   let sensor =
     let syncFunctionId = 0
     let syncFunction =
-        let data =
-          [1.0; 1.0; 1.0; 1.0; 1.0]
-          |> List.toSeq
-        fakeDataGenerator([data])
+      let data =
+        [1.0; 1.0; 1.0; 1.0; 1.0]
+        |> List.toSeq
+      let dataStream = [data]
+      dataStream |> List.head
+      fakeDataGenerator(dataStream)
     let id = getNodeId()
     createSensor id syncFunction syncFunctionId 1
     |> createNeuronInstance
