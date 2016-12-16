@@ -236,7 +236,9 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
               processingNodeRecords
               |> Map.toSeq
             let layer =
-              match fromNode.Layer < toNode.Layer with
+              let fromLayer = System.BitConverter.DoubleToInt64Bits fromNode.Layer
+              let toLayer = System.BitConverter.DoubleToInt64Bits toNode.Layer
+              match fromLayer < toLayer with
               | true ->
                   getRandomDoubleBetween fromNode.Layer toNode.Layer
               | false ->
@@ -405,7 +407,7 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
               let layer =
                 let maxLayer =
                   seqOfNodes
-                  |> Seq.maxBy(fun (_,nodeRecord) -> nodeRecord.Layer)
+                  |> Seq.maxBy(fun (_,nodeRecord) -> nodeRecord.Layer |> System.BitConverter.DoubleToInt64Bits)
                   |> (fun (_,record) -> record.Layer)
                 maxLayer
                 |> round

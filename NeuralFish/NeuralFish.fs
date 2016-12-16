@@ -307,7 +307,7 @@ let createNeuronInstance infoLog neuronType =
               |> toNode.Post
 
               //queue up blank synapses for recurrent connections
-              if (nodeLayer >= outboundLayer) then
+              if (System.BitConverter.DoubleToInt64Bits(nodeLayer) >= System.BitConverter.DoubleToInt64Bits(outboundLayer)) then
                 sprintf "Sending recurrent blank synapse to %A via %A" toNodeId neuronConnectionId |> infoLog
                 (neuronConnectionId, (nodeId,0.0), false)
                 |> ReceiveInput

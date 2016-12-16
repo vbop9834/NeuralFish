@@ -970,7 +970,7 @@ let ``AddSensorLink mutation should add a sensor connection randomly in the neur
   Die |> testHookMailbox.PostAndReply
 
 [<Fact>]
-let ``AddActuatorLink mutation should add an actuaor connection randomly in the neural network`` () =
+let ``AddActuatorLink mutation should add an actuator connection randomly in the neural network`` () =
   //Test setup
   let (testHook, testHookMailbox) = getTestHook ()
   let getNodeId = getNumberGenerator()
@@ -1357,6 +1357,15 @@ let ``Should be able to evolve x generations`` () =
       let data =
         [1.0; 1.0; 1.0; 1.0; 1.0]
         |> List.toSeq
+      let dataStream = 
+        [
+          data
+          (Seq.append data data)
+          data
+          (Seq.append data data)
+          (Seq.append data data)
+          data
+        ]
       fakeDataGenerator([data])
     )
 
