@@ -63,7 +63,7 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
         let addInboundConnection (toNode : NodeRecord) (fromNode : NodeRecord) =
           let newInboundConnections =
             toNode.InboundConnections
-            |> Map.add (System.Guid.NewGuid()) (toNode.NodeId,1.0)
+            |> Map.add (System.Guid.NewGuid()) (fromNode.NodeId,1.0)
           { toNode with InboundConnections = newInboundConnections }
         let selectRandomNode (randomNodeRecords : NodeRecords) =
           let seqOfNodeRecords = randomNodeRecords |> Map.toSeq

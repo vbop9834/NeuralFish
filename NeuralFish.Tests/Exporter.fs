@@ -36,6 +36,7 @@ let assertNodeRecordsContainsNode (nodeRecords : NodeRecords) (neuronId, (_, liv
       nodeRecord.Bias.Value |> should equal liveNeuronNodeRecord.Bias.Value
       nodeRecord.NodeType |> should equal NodeRecordType.Neuron
       nodeRecord.Layer |> should equal liveNeuronNodeRecord.Layer
+      nodeRecord.InboundConnections |> Seq.isEmpty |> should equal false
 
       liveNeuronNodeRecord.InboundConnections
       |> Map.iter (assertRecordConnectionIsIdenticalTo nodeRecord.InboundConnections)
@@ -49,6 +50,7 @@ let assertNodeRecordsContainsNode (nodeRecords : NodeRecords) (neuronId, (_, liv
       nodeRecord.Bias |> should equal Option.None
       nodeRecord.NodeType |> should equal NodeRecordType.Sensor
       nodeRecord.Layer |> should equal 0.0
+      nodeRecord.InboundConnections |> Seq.isEmpty |> should equal true
 
       liveNeuronNodeRecord.InboundConnections
       |> Map.iter (assertRecordConnectionIsIdenticalTo nodeRecord.InboundConnections)
@@ -60,7 +62,7 @@ let assertNodeRecordsContainsNode (nodeRecords : NodeRecords) (neuronId, (_, liv
       nodeRecord.ActivationFunctionId |> should equal Option.None
       nodeRecord.Bias |> should equal Option.None
       nodeRecord.NodeType |> should equal NodeRecordType.Actuator
-      nodeRecord.InboundConnections |> Seq.isEmpty |> should equal true
+      nodeRecord.InboundConnections |> Seq.isEmpty |> should equal false
       nodeRecord.Layer |> should equal liveNeuronNodeRecord.Layer
 
 [<Fact>]
@@ -132,7 +134,6 @@ let ``Should be able to construct a simple neural network from a map of node rec
       [1.0; 1.0; 1.0; 1.0; 1.0]
       |> List.toSeq
     fakeDataGenerator([data;data])
-  syncFunction ()
   let syncFunctionId = 9001
 
   let outputHookId = 9000
@@ -711,5 +712,7 @@ let ``After reconstruction, Sensor should inflate data if there is not enough da
   WaitForData
   |> testHookMailbox.PostAndReply
   |> (should equal 110.0)
+  
+  neuralNetwork |> killNeuralNetwork
 
   Die |> testHookMailbox.PostAndReply

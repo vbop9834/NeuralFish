@@ -36,7 +36,6 @@ let ``When the Sensor receives the sync message, the neural circuit should activ
         [1.0; 1.0; 1.0; 1.0; 1.0]
         |> List.toSeq
       let dataStream = [data]
-      dataStream |> List.head
       fakeDataGenerator(dataStream)
     let id = getNodeId()
     createSensor id syncFunction syncFunctionId 1

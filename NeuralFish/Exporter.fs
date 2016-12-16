@@ -51,7 +51,7 @@ let constructNeuralNetwork (neuralNetProperties : ConstructNeuralNetworkProperti
             raise (NeuronInstanceException <| sprintf "Trying to connect and can't find a neuron with id %A" targetNodeId)
           let fromLayer, fromNode =
             liveNeurons
-            |> Map.find targetNodeId
+            |> Map.find fromNodeId
 
           //Set connection in live neuron
           (fun r -> ((targetNode, targetNodeId, targetLayer, weight), r) |> NeuronActions.AddOutboundConnection)
