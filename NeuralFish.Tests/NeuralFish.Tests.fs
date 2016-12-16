@@ -368,7 +368,7 @@ let ``Sensor should inflate data if there is not enough data to go to all the ne
     let syncFunctionId = 0
     let syncFunction =
         let data =
-          [1.0; 1.0; 1.0; 1.0; 1.0]
+          [1.0]
           |> List.toSeq
         fakeDataGenerator([data])
     let id = getNodeId()
@@ -394,7 +394,7 @@ let ``Sensor should inflate data if there is not enough data to go to all the ne
   synchronize sensor
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should equal 110.0)
+  |> (should equal 30.0)
 
   [
     sensor
