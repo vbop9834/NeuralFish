@@ -36,7 +36,7 @@ type InboundNeuronConnection =
     InitialWeight : Weight
   }
 
-type Synapse = NeuronId*NeuronOutput
+type Synapse = NeuronOutput
 type WeightedSynapse = Synapse*InboundNeuronConnection
 type WeightedSynapses = Map<NeuronConnectionId, WeightedSynapse>
 

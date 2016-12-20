@@ -55,15 +55,15 @@ let synapseDotProduct (weightedSynapses : WeightedSynapses) =
   let rec loop synapses =
     match synapses with
     | [] -> 0.0
-    | ((_,value), inboundConnection)::tail -> value*inboundConnection.Weight + (loop tail)
+    | (value, inboundConnection)::tail -> value*inboundConnection.Weight + (loop tail)
   weightedSynapses |> Map.toList |> List.map snd |> loop
 
 
-let createNeuronFromRecord activationFunction record =
+let createNeuronFromRecord (activationFunction : ActivationFunction) (record : NodeRecord) : NeuronType =
   {
     Record = record
     ActivationFunction = activationFunction
-  } |> Neuron
+  } |> NeuronType.Neuron
 
 let createNeuron id layer activationFunction activationFunctionId bias learningAlgorithm =
    {
@@ -148,7 +148,7 @@ let createNeuronInstance infoLog neuronType =
   let activateNeuron (barrier : WeightedSynapses) (outboundConnections : NeuronConnections) (neuronProps : NeuronProperties) =
     let sendSynapseToNeurons (outputNeurons : NeuronConnections) outputValue =
       let sendSynapseToNeuron outputValue neuronConnectionId outputNeuronConnection =
-        (neuronConnectionId, (outputNeuronConnection.NodeId, outputValue), true)
+        (neuronConnectionId, outputValue, true)
         |> ReceiveInput
         |> outputNeuronConnection.Neuron.Post
       outputNeurons
@@ -169,15 +169,15 @@ let createNeuronInstance infoLog neuronType =
     |> neuronProps.ActivationFunction
     |> logNeuronOutput neuronProps.Record.NodeId neuronProps.Record.ActivationFunctionId neuronProps.Record.Bias
     |> sendSynapseToNeurons outboundConnections
-  let activateActuator barrier actuatorProps =
-      let logActuatorOutput nodeId outputHookId outputValue =
+  let activateActuator (barrier : IncomingSynapses) actuatorProps =
+      let logActuatorOutput outputHookId outputValue =
         sprintf "Actuator %A is outputting %A with output hook %A" nodeId outputValue outputHookId
         |> infoLog
         outputValue
       barrier
       |> Map.toSeq
-      |> Seq.sumBy (fun (_,(_,value)) -> value)
-      |> logActuatorOutput actuatorProps.Record.NodeId actuatorProps.Record.OutputHookId
+      |> Seq.sumBy (fun (_,value) -> value)
+      |> logActuatorOutput actuatorProps.Record.OutputHookId
       |> actuatorProps.OutputHook
 
   let neuronInstance = NeuronInstance.Start(fun inbox ->
@@ -222,7 +222,7 @@ let createNeuronInstance infoLog neuronType =
                   ()
                 else
                   let sendSynapseToNeuron (neuron : NeuronInstance) neuronConnectionId outputValue =
-                    (neuronConnectionId, (nodeId, outputValue), true)
+                    (neuronConnectionId, outputValue, true)
                     |> ReceiveInput
                     |> neuron.Post
                   let data = dataStream |> Seq.head
@@ -240,7 +240,7 @@ let createNeuronInstance infoLog neuronType =
               return! loop barrier inboundConnections outboundConnections newMaximumVectorLength maybeCortex
           | ReceiveInput (neuronConnectionId, package, activateIfBarrierIsFull) ->
             let processLearning learningAlgorithm (weightedSynapses : WeightedSynapses) (neuronOutput : NeuronOutput) : InboundNeuronConnections =
-              let processLearningForConnection neuronConnectionId ((fromNeuronid, inputValue), inboundConnection) =
+              let processLearningForConnection neuronConnectionId (inputValue, inboundConnection) =
                 match learningAlgorithm with
                 | NoLearning -> inboundConnection
                 | Hebbian learningRateCoefficient ->
@@ -309,7 +309,7 @@ let createNeuronInstance infoLog neuronType =
               //queue up blank synapses for recurrent connections
               if (System.BitConverter.DoubleToInt64Bits(nodeLayer) >= System.BitConverter.DoubleToInt64Bits(outboundLayer)) then
                 sprintf "Sending recurrent blank synapse to %A via %A" toNodeId neuronConnectionId |> infoLog
-                (neuronConnectionId, (nodeId,0.0), false)
+                (neuronConnectionId, 0.0, false)
                 |> ReceiveInput
                 |> toNode.Post
 
