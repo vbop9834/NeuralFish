@@ -897,10 +897,16 @@ let getLiveEvolutionInstance liveEvolutionProperties =
           processEvolutionLoop updatedNewGeneration updatedPreviousGeneration
       processEvolutionLoop Array.empty currentGen
     //TODO optimize this
+    let executeBeforeGenFunction genRecords =
+      match liveEvolutionProperties.BeforeGenerationFunctionOption with
+      | None -> ()
+      | Some beforeGenFunc -> genRecords |> beforeGenFunc
+      genRecords
     generationRecords
     |> Map.toArray
     |> processEvolution
     |> Map.ofArray
+    |> executeBeforeGenFunction
   let createNewActiveCortex nodeRecords =
     {
       ActivationFunctions = liveEvolutionProperties.ActivationFunctions

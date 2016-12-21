@@ -184,7 +184,7 @@ let createNeuronInstance infoLog neuronType =
     let rec loop (barrier : AxonHillockBarrier)
                    (inboundConnections : InboundNeuronConnections)
                      (outboundConnections : NeuronConnections)
-                       maximumVectorLength
+                       (maximumVectorLength : int)
                          (maybeCortex : bool option) =
       async {
         let! someMsg = inbox.TryReceive 250
@@ -286,7 +286,7 @@ let createNeuronInstance infoLog neuronType =
                   let readyToActivate = Some true
                   return! loop updatedBarrier inboundConnections outboundConnections maximumVectorLength readyToActivate
               else
-                sprintf "Node %A not activated. Received %A from %A" props.Record.NodeId package neuronConnectionId |> infoLog
+                sprintf "Node %A not activated. Received %A from %A" nodeId package neuronConnectionId |> infoLog
                 return! loop updatedBarrier inboundConnections outboundConnections maximumVectorLength maybeCortex
             | Sensor _ ->
               //Sensors use the sync msg
@@ -308,7 +308,7 @@ let createNeuronInstance infoLog neuronType =
 
               //queue up blank synapses for recurrent connections
               if (System.BitConverter.DoubleToInt64Bits(nodeLayer) >= System.BitConverter.DoubleToInt64Bits(outboundLayer)) then
-                sprintf "Sending recurrent blank synapse to %A via %A" toNodeId neuronConnectionId |> infoLog
+                sprintf "Node %A Sending recurrent blank synapse to %A via %A" nodeId toNodeId neuronConnectionId |> infoLog
                 (neuronConnectionId, 0.0, false)
                 |> ReceiveInput
                 |> toNode.Post

@@ -173,6 +173,7 @@ type LiveFitnessFunction = NodeRecordsId -> Score*ThinkCycleOption
 type GenerationRecords = Map<NodeRecordsId, NodeRecords>
 
 type EndOfGenerationFunction = ScoredNodeRecords -> unit
+type BeforeGenerationFunction = GenerationRecords -> unit
 
 type SyncFunctionSource = NodeRecordsId -> SyncFunction
 type SyncFunctionSources = Map<SyncFunctionId, SyncFunctionSource>
@@ -305,5 +306,6 @@ type LiveEvolutionProperties =
     OutputHookFunctions : OutputHookFunctions
     ActivationFunctions : ActivationFunctions
     EndOfGenerationFunctionOption : EndOfGenerationFunction option
+    BeforeGenerationFunctionOption : BeforeGenerationFunction option
     InfoLog : InfoLogFunction
   }
