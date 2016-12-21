@@ -28,17 +28,19 @@ let createCortex infoLog liveNeurons : CortexInstance =
       ()
 
   let registerCortex (neuralNetwork : NeuralNetwork) cortex =
-    //TODO do this right. Remove the synchronous behavior and map manipulation
-    let sendCortexToActuatorAsync _ (_, neuronInstance : NeuronInstance) : Async<unit> =
+    let sendCortexToActuatorAsync _ (_, neuronInstance : NeuronInstance) =
       (fun r -> RegisterCortex (cortex,r)) |> neuronInstance.PostAndAsyncReply
     neuralNetwork
     |> Map.map sendCortexToActuatorAsync
-    |> Map.iter (fun _ asyncthingy -> asyncthingy |> Async.RunSynchronously)
+    |> Map.toArray
+    |> Array.Parallel.map snd
+    |> Async.Parallel
+    |> ignore
 
     cortex
 
   CortexInstance.Start(fun inbox ->
-    let rec loop liveNeurons = 
+    let rec loop liveNeurons =
       async {
         let! someMsg = inbox.TryReceive 250
         match someMsg with
@@ -66,10 +68,9 @@ let createCortex infoLog liveNeurons : CortexInstance =
             liveNeurons |> killNeuralNetwork
             "Cortex - Replying with Updated records" |> infoLog
             updatedNodeRecords |> replyChannel.Reply
-            () 
+            ()
       }
-    loop liveNeurons 
+    loop liveNeurons
   )
   |> registerCortex liveNeurons
   |> (fun x -> x.Error.Add(fun x -> sprintf "%A" x |> infoLog); x)
-

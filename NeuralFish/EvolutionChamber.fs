@@ -223,6 +223,11 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
           processingNodeRecords
           |> Map.add mutatedNode.NodeId mutatedNode
         | AddNeuron ->
+          let newNeuronLayer =
+            processingNodeRecords
+            |> Map.filter(fun _ x -> x.NodeType = NodeRecordType.Neuron)
+            |> selectRandomNode
+            |> (fun (_,x) -> x.Layer)
           let _,fromNode =
             processingNodeRecords
             |> Map.filter(fun _ x -> x.NodeType <> NodeRecordType.Actuator)
@@ -235,14 +240,6 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
             let seqOfNodes =
               processingNodeRecords
               |> Map.toSeq
-            let layer =
-              let fromLayer = System.BitConverter.DoubleToInt64Bits fromNode.Layer
-              let toLayer = System.BitConverter.DoubleToInt64Bits toNode.Layer
-              match fromLayer < toLayer with
-              | true ->
-                  getRandomDoubleBetween fromNode.Layer toNode.Layer
-              | false ->
-                  getRandomDoubleBetween fromNode.Layer toNode.Layer
             let inboundConnections = Map.empty
             let nodeId =
               seqOfNodes
@@ -251,7 +248,7 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
             let activationFunctionId = selectRandomActivationFunctionId ()
 
             {
-              Layer = layer
+              Layer = newNeuronLayer
               NodeId = nodeId
               NodeType = NodeRecordType.Neuron
               InboundConnections = inboundConnections
@@ -404,13 +401,7 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
               let seqOfNodes =
                 processingNodeRecords
                 |> Map.toSeq
-              let layer =
-                let maxLayer =
-                  seqOfNodes
-                  |> Seq.maxBy(fun (_,nodeRecord) -> nodeRecord.Layer |> System.BitConverter.DoubleToInt64Bits)
-                  |> (fun (_,record) -> record.Layer)
-                maxLayer
-                |> round
+              let layer = 9999999999.9999999
               let inboundConnections = Map.empty
               let nodeId =
                 seqOfNodes
