@@ -38,7 +38,7 @@ let fakeDataGenerator (initialBuffer : (float seq) list) =
     ) |> (fun x -> x.Error.Add(fun err -> printfn "%A" err); x)
   //TODO these never die. Need to manage this
   (fun () ->
-     match generator.TryPostAndReply(GetData, timeout = 250) with
+     match generator.TryPostAndReply(GetData, timeout = 5000) with
      | Some data -> data
      | None -> raise <| System.Exception("Data Generator is dead")
    )

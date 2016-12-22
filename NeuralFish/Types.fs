@@ -29,8 +29,12 @@ type NeuronLayerId = float
 
 type NeuronConnectionId = System.Guid
 
+type ConnectionOrder = int
+
 type InboundNeuronConnection =
   {
+    ConnectionOrder : ConnectionOrder option
+    NeuronConnectionId : NeuronConnectionId
     FromNodeId : NeuronId
     Weight : Weight
     InitialWeight : Weight
@@ -38,20 +42,27 @@ type InboundNeuronConnection =
 
 type Synapse = NeuronOutput
 type WeightedSynapse = Synapse*InboundNeuronConnection
-type WeightedSynapses = Map<NeuronConnectionId, WeightedSynapse>
+type WeightedSynapses = seq<WeightedSynapse>
 
 type AxonHillockBarrier = Map<NeuronConnectionId, Synapse>
 
 type IncomingSynapses = Map<NeuronConnectionId, Synapse>
 
-type InactiveNeuronConnection = NeuronId*Weight
+type InactiveNeuronConnection = 
+  {
+    NodeId : NeuronId
+    Weight : Weight
+    ConnectionOrder : ConnectionOrder option
+  }
+
+type NumberOfOutboundConnections = int
 
 type NodeRecordType =
   | Neuron
-  | Sensor
+  | Sensor of NumberOfOutboundConnections
   | Actuator
 
-type NodeRecordConnections = Map<NeuronConnectionId,InactiveNeuronConnection>
+type NodeRecordConnections = seq<InactiveNeuronConnection>
 
 type LearningRateCoefficient = float
 
@@ -116,11 +127,18 @@ type NeuronType =
   | Sensor of SensorProperties
   | Actuator of ActuatorProperties
 
+type PartialOutboundConnection =
+  {
+    ConnectionOrderOption : ConnectionOrder option
+    InitialWeight : Weight
+    ToNodeId : NeuronId
+  }
+
 type NeuronActions =
   | Sync
   | ReceiveInput of NeuronConnectionId*Synapse*bool
-  | AddOutboundConnection of (MailboxProcessor<NeuronActions>*NeuronId*NeuronLayerId*Weight)*AsyncReplyChannel<unit>
-  | AddInboundConnection of NeuronConnectionId*NeuronId*Weight*AsyncReplyChannel<unit>
+  | AddOutboundConnection of (NodeRecordType*MailboxProcessor<NeuronActions>*NeuronLayerId*PartialOutboundConnection)*AsyncReplyChannel<unit>
+  | AddInboundConnection of InboundNeuronConnection*AsyncReplyChannel<unit>
   | GetNodeRecord of AsyncReplyChannel<NodeRecord>
   | Die of AsyncReplyChannel<unit>
   | RegisterCortex of CortexInstance*AsyncReplyChannel<unit>
@@ -131,15 +149,16 @@ type NeuronInstance = MailboxProcessor<NeuronActions>
 
 type NeuronConnection =
   {
+    NeuronConnectionId : NeuronConnectionId
+    ConnectionOrder : ConnectionOrder
     InitialWeight : Weight
     Neuron: NeuronInstance
     NodeId: NeuronId
   }
 
-type NeuronConnections = Map<NeuronConnectionId,NeuronConnection>
-type RecurrentNeuronConnections = Map<NeuronConnectionId,NeuronConnection>
+type NeuronConnections = seq<NeuronConnection>
 
-type InboundNeuronConnections = Map<NeuronConnectionId,InboundNeuronConnection> 
+type InboundNeuronConnections = seq<InboundNeuronConnection> 
 
 type NeuralNetwork = Map<NeuronId, NeuronLayerId*NeuronInstance>
 

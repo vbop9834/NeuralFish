@@ -379,10 +379,6 @@ let ``Sensor should inflate data if there is not enough data to go to all the ne
   let weights =
     [
       20.0
-      20.0
-      20.0
-      20.0
-      20.0
     ] |> List.toSeq
 
   sensor |> connectSensorToNode neuron_1a weights

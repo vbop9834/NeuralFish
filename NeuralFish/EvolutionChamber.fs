@@ -21,6 +21,11 @@ let minimalMutationSequence : MutationSequence =
     AddActuatorLink
   ] |> List.toSeq
 
+let private isRecordASensor nodeRecordToCheck =
+  match nodeRecordToCheck with
+  | NodeRecordType.Sensor _ -> true
+  | _ -> false
+
 let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords =
   let outputHookFunctionIds = mutationProperties.OutputHookFunctionIds
   let syncFunctionIds = mutationProperties.SyncFunctionIds
@@ -62,8 +67,17 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
         sprintf "Mutating using %A" mutation |> infoLog
         let addInboundConnection (toNode : NodeRecord) (fromNode : NodeRecord) =
           let newInboundConnections =
-            toNode.InboundConnections
-            |> Map.add (System.Guid.NewGuid()) (fromNode.NodeId,1.0)
+            let connectionOrder =
+              match fromNode.NodeType with
+              | NodeRecordType.Sensor numberOfOutboundConnections -> Some numberOfOutboundConnections
+              | _ -> None
+            let newInactiveConnection =
+              {
+                ConnectionOrder = connectionOrder
+                NodeId = fromNode.NodeId
+                Weight = 1.0
+              }
+            Seq.append toNode.InboundConnections [newInactiveConnection] 
           { toNode with InboundConnections = newInboundConnections }
         let selectRandomNode (randomNodeRecords : NodeRecords) =
           let seqOfNodeRecords = randomNodeRecords |> Map.toSeq
@@ -176,27 +190,29 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
         | MutateWeights ->
           let _, neuronToMutateWeights =
             processingNodeRecords
-            |> Map.filter(fun _ x -> x.NodeType <> NodeRecordType.Actuator)
+            |> Map.filter(fun _ x -> x.NodeType = NodeRecordType.Neuron)
             |> selectRandomNode
           let mutatedNeuron =
             let probabilityOfWeightMutation =
-              let totalNumberOfInboundCOnnections = neuronToMutateWeights.InboundConnections |> Map.toSeq |> Seq.length |> float
+              let totalNumberOfInboundCOnnections = neuronToMutateWeights.InboundConnections |> Seq.length |> float
               1.0/(sqrt totalNumberOfInboundCOnnections)
             let newInboundConnections =
-              let calculateProbabilityAndMutateWeight _ inactiveConnection =
-                let mutateWeight ((nodeId, weight) : InactiveNeuronConnection) =
+              let calculateProbabilityAndMutateWeight inactiveConnection =
+                let mutateWeight (inactiveConnection : InactiveNeuronConnection) : InactiveNeuronConnection =
                   let newWeight =
                     let pi = System.Math.PI
                     let maxValue = pi/2.0
                     let minValue = -1.0 * pi/2.0
                     getRandomDoubleBetween minValue maxValue
-                  (nodeId, newWeight)
+                  { inactiveConnection with
+                      Weight = newWeight
+                  }
                 if random.NextDouble() <= probabilityOfWeightMutation then
                   inactiveConnection |> mutateWeight
                 else
                   inactiveConnection
               neuronToMutateWeights.InboundConnections
-              |> Map.map calculateProbabilityAndMutateWeight
+              |> Seq.map calculateProbabilityAndMutateWeight
             { neuronToMutateWeights with InboundConnections = newInboundConnections }
 
           processingNodeRecords
@@ -215,7 +231,7 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
             |> selectRandomNode
           let _,toNode =
             processingNodeRecords
-            |> Map.filter(fun _ x -> x.NodeType <> NodeRecordType.Sensor)
+            |> Map.filter(fun _ x -> x.NodeType |> isRecordASensor |> not)
             |> selectRandomNode
           let mutatedNode =
             fromNode
@@ -234,13 +250,13 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
             |> selectRandomNode
           let _,toNode =
             processingNodeRecords
-            |> Map.filter(fun _ x -> x.NodeType <> NodeRecordType.Sensor)
+            |> Map.filter(fun _ x -> x.NodeType |> isRecordASensor |> not)
             |> selectRandomNode
           let blankNewNeuronRecord =
             let seqOfNodes =
               processingNodeRecords
               |> Map.toSeq
-            let inboundConnections = Map.empty
+            let inboundConnections = Seq.empty
             let nodeId =
               seqOfNodes
               |> Seq.maxBy(fun (nodeId,_) -> nodeId)
@@ -273,18 +289,17 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
         | AddSensorLink ->
           let sensorRecordsThatCanHaveAnotherOutput =
             let determineSensorEligibility key (nodeRecord : NodeRecord) =
-              if (nodeRecord.NodeType = NodeRecordType.Sensor) then
+              if (nodeRecord.NodeType |> isRecordASensor) then
                 let numberOfOutboundConnctions =
                   let getOutboundConnectionCount =
                     (fun (_,toNode) ->
                       toNode.InboundConnections
-                      |> Map.toSeq
-                      |> Seq.filter(fun (_,(fromNodeId,_)) -> fromNodeId = nodeRecord.NodeId)
+                      |> Seq.filter(fun inboundConnection -> inboundConnection.NodeId = nodeRecord.NodeId)
                       |> Seq.length
                     )
                   processingNodeRecords
                   |> Map.toArray
-                  |> Array.filter(fun (_, x) -> x.NodeType <> NodeRecordType.Sensor)
+                  |> Array.filter(fun (_, x) -> x.NodeType |> isRecordASensor |> not)
                   |> Array.Parallel.map getOutboundConnectionCount
                   |> Array.sum
                 match nodeRecord.MaximumVectorLength with
@@ -332,7 +347,7 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
         | AddSensor ->
           let sensorRecords =
             processingNodeRecords
-            |> Map.filter(fun _ record -> record.NodeType = NodeRecordType.Sensor)
+            |> Map.filter(fun _ record -> record.NodeType |> isRecordASensor)
           let numberOfCurrentSensors =
             sensorRecords
             |> Map.toSeq
@@ -347,7 +362,7 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
               |> selectRandomNode
             let blankSensorRecord =
               let layer = 0.0
-              let inboundConnections = Map.empty
+              let inboundConnections = Seq.empty
               let nodeId =
                 processingNodeRecords
                 |> Map.toSeq
@@ -366,7 +381,7 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
               {
                 Layer = layer
                 NodeId = nodeId
-                NodeType = NodeRecordType.Sensor
+                NodeType = NodeRecordType.Sensor 1
                 InboundConnections = inboundConnections
                 Bias = None
                 ActivationFunctionId = None
@@ -402,7 +417,7 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
                 processingNodeRecords
                 |> Map.toSeq
               let layer = 9999999999.9999999
-              let inboundConnections = Map.empty
+              let inboundConnections = Seq.empty
               let nodeId =
                 seqOfNodes
                 |> Seq.maxBy(fun (nodeId,_) -> nodeId)
@@ -573,7 +588,7 @@ let evolveForXGenerations (evolutionProperties : EvolutionProperties)
           let neededSyncFunctionIds =
             let sensorRecords =
               nodeRecords
-              |> Map.filter (fun _ record -> record.NodeType = NodeRecordType.Sensor)
+              |> Map.filter (fun _ record -> record.NodeType |> isRecordASensor)
             let getSyncFunctionId (sensorId, sensorRecord : NodeRecord) =
               if (sensorRecord.SyncFunctionId.IsNone) then
                 raise(SensorRecordDoesNotHaveASyncFunctionException <| sprintf "Sensor Record %A" sensorRecord.NodeId)

@@ -25,7 +25,7 @@ let constructNeuralNetwork (neuralNetProperties : ConstructNeuralNetworkProperti
         nodeRecord
         |> createNeuronFromRecord activationFunction
         |> createNeuronInstance infoLog
-      | NodeRecordType.Sensor ->
+      | NodeRecordType.Sensor _ ->
         if (nodeRecord.SyncFunctionId |> Option.isNone) then
           raise (NodeRecordTypeException <| sprintf "Sensor with id %A does not have a sync function id" nodeRecord.NodeId)
         //TODO tryfind goes here with exceptions
@@ -46,20 +46,25 @@ let constructNeuralNetwork (neuralNetProperties : ConstructNeuralNetworkProperti
   let connectNeurons (liveNeurons : NeuralNetwork) =
     let connectNode targetNodeId (targetLayer : NeuronLayerId, targetNode : NeuronInstance) =
       let processRecordConnections node =
-        let findNeuronAndAddToOutboundConnections (fromNodeId : NeuronId) (targetNodeId : NeuronId) (weight : Weight) =
+        let findNeuronAndAddToOutboundConnections (inboundConnection : InactiveNeuronConnection) (targetNodeId : NeuronId) =
           if not <| (liveNeurons |> Map.containsKey targetNodeId) then
             raise (NeuronInstanceException <| sprintf "Trying to connect and can't find a neuron with id %A" targetNodeId)
           let fromLayer, fromNode =
             liveNeurons
-            |> Map.find fromNodeId
+            |> Map.find inboundConnection.NodeId
 
           //Set connection in live neuron
-          (fun r -> ((targetNode, targetNodeId, targetLayer, weight), r) |> NeuronActions.AddOutboundConnection)
+          {
+            ConnectionOrderOption = inboundConnection.ConnectionOrder
+            ToNodeId = targetNodeId
+            InitialWeight = inboundConnection.Weight
+          }
+          |> (fun partialOutbound r -> ((node.NodeType, targetNode, targetLayer, partialOutbound), r) |> NeuronActions.AddOutboundConnection)
           |> fromNode.PostAndReply
 
         sprintf "%A has inbound connections %A" targetNodeId node.InboundConnections |> infoLog
         node.InboundConnections
-        |> Map.iter (fun _ (fromNodeId, weight) -> findNeuronAndAddToOutboundConnections fromNodeId node.NodeId weight  )
+        |> Seq.iter (fun inboundConnection -> findNeuronAndAddToOutboundConnections inboundConnection node.NodeId)
       nodeRecords
       |> Map.find targetNodeId
       |> processRecordConnections

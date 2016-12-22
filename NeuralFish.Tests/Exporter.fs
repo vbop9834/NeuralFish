@@ -13,17 +13,14 @@ open NeuralFish.Tests.TestHelper
 let assertNodeRecordsContainsNode (nodeRecords : NodeRecords) (neuronId, (_, liveNeuron : NeuronInstance)) =
   let liveNeuronNodeRecord = GetNodeRecord |> liveNeuron.PostAndReply
   let getNodeRecord nodeId = nodeRecords |> Map.find nodeId
-  let assertRecordConnectionIsIdenticalTo  (nodeRecordConnections : NodeRecordConnections)  =
-    (fun nodeRecordConnectionId (nodeId, weight) ->
-      nodeRecordConnections
-      |> Map.containsKey nodeRecordConnectionId
-      |> should equal true
-
-      let (generatedTargetNodeId, generatedWeight) = nodeRecordConnections |> Map.find nodeRecordConnectionId
-      generatedWeight |> should equal weight
-      generatedTargetNodeId |> should equal nodeId
+  let assertRecordConnectionIsIdenticalTo (nodeRecordConnections : NodeRecordConnections)  =
+    (fun index (nodeConnection : InactiveNeuronConnection) ->
+      match nodeRecordConnections |> Seq.tryItem index with
+      | None -> "Node record does not have the connection" |> should equal ""
+      | Some inactiveConnection -> 
+        nodeConnection.NodeId |> should equal inactiveConnection.NodeId
+        nodeConnection.Weight |> should equal inactiveConnection.Weight
     )
-
   match liveNeuronNodeRecord.NodeType with
     | NodeRecordType.Neuron ->
       let nodeRecord =
@@ -39,21 +36,22 @@ let assertNodeRecordsContainsNode (nodeRecords : NodeRecords) (neuronId, (_, liv
       nodeRecord.InboundConnections |> Seq.isEmpty |> should equal false
 
       liveNeuronNodeRecord.InboundConnections
-      |> Map.iter (assertRecordConnectionIsIdenticalTo nodeRecord.InboundConnections)
+      |> Seq.iteri (assertRecordConnectionIsIdenticalTo nodeRecord.InboundConnections)
 
-    | NodeRecordType.Sensor ->
+    | NodeRecordType.Sensor _ ->
       let nodeRecord =
         liveNeuronNodeRecord.NodeId
         |> getNodeRecord
 
       nodeRecord.ActivationFunctionId |> should equal Option.None
       nodeRecord.Bias |> should equal Option.None
-      nodeRecord.NodeType |> should equal NodeRecordType.Sensor
+      match nodeRecord.NodeType with | NodeRecordType.Sensor _ -> true | _ -> false 
+      |> should equal true
       nodeRecord.Layer |> should equal 0.0
       nodeRecord.InboundConnections |> Seq.isEmpty |> should equal true
 
       liveNeuronNodeRecord.InboundConnections
-      |> Map.iter (assertRecordConnectionIsIdenticalTo nodeRecord.InboundConnections)
+      |> Seq.iteri (assertRecordConnectionIsIdenticalTo nodeRecord.InboundConnections)
     | NodeRecordType.Actuator ->
       let nodeRecord =
         liveNeuronNodeRecord.NodeId
@@ -615,7 +613,7 @@ let ``After reconstruction, Sensor should inflate data if there is not enough da
   let syncFunctionId = 0
   let syncFunction =
    let data =
-     [1.0; 1.0; 1.0; 1.0; 1.0]
+     [1.0]
      |> List.toSeq
    fakeDataGenerator([data])
 
@@ -665,7 +663,7 @@ let ``After reconstruction, Sensor should inflate data if there is not enough da
   synchronize sensor
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should equal 110.0)
+  |> (should equal 30.0)
 
   let nodeRecords =
     Map.empty
@@ -711,7 +709,7 @@ let ``After reconstruction, Sensor should inflate data if there is not enough da
   synchronizeNN neuralNetwork
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should equal 110.0)
+  |> (should equal 30.0)
   
   neuralNetwork |> killNeuralNetwork
 
