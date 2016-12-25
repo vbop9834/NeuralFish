@@ -212,12 +212,8 @@ type Mutation =
   // //Choose a random neuron A, node B, and add a connection
   | AddOutboundConnection
   | AddNeuron
-  // //Create a new neuron A, position randomly in NN.
-  // //Random Activation Function
-  // //Random inbound and outbound
-  // | OutSplice
-  // | InSplice
-  // //Create a new neuron A and sandwich between two nodes
+  | AddNeuronOutSplice
+  | AddNeuronInSplice
   | AddSensorLink
   | AddActuatorLink
   // | RemoveSensorLink

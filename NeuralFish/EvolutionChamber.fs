@@ -284,8 +284,70 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
           processingNodeRecords
           |> Map.add updatedNeuronRecord.NodeId updatedNeuronRecord
           |> Map.add updatedToNode.NodeId updatedToNode
-       // | OutSplice ->
-       // | InSplice ->
+        | AddNeuronInSplice
+        | AddNeuronOutSplice ->
+          let _,toNode =
+            processingNodeRecords
+            |> Map.filter(fun _ x -> x.NodeType |> isRecordASensor |> not)
+            |> selectRandomNode
+          let randomInboundItemId = 
+             toNode.InboundConnections 
+             |> Seq.length
+             |> random.Next
+          let toNodeInactiveConnection =
+             toNode
+             |> (fun x -> x.InboundConnections)
+             |> Seq.item randomInboundItemId 
+          let fromNode =
+            processingNodeRecords
+            |> Map.find toNodeInactiveConnection.NodeId
+            
+          let newNeuronLayer =
+            match toNode.NodeType with
+            | NodeRecordType.Actuator ->
+              fromNode.Layer + 1.0
+            | NodeRecordType.Neuron ->
+             (fromNode.Layer + toNode.Layer)/2.0
+            | _ -> raise <| System.Exception("Record is a Sensor. Expected a Neuron or Actuator")
+          let blankNewNeuronRecord =
+            let seqOfNodes =
+              processingNodeRecords
+              |> Map.toSeq
+            let inboundConnections = Seq.empty
+            let nodeId =
+              seqOfNodes
+              |> Seq.maxBy(fun (nodeId,_) -> nodeId)
+              |> (fun (nodeId,_) -> nodeId + 1)
+            let activationFunctionId = selectRandomActivationFunctionId ()
+
+            {
+              Layer = newNeuronLayer
+              NodeId = nodeId
+              NodeType = NodeRecordType.Neuron
+              InboundConnections = inboundConnections
+              Bias = None
+              ActivationFunctionId = Some activationFunctionId
+              SyncFunctionId = None
+              OutputHookId = None
+              MaximumVectorLength = None
+              NeuronLearningAlgorithm = learningAlgorithm
+            }
+          let updatedToNode =
+            let updatedInboundConnections =
+              let newConnection = { toNodeInactiveConnection with NodeId=blankNewNeuronRecord.NodeId}
+              toNode.InboundConnections
+              |> Seq.filter(fun x -> x <> toNodeInactiveConnection)
+              |> Seq.append [newConnection]
+            { toNode with
+                InboundConnections = updatedInboundConnections
+            }
+            
+          let updatedNeuronRecord =
+            fromNode
+            |> addInboundConnection blankNewNeuronRecord
+          processingNodeRecords
+          |> Map.add updatedNeuronRecord.NodeId updatedNeuronRecord
+          |> Map.add updatedToNode.NodeId updatedToNode
         | AddSensorLink ->
           let sensorRecordsThatCanHaveAnotherOutput =
             let determineSensorEligibility key (nodeRecord : NodeRecord) =
