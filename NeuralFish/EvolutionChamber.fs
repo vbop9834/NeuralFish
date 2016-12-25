@@ -227,7 +227,7 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
         | Mutation.AddInboundConnection ->
           let _,fromNode =
             processingNodeRecords
-            |> Map.filter(fun _ x -> x.NodeType <> NodeRecordType.Actuator)
+            |> Map.filter(fun _ x -> x.NodeType = NodeRecordType.Neuron)
             |> selectRandomNode
           let _,toNode =
             processingNodeRecords
@@ -305,10 +305,19 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
           let newNeuronLayer =
             match toNode.NodeType with
             | NodeRecordType.Actuator ->
-              fromNode.Layer + 1.0
+              match fromNode.NodeType with
+              | NodeRecordType.Sensor _ ->
+                raise <| System.Exception("Outsplice should not connect a sensor and actuator")
+              | _ ->
+                (fromNode.Layer + 1)
             | NodeRecordType.Neuron ->
-             (fromNode.Layer + toNode.Layer)/2.0
-            | _ -> raise <| System.Exception("Record is a Sensor. Expected a Neuron or Actuator")
+              match fromNode.NodeType with
+              | NodeRecordType.Neuron ->
+                (fromNode.Layer + toNode.Layer) / 2
+              | NodeRecordType.Actuator -> raise <| System.Exception("Record is an Actuator. Expected a Neuron or Sensor")
+              | NodeRecordType.Sensor _ ->
+                (toNode.Layer + 1) / 2
+            | NodeRecordType.Sensor _ -> raise <| System.Exception("Record is a Sensor. Expected a Neuron or Actuator")
           let blankNewNeuronRecord =
             let seqOfNodes =
               processingNodeRecords
@@ -423,7 +432,7 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
               |> Map.filter(fun _ x -> x.NodeType = NodeRecordType.Neuron)
               |> selectRandomNode
             let blankSensorRecord =
-              let layer = 0.0
+              let layer = 0
               let inboundConnections = Seq.empty
               let nodeId =
                 processingNodeRecords
@@ -478,7 +487,7 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
               let seqOfNodes =
                 processingNodeRecords
                 |> Map.toSeq
-              let layer = 9999999999.9999999
+              let layer = 0
               let inboundConnections = Seq.empty
               let nodeId =
                 seqOfNodes

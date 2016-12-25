@@ -25,7 +25,7 @@ type OutputHookFunctions = Map<OutputHookId, OutputHookFunction>
 type OutputHookFunctionIds = OutputHookId seq
 type SyncFunctionIds = SyncFunctionId seq
 
-type NeuronLayerId = float
+type NeuronLayerId = int
 
 type NeuronConnectionId = System.Guid
 

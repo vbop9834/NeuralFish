@@ -25,7 +25,7 @@ let ``Cortex should be able to synchronize neural activity`` () =
 
   let actuatorId = getNodeId()
   let actuator =
-    let layer = 3.0
+    let layer = 3
     createActuator actuatorId layer testHook outputHookId
     |> createNeuronInstance
 
@@ -33,7 +33,7 @@ let ``Cortex should be able to synchronize neural activity`` () =
   let neuron =
     let activationFunction = id
     let bias = 10.0
-    let layer = 2.0
+    let layer = 2
     createNeuron neuronId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 

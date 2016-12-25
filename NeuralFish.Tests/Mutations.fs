@@ -29,13 +29,13 @@ let ``AddNeuronOutSplice mutation should add a neuron in a new layer, increasing
 
   //Create Neurons
   let actuator =
-    let layer = 3.0
+    let layer = 3
     createActuator actuatorId layer testHook outputHookId
     |> createNeuronInstance
   let neuron =
     let bias = 0.0
     let nodeId = getNodeId()
-    let layer = 2.0
+    let layer = 2
     createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
@@ -108,7 +108,7 @@ let ``AddNeuronOutSplice mutation should add a neuron in a new layer, increasing
 
   let originalNeuron = neuronRecords |> Map.find (fst neuron)
   neuronRecords
-  |> Map.exists(fun _ record -> System.BitConverter.DoubleToInt64Bits(record.Layer) <> System.BitConverter.DoubleToInt64Bits(originalNeuron.Layer))
+  |> Map.exists(fun _ record -> record.Layer <> originalNeuron.Layer)
   |> should equal true
 
   let neuralNetwork =

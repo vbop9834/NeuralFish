@@ -97,7 +97,7 @@ let getDefaultNodeRecords activationFunctions
   let addNeuronToMap (neuronId, neuronInstance) =
     Map.add neuronId neuronInstance
   let actuator =
-    let layer = 100000.0
+    let layer = 0
     let fakeOutputHook = (fun x -> ())
     let nodeId = 0
     let outputHookId =
@@ -109,7 +109,7 @@ let getDefaultNodeRecords activationFunctions
   let neuron =
     let bias = 0.0
     let nodeId = 1
-    let layer = 50000.0
+    let layer = 1
     let activationFunctionId, activationFunction =
       match activationFunctions |> Map.toSeq |> Seq.tryHead with
       | Some xTuple -> xTuple

@@ -88,7 +88,7 @@ let createSensorFromRecord syncFunction record =
 let createSensor id syncFunction syncFunctionId maximumVectorLength =
   {
     NodeId = id
-    Layer = 0.0
+    Layer = 0
     NodeType = NodeRecordType.Sensor 0
     InboundConnections = Seq.empty
     Bias = None
@@ -337,8 +337,7 @@ let createNeuronInstance infoLog neuronType =
               | Neuron _ ->
                 match toNodeType with
                 | NodeRecordType.Neuron ->
-                  let tolerance = System.BitConverter.DoubleToInt64Bits(0.001)
-                  if System.BitConverter.DoubleToInt64Bits(abs(nodeLayer-outboundLayer)) <= tolerance then
+                  if nodeLayer >= outboundLayer then
                     sprintf "Node %A Sending recurrent blank synapse to %A via %A" nodeId partialOutboundConnection.ToNodeId neuronConnectionId |> infoLog
                     (neuronConnectionId, 0.0, false)
                     |> ReceiveInput

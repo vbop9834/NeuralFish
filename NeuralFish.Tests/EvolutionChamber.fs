@@ -29,13 +29,13 @@ let ``AddBias mutation should add a bias to a neuron that has none`` () =
 
   //Create Neurons
   let actuator =
-    let layer = 3.0
+    let layer = 3
     createActuator actuatorId layer testHook outputHookId
     |> createNeuronInstance
   let neuron =
     let bias = 0.0
     let nodeId = getNodeId()
-    let layer = 2.0
+    let layer = 2
     createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
@@ -149,13 +149,13 @@ let ``RemoveBias mutation should remove a bias to a neuron that has some bias`` 
 
   //Create Neurons
   let actuator =
-    let layer = 3.0
+    let layer = 3
     createActuator actuatorId layer testHook outputHookId
     |> createNeuronInstance
   let neuron =
     let bias = 5.0
     let nodeId = getNodeId()
-    let layer = 2.0
+    let layer = 2
     createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
@@ -229,7 +229,7 @@ let ``RemoveBias mutation should remove a bias to a neuron that has some bias`` 
    } |> constructNeuralNetwork
   let newSensor =
     let sensorId = (fst sensor)
-    let layer = 1.0
+    let layer = 1
     (sensorId,
      neuralNetwork
      |> Map.find sensorId)
@@ -267,13 +267,13 @@ let ``MutateWeights mutation should mutate the weights of all outbound connectio
 
   //Create Neurons
   let actuator =
-    let layer = 3.0
+    let layer = 3
     createActuator actuatorId layer testHook outputHookId
     |> createNeuronInstance
   let neuron =
     let bias = 0.0
     let nodeId = getNodeId()
-    let layer = 2.0
+    let layer = 2
     createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
@@ -379,6 +379,13 @@ let ``MutateWeights mutation should mutate the weights of all outbound connectio
     
     neuronConnection.Weight
     |> should not' (equal 20.0)
+
+    neuronConnection.Weight
+    |> should not' (equal 1.0)
+
+    neuronConnection.Weight
+    |> should not' (equal 0.0)
+
     neuronConnection.Weight
 
   synchronize newSensor
@@ -408,13 +415,13 @@ let ``AddOutboundConnection mutation should mutate connect a neuron to a neuron 
 
   //Create Neurons
   let actuator =
-    let layer = 3.0
+    let layer = 3
     createActuator actuatorId layer testHook outputHookId
     |> createNeuronInstance
   let neuron =
     let bias = 0.0
     let nodeId = getNodeId()
-    let layer = 2.0
+    let layer = 2
     createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
@@ -515,13 +522,13 @@ let ``AddNeuron mutation should add a new neuron and connect it randomly in the 
 
   //Create Neurons
   let actuator =
-    let layer = 3.0
+    let layer = 3
     createActuator actuatorId layer testHook outputHookId
     |> createNeuronInstance
   let neuron =
     let bias = 0.0
     let nodeId = getNodeId()
-    let layer = 2.0
+    let layer = 2
     createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
@@ -634,13 +641,13 @@ let ``AddSensor mutation should add a new sensor and connect it randomly in the 
 
   //Create Neurons
   let actuator =
-    let layer = 3.0
+    let layer = 3
     createActuator actuatorId layer testHook outputHookId
     |> createNeuronInstance
   let neuron =
     let bias = 0.0
     let nodeId = getNodeId()
-    let layer = 2.0
+    let layer = 2
     createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
@@ -749,13 +756,13 @@ let ``AddActuator mutation should add a new actuator and connect it randomly in 
 
   //Create Neurons
   let actuator =
-    let layer = 3.0
+    let layer = 3
     createActuator actuatorId layer testHook outputHookId
     |> createNeuronInstance
   let neuron =
     let bias = 0.0
     let nodeId = getNodeId()
-    let layer = 2.0
+    let layer = 2
     createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
@@ -863,13 +870,13 @@ let ``AddSensorLink mutation should add a sensor connection randomly in the neur
 
   //Create Neurons
   let actuator =
-    let layer = 3.0
+    let layer = 3
     createActuator actuatorId layer testHook outputHookId
     |> createNeuronInstance
   let neuron =
     let bias = 0.0
     let nodeId = getNodeId()
-    let layer = 2.0
+    let layer = 2
     createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
@@ -991,13 +998,13 @@ let ``AddActuatorLink mutation should add an actuator connection randomly in the
 
   //Create Neurons
   let actuator =
-    let layer = 3.0
+    let layer = 3
     createActuator actuatorId layer testHook outputHookId
     |> createNeuronInstance
   let neuron =
     let bias = 0.0
     let nodeId = getNodeId()
-    let layer = 2.0
+    let layer = 2
     createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
@@ -1140,13 +1147,13 @@ let ``MutateActivationFunction mutation should mutate the activation function of
 
   //Create Neurons
   let actuator =
-    let layer = 3.0
+    let layer = 3
     createActuator actuatorId layer testHook outputHookId
     |> createNeuronInstance
   let neuron =
     let bias = 0.0
     let nodeId = getNodeId()
-    let layer = 2.0
+    let layer = 2
     createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
@@ -1258,13 +1265,13 @@ let ``MinimalMutationSequence should be capable of mutating records and executin
 
   //Create Neurons
   let actuator =
-    let layer = 3.0
+    let layer = 3
     createActuator actuatorId layer testHook outputHookId
     |> createNeuronInstance
   let neuron =
     let bias = 0.0
     let nodeId = getNodeId()
-    let layer = 2.0
+    let layer = 2
     createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
@@ -1375,13 +1382,13 @@ let ``Should be able to evolve x generations`` () =
 
   //Create Neurons
   let actuator =
-    let layer = 3.0
+    let layer = 3
     createActuator actuatorId layer testHook outputHookId
     |> createNeuronInstance
   let neuron =
     let bias = 0.0
     let nodeId = getNodeId()
-    let layer = 2.0
+    let layer = 2
     createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
@@ -1568,13 +1575,13 @@ let ``Should be able to end a generation via the fitness function`` () =
 
   //Create Neurons
   let actuator =
-    let layer = 3.0
+    let layer = 3
     createActuator actuatorId layer testHook outputHookId
     |> createNeuronInstance
   let neuron =
     let bias = 0.0
     let nodeId = getNodeId()
-    let layer = 2.0
+    let layer = 2
     createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
