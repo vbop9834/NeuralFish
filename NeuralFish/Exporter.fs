@@ -20,45 +20,53 @@ let constructNeuralNetwork (neuralNetProperties : ConstructNeuralNetworkProperti
       | NodeRecordType.Neuron ->
         if (nodeRecord.ActivationFunctionId |> Option.isNone) then
           raise (NodeRecordTypeException <| sprintf "Neuron with id %A does not have a Activation function id" nodeRecord.NodeId)
+        //TODO tryfind goes here with exceptions
         let activationFunction = activationFunctions |> Map.find nodeRecord.ActivationFunctionId.Value
         nodeRecord
-        |> createNeuronFromRecord activationFunction 
+        |> createNeuronFromRecord activationFunction
         |> createNeuronInstance infoLog
-      | NodeRecordType.Sensor ->
+      | NodeRecordType.Sensor _ ->
         if (nodeRecord.SyncFunctionId |> Option.isNone) then
           raise (NodeRecordTypeException <| sprintf "Sensor with id %A does not have a sync function id" nodeRecord.NodeId)
+        //TODO tryfind goes here with exceptions
         let syncFunction = syncFunctions |> Map.find nodeRecord.SyncFunctionId.Value
         nodeRecord
-        |> createSensorFromRecord syncFunction 
+        |> createSensorFromRecord syncFunction
         |> createNeuronInstance infoLog
       | NodeRecordType.Actuator ->
         if (nodeRecord.OutputHookId |> Option.isNone) then
           raise (NodeRecordTypeException <| sprintf "Actuator with id %A does not have a Output Hook function id" nodeRecord.NodeId)
+        //TODO tryfind goes here with exceptions
         let outputHook = outputHooks |> Map.find nodeRecord.OutputHookId.Value
         nodeRecord
         |> createActuatorFromRecord outputHook
         |> createNeuronInstance infoLog
     neuronInstance
 
-  let connectNeurons (liveNeurons : Map<NeuronId,NeuronLayerId*NeuronInstance>) =
-    let connectNode fromNodeId (_,(fromNode : NeuronInstance)) =
+  let connectNeurons (liveNeurons : NeuralNetwork) =
+    let connectNode targetNodeId (targetLayer : NeuronLayerId, targetNode : NeuronInstance) =
       let processRecordConnections node =
-        let findNeuronAndAddToOutboundConnections (fromNodeId : NeuronId) (targetNodeId : NeuronId) (weight : Weight) =
+        let findNeuronAndAddToOutboundConnections (inboundConnection : InactiveNeuronConnection) (targetNodeId : NeuronId) =
           if not <| (liveNeurons |> Map.containsKey targetNodeId) then
             raise (NeuronInstanceException <| sprintf "Trying to connect and can't find a neuron with id %A" targetNodeId)
-          let targetLayer, targetNeuron =
+          let fromLayer, fromNode =
             liveNeurons
-            |> Map.find targetNodeId
+            |> Map.find inboundConnection.NodeId
 
           //Set connection in live neuron
-          (fun r -> ((targetNeuron,targetNodeId,targetLayer,weight),r) |> NeuronActions.AddOutboundConnection)
+          {
+            ConnectionOrderOption = inboundConnection.ConnectionOrder
+            ToNodeId = targetNodeId
+            InitialWeight = inboundConnection.Weight
+          }
+          |> (fun partialOutbound r -> ((node.NodeType, targetNode, targetLayer, partialOutbound), r) |> NeuronActions.AddOutboundConnection)
           |> fromNode.PostAndReply
 
-        sprintf "%A has outbound connections %A" fromNodeId node.OutboundConnections |> infoLog 
-        node.OutboundConnections
-        |> Map.iter (fun _ (targetNodeId, weight) -> findNeuronAndAddToOutboundConnections fromNodeId targetNodeId weight  )
+        sprintf "%A has inbound connections %A" targetNodeId node.InboundConnections |> infoLog
+        node.InboundConnections
+        |> Seq.iter (fun inboundConnection -> findNeuronAndAddToOutboundConnections inboundConnection node.NodeId)
       nodeRecords
-      |> Map.find fromNodeId
+      |> Map.find targetNodeId
       |> processRecordConnections
 
     liveNeurons |> Map.iter connectNode
@@ -89,7 +97,7 @@ let getDefaultNodeRecords activationFunctions
   let addNeuronToMap (neuronId, neuronInstance) =
     Map.add neuronId neuronInstance
   let actuator =
-    let layer = 100000.0
+    let layer = 0
     let fakeOutputHook = (fun x -> ())
     let nodeId = 0
     let outputHookId =
@@ -98,22 +106,21 @@ let getDefaultNodeRecords activationFunctions
       | None -> raise <| ActuatorRecordDoesNotHaveAOutputHookIdException "Attempted to generate default training properties but no output hook ids were passed"
     createActuator nodeId layer fakeOutputHook outputHookId
     |> createNeuronInstance infoLog
+  let sensor =
+    let nodeId = 1
+    let maximumVectorLength = 1
+    createSensor nodeId (fun () -> Seq.empty) syncFunctionId maximumVectorLength
+    |> createNeuronInstance infoLog
   let neuron =
     let bias = 0.0
-    let nodeId = 1
-    let layer = 50000.0
-    let activationFunctionId, activationFunction = 
-      match activationFunctions |> Map.toSeq |> Seq.tryHead with 
+    let nodeId = 2
+    let layer = 1
+    let activationFunctionId, activationFunction =
+      match activationFunctions |> Map.toSeq |> Seq.tryHead with
       | Some xTuple -> xTuple
       | None ->
         raise <| NeuronDoesNotHaveAnActivationFunction "Attempted to generate default traing properties but no activation functions were passed"
     createNeuron nodeId layer activationFunction activationFunctionId bias learningAlgorithm
-    |> createNeuronInstance infoLog
-  let sensor =
-    let nodeId = 2
-    let syncFunctionId = 0
-    let maximumVectorLength = 1
-    createSensor nodeId (fun () -> Seq.empty) syncFunctionId maximumVectorLength
     |> createNeuronInstance infoLog
   let weight = 0.0
   sensor |> connectSensorToNode neuron [weight]

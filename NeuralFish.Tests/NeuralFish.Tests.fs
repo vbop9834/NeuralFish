@@ -18,7 +18,7 @@ let ``When the Sensor receives the sync message, the neural circuit should activ
 
   //Create Neurons
   let actuator =
-    let layer = 3.0
+    let layer = 3
     createActuator actuatorId layer testHook outputHookId
     |> createNeuronInstance
   let neuron =
@@ -26,17 +26,17 @@ let ``When the Sensor receives the sync message, the neural circuit should activ
     let activationFunction = id
     let bias = 10.0
     let nodeId = getNodeId()
-    let layer = 2.0
+    let layer = 2
     createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
-
   let sensor =
     let syncFunctionId = 0
     let syncFunction =
-        let data =
-          [1.0; 1.0; 1.0; 1.0; 1.0]
-          |> List.toSeq
-        fakeDataGenerator([data])
+      let data =
+        [1.0; 1.0; 1.0; 1.0; 1.0]
+        |> List.toSeq
+      let dataStream = [data]
+      fakeDataGenerator(dataStream)
     let id = getNodeId()
     createSensor id syncFunction syncFunctionId 1
     |> createNeuronInstance
@@ -81,26 +81,26 @@ let ``The NeuralFish should be able to solve the XNOR problem with predefined we
 
   let actuator =
     let id = getNodeId()
-    let layer = 4.0
+    let layer = 4
     createNeuronInstance <| createActuator id layer testHook 0
   let neuron_a3_1 =
     let activationFunction = sigmoid
     let bias = -10.0
     let id = getNodeId()
-    let layer = 3.0
+    let layer = 3
     createNeuron id layer activationFunction 0 bias NoLearning
     |> createNeuronInstance
   let neuron_a2_2 =
     let activationFunction = sigmoid
     let bias = 10.0
     let id = getNodeId()
-    let layer = 2.0
+    let layer = 2
     createNeuron id layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
   let neuron_a2_1 =
     let bias = -30.0
     let id = getNodeId()
-    let layer = 2.0
+    let layer = 2
     createNeuron id layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
   let sensor_x1 =
@@ -176,7 +176,7 @@ let ``Should be able to handle recurrent neural connections`` () =
 
   //Create Neurons
   let actuator =
-    let layer = 3.0
+    let layer = 3
     createActuator actuatorId layer testHook outputHookId
     |> createNeuronInstance
   let neuron =
@@ -184,7 +184,7 @@ let ``Should be able to handle recurrent neural connections`` () =
     let activationFunction = id
     let bias = 10.0
     let nodeId = getNodeId()
-    let layer = 2.0
+    let layer = 2
     createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
@@ -252,27 +252,27 @@ let ``Should be able to handle recurrent neural network with three neurons`` () 
 
   //Create Neurons
   let actuator =
-    let layer = 3.0
+    let layer = 3
     createActuator actuatorId layer testHook outputHookId
     |> createNeuronInstance
   let neuron_1a =
     let bias = 10.0
     let nodeId = getNodeId()
-    let layer = 1.0
+    let layer = 1
     createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
   let neuron_1b =
     let bias = 10.0
     let nodeId = getNodeId()
-    let layer = 1.0
+    let layer = 1
     createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
   let neuron_2a =
     let bias = 10.0
     let nodeId = getNodeId()
-    let layer = 2.0
+    let layer = 2
     createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
@@ -347,20 +347,20 @@ let ``Sensor should inflate data if there is not enough data to go to all the ne
 
   //Create Neurons
   let actuator =
-    let layer = 3.0
+    let layer = 3
     createActuator actuatorId layer testHook outputHookId
     |> createNeuronInstance
   let neuron_1a =
     let bias = 10.0
     let nodeId = getNodeId()
-    let layer = 2.0
+    let layer = 2
     createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
   let neuron_1b =
     let bias = 0.0
     let nodeId = getNodeId()
-    let layer = 2.0
+    let layer = 2
     createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
     |> createNeuronInstance
 
@@ -368,7 +368,7 @@ let ``Sensor should inflate data if there is not enough data to go to all the ne
     let syncFunctionId = 0
     let syncFunction =
         let data =
-          [1.0; 1.0; 1.0; 1.0; 1.0]
+          [1.0]
           |> List.toSeq
         fakeDataGenerator([data])
     let id = getNodeId()
@@ -378,10 +378,6 @@ let ``Sensor should inflate data if there is not enough data to go to all the ne
   //Connect Neurons
   let weights =
     [
-      20.0
-      20.0
-      20.0
-      20.0
       20.0
     ] |> List.toSeq
 
@@ -394,7 +390,7 @@ let ``Sensor should inflate data if there is not enough data to go to all the ne
   synchronize sensor
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should equal 110.0)
+  |> (should equal 30.0)
 
   [
     sensor
@@ -417,7 +413,7 @@ let ``Neural Network should work with the Hebbian learning algorithm`` () =
 
   //Create Neurons
   let actuator =
-    let layer = 3.0
+    let layer = 3
     createActuator actuatorId layer testHook outputHookId
     |> createNeuronInstance
   let neuron =
@@ -425,7 +421,7 @@ let ``Neural Network should work with the Hebbian learning algorithm`` () =
     let activationFunction = id
     let bias = 10.0
     let nodeId = getNodeId()
-    let layer = 2.0
+    let layer = 2
     let learningAlgorithm = 
       let learningCoefficient = 0.5 
       Hebbian learningCoefficient

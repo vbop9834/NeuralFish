@@ -15,43 +15,45 @@ let createCortex infoLog liveNeurons : CortexInstance =
           |> neuron.TryPostAndReply
         match maybeActuatorStatus with
         | None -> raise <| NeuronInstanceUnavailableException "Cortex - Neuron instance is not available when trying to check actuators"
-        | Some actuatorReady ->
-          match actuatorReady with
-          | true ->
-            true
-          | false ->
-            false
-      let checkIfNeuronIsBusy (neuron : NeuronInstance) =
-        if neuron.CurrentQueueLength <> 0 then
-          true
-        else
-          false
+        | Some actuatorReady -> actuatorReady
+      let checkIfNeuronIsBusy (neuron : NeuronInstance) = neuron.CurrentQueueLength <> 0
       neuralNetwork
-      |> Map.exists(fun i (_,neuron) -> neuron |> checkIfNeuronIsBusy && not <| actuatorIsActive neuron  )
+      |> Map.exists(fun i (_,neuron) -> neuron |> checkIfNeuronIsBusy || not <| actuatorIsActive neuron  )
     if neuralNetworkToWaitOn |> checkIfActuatorsAreReady then
       //200 milliseconds of sleep seems plenty while waiting on the NN
+      //TODO make this configurable
       System.Threading.Thread.Sleep(200)
       waitOnAcutuators neuralNetworkToWaitOn
     else
       ()
 
   let registerCortex (neuralNetwork : NeuralNetwork) cortex =
-    //TODO do this right. Remove the synchronous behavior and map manipulation
-    let sendCortexToActuatorAsync _ (_, neuronInstance : NeuronInstance) : Async<unit> =
+    let sendCortexToActuatorAsync _ (_, neuronInstance : NeuronInstance) =
       (fun r -> RegisterCortex (cortex,r)) |> neuronInstance.PostAndAsyncReply
     neuralNetwork
     |> Map.map sendCortexToActuatorAsync
-    |> Map.iter (fun _ asyncthingy -> asyncthingy |> Async.RunSynchronously)
+    |> Map.toArray
+    |> Array.Parallel.map snd
+    |> Async.Parallel
+    |> ignore
+    cortex
+  let resetNeuralNetwork (neuralNetwork : NeuralNetwork) cortex =
+    neuralNetwork
+    |> Map.iter (fun _ (_, neuronInstance : NeuronInstance) -> ResetNeuron |> neuronInstance.PostAndReply )
+
+    neuralNetwork
+    |> Map.iter(fun _ (_, neuronInstance : NeuronInstance) -> SendRecurrentSignals |> neuronInstance.PostAndReply)
 
     cortex
 
+
   CortexInstance.Start(fun inbox ->
-    let rec loop liveNeurons = 
+    let rec loop liveNeurons =
       async {
         let! someMsg = inbox.TryReceive 250
         match someMsg with
         | None ->
-          return! loop liveNeurons 
+          return! loop liveNeurons
         | Some msg ->
           match msg with
           | ThinkAndAct replyChannel ->
@@ -74,10 +76,10 @@ let createCortex infoLog liveNeurons : CortexInstance =
             liveNeurons |> killNeuralNetwork
             "Cortex - Replying with Updated records" |> infoLog
             updatedNodeRecords |> replyChannel.Reply
-            () 
+            ()
       }
-    loop liveNeurons 
+    loop liveNeurons
   )
   |> registerCortex liveNeurons
+  |> resetNeuralNetwork liveNeurons
   |> (fun x -> x.Error.Add(fun x -> sprintf "%A" x |> infoLog); x)
-

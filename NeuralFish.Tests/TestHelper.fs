@@ -8,26 +8,40 @@ let createCortex = createCortex defaultInfoLog
 
 type GeneratorMsg =
   | GetData of AsyncReplyChannel<float seq>
-  | Die
+  | KillGenerator of AsyncReplyChannel<unit>
 
-let fakeDataGenerator (buffer : (float seq) list) =
-  let generator = MailboxProcessor<GeneratorMsg>.Start(fun inbox ->
-    let rec loop buffer =
-      async {
-        let! msg = inbox.Receive ()
-        match msg with
-        | GetData replyChannel ->
-          let data = buffer |> List.head
-          data |> replyChannel.Reply
-          let newBuffer = (data :: (buffer |> List.tail |> List.rev)) |> List.rev
-          return! loop newBuffer
-        | Die ->
-          return ()
-      }
-    loop buffer
-  )
-  //TODO these never die. Need to make a manager
-  (fun () -> GetData |> generator.PostAndReply)
+let fakeDataGenerator (initialBuffer : (float seq) list) =
+  let generator =
+    MailboxProcessor<GeneratorMsg>.Start(fun inbox ->
+      let rec loop buffer =
+        async {
+          let! someMsg = inbox.TryReceive 200
+          match someMsg with
+          | None -> return! loop buffer
+          | Some msg ->
+            match msg with
+            | GetData replyChannel ->
+              let maybeData = buffer |> List.tryHead
+              match maybeData with
+              | None ->
+                Seq.empty |> replyChannel.Reply
+                return! loop buffer
+              | Some data ->
+                data |> replyChannel.Reply
+                let tailBuffer = buffer |> List.tail
+                let newBuffer = List.append tailBuffer [data]
+                return! loop newBuffer
+            | KillGenerator replyChannel ->
+              replyChannel.Reply()
+        }
+      loop initialBuffer
+    ) |> (fun x -> x.Error.Add(fun err -> printfn "%A" err); x)
+  //TODO these never die. Need to manage this
+  (fun () ->
+     match generator.TryPostAndReply(GetData, timeout = 5000) with
+     | Some data -> data
+     | None -> raise <| System.Exception("Data Generator is dead")
+   )
 
 type TestHookMsg =
   | SendDataToBuffer of float
@@ -72,19 +86,27 @@ let getTestHook () =
 
 type NeuronIdGeneratorMsg =
   | GetIntId of AsyncReplyChannel<int>
+  | KillNumberGenerator of AsyncReplyChannel<unit>
 
+//TODO cleanup all those generators at the end of a test
 let getNumberGenerator () =
-  let generator = MailboxProcessor<NeuronIdGeneratorMsg>.Start(fun inbox ->
-    let rec loop currentNumber =
-      async {
-        let! msg = inbox.Receive ()
-        match msg with
-        | GetIntId replyChannel ->
-          currentNumber |> replyChannel.Reply
-          return! loop (currentNumber+1)
-      }
-    loop 0
-  )
+  let generator =
+    MailboxProcessor<NeuronIdGeneratorMsg>.Start(fun inbox ->
+      let rec loop currentNumber =
+        async {
+          let! someMsg = inbox.TryReceive 250
+          match someMsg with
+          | None -> return! loop currentNumber
+          | Some msg ->
+            match msg with
+            | GetIntId replyChannel ->
+              currentNumber |> replyChannel.Reply
+              return! loop (currentNumber+1)
+            | KillNumberGenerator replyChannel->
+              replyChannel.Reply ()
+        }
+      loop 0
+    ) |> (fun x -> x.Error.Add(fun err -> printfn "%A" err); x)
   (fun () -> GetIntId |> generator.PostAndReply)
 
 

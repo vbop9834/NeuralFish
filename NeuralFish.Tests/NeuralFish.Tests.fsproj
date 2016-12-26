@@ -53,6 +53,7 @@
     <Compile Include="TestHelper.fs" />
     <Compile Include="Exporter.fs" />
     <Compile Include="EvolutionChamber.fs" />
+    <Compile Include="Mutations.fs" />
     <Compile Include="Cortex.fs" />
     <Compile Include="NeuralFish.Tests.fs" />
   </ItemGroup>
