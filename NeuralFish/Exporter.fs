@@ -106,9 +106,14 @@ let getDefaultNodeRecords activationFunctions
       | None -> raise <| ActuatorRecordDoesNotHaveAOutputHookIdException "Attempted to generate default training properties but no output hook ids were passed"
     createActuator nodeId layer fakeOutputHook outputHookId
     |> createNeuronInstance infoLog
+  let sensor =
+    let nodeId = 1
+    let maximumVectorLength = 1
+    createSensor nodeId (fun () -> Seq.empty) syncFunctionId maximumVectorLength
+    |> createNeuronInstance infoLog
   let neuron =
     let bias = 0.0
-    let nodeId = 1
+    let nodeId = 2
     let layer = 1
     let activationFunctionId, activationFunction =
       match activationFunctions |> Map.toSeq |> Seq.tryHead with
@@ -116,12 +121,6 @@ let getDefaultNodeRecords activationFunctions
       | None ->
         raise <| NeuronDoesNotHaveAnActivationFunction "Attempted to generate default traing properties but no activation functions were passed"
     createNeuron nodeId layer activationFunction activationFunctionId bias learningAlgorithm
-    |> createNeuronInstance infoLog
-  let sensor =
-    let nodeId = 2
-    let syncFunctionId = 0
-    let maximumVectorLength = 1
-    createSensor nodeId (fun () -> Seq.empty) syncFunctionId maximumVectorLength
     |> createNeuronInstance infoLog
   let weight = 0.0
   sensor |> connectSensorToNode neuron [weight]

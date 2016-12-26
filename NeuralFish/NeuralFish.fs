@@ -153,10 +153,15 @@ let createNeuronInstance infoLog neuronType =
     |> Seq.forall(fun (connection) -> barrier |> Map.containsKey connection.NeuronConnectionId)
   let addBias bias outputVal =
     outputVal + bias
+  let sendRecurrentSignal activationOption neuronConnectionId (toNodeId, toNode : NeuronInstance) =
+    sprintf "Node %A Sending recurrent blank synapse to %A via %A" nodeId toNodeId neuronConnectionId |> infoLog
+    (neuronConnectionId, 0.0, activationOption)
+    |> ReceiveInput
+    |> toNode.Post
   let activateNeuron (barrier : WeightedSynapses) (outboundConnections : NeuronConnections) (neuronProps : NeuronProperties) =
     let sendSynapseToNeurons (outputNeurons : NeuronConnections) outputValue =
       let sendSynapseToNeuron outputValue outputNeuronConnection =
-        (outputNeuronConnection.NeuronConnectionId, outputValue, true)
+        (outputNeuronConnection.NeuronConnectionId, outputValue, ActivateIfBarrierIsFull)
         |> ReceiveInput
         |> outputNeuronConnection.Neuron.Post
       outputNeurons
@@ -193,20 +198,21 @@ let createNeuronInstance infoLog neuronType =
                    (inboundConnections : InboundNeuronConnections)
                      (outboundConnections : NeuronConnections)
                        (maximumVectorLength : int)
-                         (maybeCortex : bool option) =
+                         (maybeCortex : bool option)
+                           (recurrentOutboundConnections : RecurrentNeuronConnections) =
       async {
         let! someMsg = inbox.TryReceive 250
         match someMsg with
         | None ->
-          return! loop barrier inboundConnections outboundConnections maximumVectorLength maybeCortex
+          return! loop barrier inboundConnections outboundConnections maximumVectorLength maybeCortex recurrentOutboundConnections
         | Some msg ->
           match msg with
           | Sync ->
             match neuronType with
             | Neuron _ ->
-              return! loop barrier inboundConnections outboundConnections maximumVectorLength maybeCortex
+              return! loop barrier inboundConnections outboundConnections maximumVectorLength maybeCortex recurrentOutboundConnections
             | Actuator _ ->
-              return! loop barrier inboundConnections outboundConnections maximumVectorLength maybeCortex
+              return! loop barrier inboundConnections outboundConnections maximumVectorLength maybeCortex recurrentOutboundConnections
             | Sensor props ->
               let inflateData expectedVectorLength (dataStream : NeuronOutput seq) =
                 let inflatedData =
@@ -229,7 +235,7 @@ let createNeuronInstance infoLog neuronType =
                   ()
                 else
                   let sendSynapseToNeuron (neuron : NeuronInstance) neuronConnectionId outputValue =
-                    (neuronConnectionId, outputValue, true)
+                    (neuronConnectionId, outputValue, ActivateIfBarrierIsFull)
                     |> ReceiveInput
                     |> neuron.Post
                   let data = dataStream |> Seq.head
@@ -246,8 +252,8 @@ let createNeuronInstance infoLog neuronType =
               else
                 let orderedConnections = outboundConnections |> Seq.sortBy(fun connection -> connection.ConnectionOrder)
                 processSensorSync dataStream orderedConnections
-              return! loop barrier inboundConnections outboundConnections newMaximumVectorLength maybeCortex
-          | ReceiveInput (neuronConnectionId, package, activateIfBarrierIsFull) ->
+              return! loop barrier inboundConnections outboundConnections newMaximumVectorLength maybeCortex recurrentOutboundConnections
+          | ReceiveInput (neuronConnectionId, package, neuronActivationOption) ->
             let processLearning learningAlgorithm (weightedSynapses : WeightedSynapses) (neuronOutput : NeuronOutput) : InboundNeuronConnections =
               let processLearningForConnection ((synapse,inboundConnection) : WeightedSynapse) =
                 match learningAlgorithm with
@@ -263,9 +269,18 @@ let createNeuronInstance infoLog neuronType =
             let updatedBarrier : IncomingSynapses =
               barrier
               |> Map.add neuronConnectionId package
+            let activateIfBarrierIsFull, activateIfNeuronHasOneConnection =
+              match neuronActivationOption with
+              | ActivateIfBarrierIsFull -> true, false
+              | ActivateIfNeuronHasOneConnection -> 
+                let neuronOnlyHasOneConnection = inboundConnections |> Seq.length |> (fun x -> x = 1)
+                false, neuronOnlyHasOneConnection
+              | DoNotActivate -> false, false
             match neuronType with
             | Neuron props ->
-              if (activateIfBarrierIsFull && updatedBarrier |> isBarrierSatisifed inboundConnections) then
+              //This is to solve the case of a single recurrent inbound connection
+              //Neuron was never firing and NN would become deadlocked
+              if ((activateIfNeuronHasOneConnection || activateIfBarrierIsFull) && updatedBarrier |> isBarrierSatisifed inboundConnections) then
                 sprintf "Barrier is satisfied for Neuron %A. Received %A from %A" props.Record.NodeId package neuronConnectionId |> infoLog
                 let weightedSynapses : WeightedSynapses =
                   let getWeightedSynapse (neuronConnection : InboundNeuronConnection) : WeightedSynapse =
@@ -280,27 +295,27 @@ let createNeuronInstance infoLog neuronType =
                 let neuronOutput = props |> activateNeuron weightedSynapses outboundConnections
                 let updatedInboundConnections =
                   processLearning props.Record.NeuronLearningAlgorithm weightedSynapses neuronOutput
-                return! loop Map.empty updatedInboundConnections outboundConnections maximumVectorLength maybeCortex
+                return! loop Map.empty updatedInboundConnections outboundConnections maximumVectorLength maybeCortex recurrentOutboundConnections
               else
                 sprintf "Barrier not satisfied for Neuron %A. Received %A from %A" props.Record.NodeId package neuronConnectionId |> infoLog
-                return! loop updatedBarrier inboundConnections outboundConnections maximumVectorLength maybeCortex
+                return! loop updatedBarrier inboundConnections outboundConnections maximumVectorLength maybeCortex recurrentOutboundConnections
             | Actuator props ->
               if (activateIfBarrierIsFull && updatedBarrier |> isBarrierSatisifed inboundConnections) then
                 match maybeCortex with
                 | None ->
                   sprintf "Barrier is satisifed for Actuator %A" props.Record.NodeId |> infoLog
                   props |> activateActuator updatedBarrier
-                  return! loop Map.empty inboundConnections outboundConnections maximumVectorLength maybeCortex
+                  return! loop Map.empty inboundConnections outboundConnections maximumVectorLength maybeCortex recurrentOutboundConnections
                 | Some _ ->
                   sprintf "Barrier is satisifed for Actuator %A. Not activating due to registered cortex. Waiting for a signal from the cortex" props.Record.NodeId |> infoLog
                   let readyToActivate = Some true
-                  return! loop updatedBarrier inboundConnections outboundConnections maximumVectorLength readyToActivate
+                  return! loop updatedBarrier inboundConnections outboundConnections maximumVectorLength readyToActivate recurrentOutboundConnections
               else
                 sprintf "Node %A not activated. Received %A from %A" nodeId package neuronConnectionId |> infoLog
-                return! loop updatedBarrier inboundConnections outboundConnections maximumVectorLength maybeCortex
+                return! loop updatedBarrier inboundConnections outboundConnections maximumVectorLength maybeCortex recurrentOutboundConnections
             | Sensor _ ->
               //Sensors use the sync msg
-              return! loop Map.empty inboundConnections outboundConnections maximumVectorLength maybeCortex
+              return! loop Map.empty inboundConnections outboundConnections maximumVectorLength maybeCortex recurrentOutboundConnections
           | NeuronActions.AddOutboundConnection ((toNodeType,toNode,outboundLayer,partialOutboundConnection),replyChannel) ->
               let neuronConnectionId = System.Guid.NewGuid()
               let connectionOrder = 
@@ -310,17 +325,17 @@ let createNeuronInstance infoLog neuronType =
                   | Some connectionOrder -> connectionOrder
                   | None ->  outboundConnections |> Seq.length
                 | _ -> 0
+              let newOutboundConnection =
+                {
+                 NeuronConnectionId = neuronConnectionId
+                 ConnectionOrder = connectionOrder
+                 InitialWeight = partialOutboundConnection.InitialWeight
+                 NodeId = partialOutboundConnection.ToNodeId
+                 Neuron = toNode
+                }
               let updatedOutboundConnections =
-                let outboundConnection =
-                  {
-                   NeuronConnectionId = neuronConnectionId
-                   ConnectionOrder = connectionOrder
-                   InitialWeight = partialOutboundConnection.InitialWeight
-                   NodeId = partialOutboundConnection.ToNodeId
-                   Neuron = toNode
-                  }
                 outboundConnections 
-                |> Seq.append [outboundConnection]
+                |> Seq.append [newOutboundConnection]
 
               ({
                 ConnectionOrder = match neuronType with | Sensor _ -> Some connectionOrder | _ -> None
@@ -332,29 +347,40 @@ let createNeuronInstance infoLog neuronType =
               |> NeuronActions.AddInboundConnection
               |> toNode.Post
 
-              //queue up blank synapses for recurrent connections
-              match neuronType with
-              | Neuron _ ->
+              let isRecurrentConnection = nodeLayer >= outboundLayer
+              let checkAndSendRecurrentSignal () =
                 match toNodeType with
                 | NodeRecordType.Neuron ->
-                  if nodeLayer >= outboundLayer then
-                    sprintf "Node %A Sending recurrent blank synapse to %A via %A" nodeId partialOutboundConnection.ToNodeId neuronConnectionId |> infoLog
-                    (neuronConnectionId, 0.0, false)
-                    |> ReceiveInput
-                    |> toNode.Post
+                  if isRecurrentConnection then
+                    (partialOutboundConnection.ToNodeId, toNode) |> sendRecurrentSignal DoNotActivate neuronConnectionId
                 | _ -> ()
-              | _ -> ()
+
+              //queue up blank synapses for recurrent connections
+              match maybeCortex with
+              | Some x ->
+                if x |> not then checkAndSendRecurrentSignal ()
+              | None ->
+                match neuronType with
+                | Neuron _ -> checkAndSendRecurrentSignal ()
+                | _ -> ()
+
+              let updatedRecurrentOutboundConnections =
+                if isRecurrentConnection then
+                  recurrentOutboundConnections
+                  |> Seq.append [newOutboundConnection]
+                else
+                  recurrentOutboundConnections
 
               sprintf "Node %A is adding Node %A as an outbound connection %A with weight %A" neuronType partialOutboundConnection.ToNodeId neuronConnectionId partialOutboundConnection.InitialWeight
               |> infoLog
-              return! loop barrier inboundConnections updatedOutboundConnections maximumVectorLength maybeCortex
+              return! loop barrier inboundConnections updatedOutboundConnections maximumVectorLength maybeCortex updatedRecurrentOutboundConnections
             | NeuronActions.AddInboundConnection (inboundConnection, replyChannel) ->
               let updatedInboundConnections =
                 Seq.append inboundConnections [inboundConnection]
               replyChannel.Reply()
               sprintf "Node %A Added inbound neuron %A connection %A" nodeId inboundConnection.FromNodeId inboundConnection.NeuronConnectionId
               |> infoLog
-              return! loop barrier updatedInboundConnections outboundConnections maximumVectorLength maybeCortex
+              return! loop barrier updatedInboundConnections outboundConnections maximumVectorLength maybeCortex recurrentOutboundConnections
             | GetNodeRecord replyChannel ->
               async {
                 let inactiveConnections : NodeRecordConnections =
@@ -384,24 +410,24 @@ let createNeuronInstance infoLog neuronType =
                 let nodeRecordWithConnections = { nodeRecord with InboundConnections = inactiveConnections}
                 nodeRecordWithConnections |> replyChannel.Reply
               } |> Async.Start |> ignore
-              return! loop barrier inboundConnections outboundConnections maximumVectorLength maybeCortex
+              return! loop barrier inboundConnections outboundConnections maximumVectorLength maybeCortex recurrentOutboundConnections
             | Die replyChannel ->
               replyChannel.Reply()
               ()
-            | RegisterCortex (cortex,replyChannel) ->
+            | RegisterCortex (_,replyChannel) ->
               match neuronType with
               | Actuator _ ->
                 let someReadyToActivate = Some false
                 replyChannel.Reply ()
-                return! loop barrier inboundConnections outboundConnections maximumVectorLength someReadyToActivate
+                return! loop barrier inboundConnections outboundConnections maximumVectorLength someReadyToActivate recurrentOutboundConnections
               | _ ->
                 replyChannel.Reply ()
-                return! loop barrier inboundConnections outboundConnections maximumVectorLength maybeCortex
+                return! loop barrier inboundConnections outboundConnections maximumVectorLength maybeCortex recurrentOutboundConnections
             | ActivateActuator replyChannel ->
               match maybeCortex with
               | None ->
                 replyChannel.Reply()
-                return! loop barrier inboundConnections outboundConnections maximumVectorLength maybeCortex
+                return! loop barrier inboundConnections outboundConnections maximumVectorLength maybeCortex recurrentOutboundConnections
               | Some readyToActivate ->
                 if readyToActivate then
                   match neuronType with
@@ -410,22 +436,35 @@ let createNeuronInstance infoLog neuronType =
                     props |> activateActuator barrier
                     replyChannel.Reply ()
                     let notReadyToActivate = Some false
-                    return! loop Map.empty inboundConnections outboundConnections maximumVectorLength notReadyToActivate
+                    return! loop Map.empty inboundConnections outboundConnections maximumVectorLength notReadyToActivate recurrentOutboundConnections
                   | _ ->
                     replyChannel.Reply ()
-                    return! loop barrier inboundConnections outboundConnections maximumVectorLength maybeCortex
+                    return! loop barrier inboundConnections outboundConnections maximumVectorLength maybeCortex recurrentOutboundConnections
                 else
                   replyChannel.Reply ()
-                  return! loop barrier inboundConnections outboundConnections maximumVectorLength maybeCortex
+                  return! loop barrier inboundConnections outboundConnections maximumVectorLength maybeCortex recurrentOutboundConnections
             | CheckActuatorStatus replyChannel ->
               match maybeCortex with
               | None ->
                 true |> replyChannel.Reply
               | Some readyToActivate ->
                 readyToActivate |> replyChannel.Reply
-              return! loop barrier inboundConnections outboundConnections maximumVectorLength maybeCortex
+              return! loop barrier inboundConnections outboundConnections maximumVectorLength maybeCortex recurrentOutboundConnections
+            | ResetNeuron replyChannel ->
+              let updatedInboundConnections =
+                inboundConnections
+                |> Seq.map(fun connection -> { connection with Weight = connection.InitialWeight})
+              replyChannel.Reply()
+              return! loop Map.empty updatedInboundConnections outboundConnections maximumVectorLength maybeCortex recurrentOutboundConnections
+            | SendRecurrentSignals replyChannel ->
+              let sendRecurrentSignalFromConnection (connection : NeuronConnection) =
+                (connection.NodeId, connection.Neuron) |> sendRecurrentSignal ActivateIfNeuronHasOneConnection connection.NeuronConnectionId
+              recurrentOutboundConnections
+              |> Seq.iter sendRecurrentSignalFromConnection
+              replyChannel.Reply ()
+              return! loop barrier inboundConnections outboundConnections maximumVectorLength maybeCortex recurrentOutboundConnections
       }
-    loop Map.empty Seq.empty Seq.empty 0 None
+    loop Map.empty Seq.empty Seq.empty 0 None Seq.empty
   )
 
   //Add exception logging

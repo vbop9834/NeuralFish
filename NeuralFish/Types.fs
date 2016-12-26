@@ -121,7 +121,6 @@ type ActuatorProperties =
     Record: NodeRecord
   }
 
-
 type NeuronType =
   | Neuron of NeuronProperties
   | Sensor of SensorProperties
@@ -134,9 +133,14 @@ type PartialOutboundConnection =
     ToNodeId : NeuronId
   }
 
+type NeuronActivationOption =
+  | ActivateIfBarrierIsFull
+  | ActivateIfNeuronHasOneConnection
+  | DoNotActivate
+
 type NeuronActions =
   | Sync
-  | ReceiveInput of NeuronConnectionId*Synapse*bool
+  | ReceiveInput of NeuronConnectionId*Synapse*NeuronActivationOption
   | AddOutboundConnection of (NodeRecordType*MailboxProcessor<NeuronActions>*NeuronLayerId*PartialOutboundConnection)*AsyncReplyChannel<unit>
   | AddInboundConnection of InboundNeuronConnection*AsyncReplyChannel<unit>
   | GetNodeRecord of AsyncReplyChannel<NodeRecord>
@@ -144,6 +148,8 @@ type NeuronActions =
   | RegisterCortex of CortexInstance*AsyncReplyChannel<unit>
   | ActivateActuator of AsyncReplyChannel<unit>
   | CheckActuatorStatus of AsyncReplyChannel<bool>
+  | ResetNeuron of AsyncReplyChannel<unit>
+  | SendRecurrentSignals of AsyncReplyChannel<unit>
 
 type NeuronInstance = MailboxProcessor<NeuronActions>
 
@@ -157,6 +163,7 @@ type NeuronConnection =
   }
 
 type NeuronConnections = seq<NeuronConnection>
+type RecurrentNeuronConnections = NeuronConnections
 
 type InboundNeuronConnections = seq<InboundNeuronConnection> 
 

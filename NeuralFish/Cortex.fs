@@ -36,8 +36,16 @@ let createCortex infoLog liveNeurons : CortexInstance =
     |> Array.Parallel.map snd
     |> Async.Parallel
     |> ignore
+    cortex
+  let resetNeuralNetwork (neuralNetwork : NeuralNetwork) cortex =
+    neuralNetwork
+    |> Map.iter (fun _ (_, neuronInstance : NeuronInstance) -> ResetNeuron |> neuronInstance.PostAndReply )
+
+    neuralNetwork
+    |> Map.iter(fun _ (_, neuronInstance : NeuronInstance) -> SendRecurrentSignals |> neuronInstance.PostAndReply)
 
     cortex
+
 
   CortexInstance.Start(fun inbox ->
     let rec loop liveNeurons =
@@ -73,4 +81,5 @@ let createCortex infoLog liveNeurons : CortexInstance =
     loop liveNeurons
   )
   |> registerCortex liveNeurons
+  |> resetNeuralNetwork liveNeurons
   |> (fun x -> x.Error.Add(fun x -> sprintf "%A" x |> infoLog); x)
