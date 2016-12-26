@@ -250,7 +250,7 @@ let ``RemoveBias mutation should remove a bias to a neuron that has some bias`` 
   Die |> testHookMailbox.PostAndReply
 
 [<Fact>]
-let ``MutateWeights mutation should mutate the weights of all outbound connections in a neuron`` () =
+let ``MutateWeights mutation should mutate the weights of some inbound connections in a neuron`` () =
   //Test setup
   let (testHook, testHookMailbox) = getTestHook ()
   let getNodeId = getNumberGenerator()

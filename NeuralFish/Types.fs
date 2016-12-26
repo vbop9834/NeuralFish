@@ -209,12 +209,7 @@ type Mutation =
   | AddBias
   | RemoveBias
   | MutateWeights
-  // //Choose random neuron, perturb each weight with probability of
-  // //1/sqrt(# of weights)
-  // //Intensity chosen randomly between -pi/2 and pi/2
-  // | ResetWeights
-  // //Choose random neuron, reset all weights to random values
-  // // ranging between -pi/2 and pi/2
+  | ResetWeights
   | AddInboundConnection
   // //Choose a random neuron A, node B, and add a connection
   | AddOutboundConnection

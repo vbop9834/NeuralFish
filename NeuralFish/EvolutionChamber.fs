@@ -217,7 +217,28 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
 
           processingNodeRecords
           |> Map.add mutatedNeuron.NodeId mutatedNeuron
-       // | ResetWeights ->
+        | ResetWeights ->
+          let _, neuronToMutateWeights =
+            processingNodeRecords
+            |> Map.filter(fun _ x -> x.NodeType = NodeRecordType.Neuron)
+            |> selectRandomNode
+          let mutatedNeuron =
+            let newInboundConnections =
+              let resetWeight (inactiveConnection : InactiveNeuronConnection) =
+                let newWeight =
+                  let pi = System.Math.PI
+                  let maxValue = pi/2.0
+                  let minValue = -1.0 * pi/2.0
+                  getRandomDoubleBetween minValue maxValue
+                { inactiveConnection with
+                    Weight = newWeight
+                }
+              neuronToMutateWeights.InboundConnections
+              |> Seq.map resetWeight
+            { neuronToMutateWeights with InboundConnections = newInboundConnections }
+
+          processingNodeRecords
+          |> Map.add mutatedNeuron.NodeId mutatedNeuron
 //        | MutateActivationFunction ->
 //          let neuronToMutateAF =
 //            nodeRecords
