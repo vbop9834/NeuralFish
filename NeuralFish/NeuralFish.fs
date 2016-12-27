@@ -70,7 +70,7 @@ let createNeuron id layer activationFunction activationFunctionId bias learningA
      NodeId = id
      Layer = layer
      NodeType = NodeRecordType.Neuron
-     InboundConnections = Seq.empty
+     InboundConnections = Map.empty
      Bias = Some bias
      ActivationFunctionId = Some activationFunctionId
      SyncFunctionId = None
@@ -90,7 +90,7 @@ let createSensor id syncFunction syncFunctionId maximumVectorLength =
     NodeId = id
     Layer = 0
     NodeType = NodeRecordType.Sensor 0
-    InboundConnections = Seq.empty
+    InboundConnections = Map.empty
     Bias = None
     ActivationFunctionId = None
     SyncFunctionId = Some syncFunctionId
@@ -110,7 +110,7 @@ let createActuator id layer outputHook outputHookId =
     NodeId = id
     Layer = layer
     NodeType = NodeRecordType.Actuator
-    InboundConnections = Seq.empty
+    InboundConnections = Map.empty
     Bias = None
     ActivationFunctionId = None
     SyncFunctionId = None
@@ -384,14 +384,15 @@ let createNeuronInstance infoLog neuronType =
             | GetNodeRecord replyChannel ->
               async {
                 let inactiveConnections : NodeRecordConnections =
-                  let createInactiveConnection (inboundNeuronConnection : InboundNeuronConnection) : InactiveNeuronConnection =
-                    {
+                  let createInactiveConnection (inboundNeuronConnection : InboundNeuronConnection) : NeuronConnectionId*InactiveNeuronConnection =
+                    inboundNeuronConnection.NeuronConnectionId, {
                       NodeId = inboundNeuronConnection.FromNodeId
                       Weight = inboundNeuronConnection.InitialWeight
                       ConnectionOrder = inboundNeuronConnection.ConnectionOrder
                     }
                   inboundConnections
                   |> Seq.map createInactiveConnection
+                  |> Map.ofSeq
                 let nodeRecord =
                   match neuronType with
                   | Neuron props -> props.Record

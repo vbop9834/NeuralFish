@@ -14,8 +14,8 @@ let assertNodeRecordsContainsNode (nodeRecords : NodeRecords) (neuronId, (_, liv
   let liveNeuronNodeRecord = GetNodeRecord |> liveNeuron.PostAndReply
   let getNodeRecord nodeId = nodeRecords |> Map.find nodeId
   let assertRecordConnectionIsIdenticalTo (nodeRecordConnections : NodeRecordConnections)  =
-    (fun index (nodeConnection : InactiveNeuronConnection) ->
-      match nodeRecordConnections |> Seq.tryItem index with
+    (fun nodeConnectionId (nodeConnection : InactiveNeuronConnection) ->
+      match nodeRecordConnections |> Map.tryFind nodeConnectionId with
       | None -> "Node record does not have the connection" |> should equal ""
       | Some inactiveConnection -> 
         nodeConnection.NodeId |> should equal inactiveConnection.NodeId
@@ -36,7 +36,7 @@ let assertNodeRecordsContainsNode (nodeRecords : NodeRecords) (neuronId, (_, liv
       nodeRecord.InboundConnections |> Seq.isEmpty |> should equal false
 
       liveNeuronNodeRecord.InboundConnections
-      |> Seq.iteri (assertRecordConnectionIsIdenticalTo nodeRecord.InboundConnections)
+      |> Map.iter (assertRecordConnectionIsIdenticalTo nodeRecord.InboundConnections)
 
     | NodeRecordType.Sensor _ ->
       let nodeRecord =
@@ -51,7 +51,7 @@ let assertNodeRecordsContainsNode (nodeRecords : NodeRecords) (neuronId, (_, liv
       nodeRecord.InboundConnections |> Seq.isEmpty |> should equal true
 
       liveNeuronNodeRecord.InboundConnections
-      |> Seq.iteri (assertRecordConnectionIsIdenticalTo nodeRecord.InboundConnections)
+      |> Map.iter (assertRecordConnectionIsIdenticalTo nodeRecord.InboundConnections)
     | NodeRecordType.Actuator ->
       let nodeRecord =
         liveNeuronNodeRecord.NodeId

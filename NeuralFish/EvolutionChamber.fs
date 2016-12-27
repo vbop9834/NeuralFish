@@ -77,7 +77,9 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
                 NodeId = fromNode.NodeId
                 Weight = 1.0
               }
-            Seq.append toNode.InboundConnections [newInactiveConnection] 
+            let newConnectionId = System.Guid.NewGuid()
+            toNode.InboundConnections
+            |> Map.add newConnectionId newInactiveConnection
           { toNode with InboundConnections = newInboundConnections }
         let selectRandomNode (randomNodeRecords : NodeRecords) =
           let seqOfNodeRecords = randomNodeRecords |> Map.toSeq
@@ -197,7 +199,7 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
               let totalNumberOfInboundCOnnections = neuronToMutateWeights.InboundConnections |> Seq.length |> float
               1.0/(sqrt totalNumberOfInboundCOnnections)
             let newInboundConnections =
-              let calculateProbabilityAndMutateWeight inactiveConnection =
+              let calculateProbabilityAndMutateWeight _ inactiveConnection =
                 let mutateWeight (inactiveConnection : InactiveNeuronConnection) : InactiveNeuronConnection =
                   let newWeight =
                     let pi = System.Math.PI
@@ -212,7 +214,7 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
                 else
                   inactiveConnection
               neuronToMutateWeights.InboundConnections
-              |> Seq.map calculateProbabilityAndMutateWeight
+              |> Map.map calculateProbabilityAndMutateWeight
             { neuronToMutateWeights with InboundConnections = newInboundConnections }
 
           processingNodeRecords
@@ -224,7 +226,7 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
             |> selectRandomNode
           let mutatedNeuron =
             let newInboundConnections =
-              let resetWeight (inactiveConnection : InactiveNeuronConnection) =
+              let resetWeight _ (inactiveConnection : InactiveNeuronConnection) =
                 let newWeight =
                   let pi = System.Math.PI
                   let maxValue = pi/2.0
@@ -234,7 +236,7 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
                     Weight = newWeight
                 }
               neuronToMutateWeights.InboundConnections
-              |> Seq.map resetWeight
+              |> Map.map resetWeight
             { neuronToMutateWeights with InboundConnections = newInboundConnections }
 
           processingNodeRecords
@@ -277,7 +279,7 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
             let seqOfNodes =
               processingNodeRecords
               |> Map.toSeq
-            let inboundConnections = Seq.empty
+            let inboundConnections = Map.empty
             let nodeId =
               seqOfNodes
               |> Seq.maxBy(fun (nodeId,_) -> nodeId)
@@ -311,18 +313,17 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
             processingNodeRecords
             |> Map.filter(fun _ x -> x.NodeType |> isRecordASensor |> not)
             |> selectRandomNode
-          let randomInboundItemId = 
-             toNode.InboundConnections 
-             |> Seq.length
-             |> random.Next
-          let toNodeInactiveConnection =
-             toNode
-             |> (fun x -> x.InboundConnections)
-             |> Seq.item randomInboundItemId 
+          let toNodeInactiveConnectionId, toNodeInactiveConnection = 
+             let randomIndex =
+               toNode.InboundConnections 
+               |> Seq.length
+               |> random.Next
+             toNode.InboundConnections
+             |> Seq.item randomIndex
+             |> (fun x -> x.Key, x.Value)
           let fromNode =
             processingNodeRecords
             |> Map.find toNodeInactiveConnection.NodeId
-            
           let newNeuronLayer =
             match toNode.NodeType with
             | NodeRecordType.Actuator ->
@@ -343,7 +344,7 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
             let seqOfNodes =
               processingNodeRecords
               |> Map.toSeq
-            let inboundConnections = Seq.empty
+            let inboundConnections = Map.empty
             let nodeId =
               seqOfNodes
               |> Seq.maxBy(fun (nodeId,_) -> nodeId)
@@ -366,8 +367,7 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
             let updatedInboundConnections =
               let newConnection = { toNodeInactiveConnection with NodeId=blankNewNeuronRecord.NodeId}
               toNode.InboundConnections
-              |> Seq.filter(fun x -> x <> toNodeInactiveConnection)
-              |> Seq.append [newConnection]
+              |> Map.add toNodeInactiveConnectionId newConnection
             { toNode with
                 InboundConnections = updatedInboundConnections
             }
@@ -386,7 +386,7 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
                   let getOutboundConnectionCount =
                     (fun (_,toNode) ->
                       toNode.InboundConnections
-                      |> Seq.filter(fun inboundConnection -> inboundConnection.NodeId = nodeRecord.NodeId)
+                      |> Map.filter(fun _ inboundConnection -> inboundConnection.NodeId = nodeRecord.NodeId)
                       |> Seq.length
                     )
                   processingNodeRecords
@@ -434,7 +434,43 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
             |> addInboundConnection toActuator
           processingNodeRecords
           |> Map.add actuatorWithInbound.NodeId actuatorWithInbound
-       // | RemoveSensorLink ->
+        | RemoveSensorLink ->
+          let _,sensorRecord =
+            processingNodeRecords
+            |> Map.filter (fun _ record -> record.NodeType |> isRecordASensor)
+            |> selectRandomNode
+          let numberOfSensorOutboundConnections = 
+            match sensorRecord.NodeType with
+            | NodeRecordType.Sensor x -> x
+            | _ -> 0
+          if numberOfSensorOutboundConnections <= 1 then
+            mutateRandomly()
+          else
+            let _, randomNeuron =
+              let checkIfRecordHasSensorAsInbound _ nodeRecord =
+                if nodeRecord.NodeType = NodeRecordType.Neuron then
+                  nodeRecord.InboundConnections
+                  |> Map.exists(fun _ connection -> connection.NodeId = sensorRecord.NodeId)
+                else
+                  false
+              processingNodeRecords
+              |> Map.filter (fun _ record -> record.NodeType |> isRecordASensor |> not)
+              |> Map.filter checkIfRecordHasSensorAsInbound
+              |> selectRandomNode
+            let mutatedNeuron =
+              let updatedInboundConnections = 
+                let connectionIdToRemove =
+                  randomNeuron.InboundConnections
+                  |> Seq.find(fun x -> x.Value.NodeId = sensorRecord.NodeId)
+                  |> (fun x -> x.Key)
+                randomNeuron.InboundConnections
+                |> Map.remove connectionIdToRemove
+              { randomNeuron with InboundConnections = updatedInboundConnections}
+            let mutatedSensor =
+              { sensorRecord with NodeType = NodeRecordType.Sensor (numberOfSensorOutboundConnections - 1)}
+            processingNodeRecords
+            |> Map.add mutatedSensor.NodeId mutatedSensor
+            |> Map.add mutatedNeuron.NodeId mutatedNeuron
        // | RemoveActuatorLink ->
         | AddSensor ->
           let sensorRecords =
@@ -454,7 +490,7 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
               |> selectRandomNode
             let blankSensorRecord =
               let layer = 0
-              let inboundConnections = Seq.empty
+              let inboundConnections = Map.empty
               let nodeId =
                 processingNodeRecords
                 |> Map.toSeq
@@ -509,7 +545,7 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
                 processingNodeRecords
                 |> Map.toSeq
               let layer = 0
-              let inboundConnections = Seq.empty
+              let inboundConnections = Map.empty
               let nodeId =
                 seqOfNodes
                 |> Seq.maxBy(fun (nodeId,_) -> nodeId)

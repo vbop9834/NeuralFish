@@ -62,7 +62,7 @@ type NodeRecordType =
   | Sensor of NumberOfOutboundConnections
   | Actuator
 
-type NodeRecordConnections = seq<InactiveNeuronConnection>
+type NodeRecordConnections = Map<NeuronConnectionId,InactiveNeuronConnection>
 
 type LearningRateCoefficient = float
 
@@ -211,14 +211,13 @@ type Mutation =
   | MutateWeights
   | ResetWeights
   | AddInboundConnection
-  // //Choose a random neuron A, node B, and add a connection
   | AddOutboundConnection
   | AddNeuron
   | AddNeuronOutSplice
   | AddNeuronInSplice
   | AddSensorLink
   | AddActuatorLink
-  // | RemoveSensorLink
+  | RemoveSensorLink
   // | RemoveActuatorLink
   | AddSensor
   | AddActuator

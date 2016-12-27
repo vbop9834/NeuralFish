@@ -64,7 +64,7 @@ let constructNeuralNetwork (neuralNetProperties : ConstructNeuralNetworkProperti
 
         sprintf "%A has inbound connections %A" targetNodeId node.InboundConnections |> infoLog
         node.InboundConnections
-        |> Seq.iter (fun inboundConnection -> findNeuronAndAddToOutboundConnections inboundConnection node.NodeId)
+        |> Map.iter (fun _ inboundConnection -> findNeuronAndAddToOutboundConnections inboundConnection node.NodeId)
       nodeRecords
       |> Map.find targetNodeId
       |> processRecordConnections
