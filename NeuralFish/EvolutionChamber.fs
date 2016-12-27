@@ -508,7 +508,29 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
             |> Map.add mutatedNeuron.NodeId mutatedNeuron
             |> Map.toSeq
             |> addUpdatedOutboundConnections processingNodeRecords
-       // | RemoveActuatorLink ->
+        | RemoveActuatorLink ->
+          let _, randomActuator =
+            processingNodeRecords
+            |> Map.filter(fun _ record -> record.NodeType = NodeRecordType.Actuator)
+            |> selectRandomNode
+          let numberOfActuatorInboundConnections =
+            randomActuator.InboundConnections
+            |> Seq.length
+          if numberOfActuatorInboundConnections = 1 then
+            mutateRandomly()
+          else
+            let updatedInboundConnections =
+              let randomIndex = random.Next numberOfActuatorInboundConnections
+              let randomConnectionKey =
+                randomActuator.InboundConnections
+                |> Seq.item randomIndex
+                |> (fun x -> x.Key)
+              randomActuator.InboundConnections
+              |> Map.remove randomConnectionKey
+            let updatedActuator =
+              { randomActuator with InboundConnections = updatedInboundConnections }
+            processingNodeRecords
+            |> Map.add updatedActuator.NodeId updatedActuator
         | AddSensor ->
           let sensorRecords =
             processingNodeRecords

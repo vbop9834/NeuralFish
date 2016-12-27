@@ -48,7 +48,7 @@ type AxonHillockBarrier = Map<NeuronConnectionId, Synapse>
 
 type IncomingSynapses = Map<NeuronConnectionId, Synapse>
 
-type InactiveNeuronConnection = 
+type InactiveNeuronConnection =
   {
     NodeId : NeuronId
     Weight : Weight
@@ -165,7 +165,7 @@ type NeuronConnection =
 type NeuronConnections = seq<NeuronConnection>
 type RecurrentNeuronConnections = NeuronConnections
 
-type InboundNeuronConnections = seq<InboundNeuronConnection> 
+type InboundNeuronConnections = seq<InboundNeuronConnection>
 
 type NeuralNetwork = Map<NeuronId, NeuronLayerId*NeuronInstance>
 
@@ -218,7 +218,7 @@ type Mutation =
   | AddSensorLink
   | AddActuatorLink
   | RemoveSensorLink
-  // | RemoveActuatorLink
+  | RemoveActuatorLink
   | AddSensor
   | AddActuator
   // | RemoveInboundConnection
