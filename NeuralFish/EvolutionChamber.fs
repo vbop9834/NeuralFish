@@ -69,7 +69,7 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
           let newInboundConnections =
             let connectionOrder =
               match fromNode.NodeType with
-              | NodeRecordType.Sensor numberOfOutboundConnections -> Some numberOfOutboundConnections
+              | NodeRecordType.Sensor numberOfOutboundConnections -> Some (numberOfOutboundConnections+1)
               | _ -> None
             let newInactiveConnection =
               {
@@ -313,9 +313,9 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
             processingNodeRecords
             |> Map.filter(fun _ x -> x.NodeType |> isRecordASensor |> not)
             |> selectRandomNode
-          let toNodeInactiveConnectionId, toNodeInactiveConnection = 
+          let toNodeInactiveConnectionId, toNodeInactiveConnection =
              let randomIndex =
-               toNode.InboundConnections 
+               toNode.InboundConnections
                |> Seq.length
                |> random.Next
              toNode.InboundConnections
@@ -371,7 +371,7 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
             { toNode with
                 InboundConnections = updatedInboundConnections
             }
-            
+
           let updatedNeuronRecord =
             fromNode
             |> addInboundConnection blankNewNeuronRecord
@@ -381,28 +381,16 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
         | AddSensorLink ->
           let sensorRecordsThatCanHaveAnotherOutput =
             let determineSensorEligibility key (nodeRecord : NodeRecord) =
-              if (nodeRecord.NodeType |> isRecordASensor) then
-                let numberOfOutboundConnctions =
-                  let getOutboundConnectionCount =
-                    (fun (_,toNode) ->
-                      toNode.InboundConnections
-                      |> Map.filter(fun _ inboundConnection -> inboundConnection.NodeId = nodeRecord.NodeId)
-                      |> Seq.length
-                    )
-                  processingNodeRecords
-                  |> Map.toArray
-                  |> Array.filter(fun (_, x) -> x.NodeType |> isRecordASensor |> not)
-                  |> Array.Parallel.map getOutboundConnectionCount
-                  |> Array.sum
+              match nodeRecord.NodeType with
+              | NodeRecordType.Sensor numberOfOutboundConnections ->
                 match nodeRecord.MaximumVectorLength with
                 | None -> false
                 | Some maximumVectorLength ->
                   if maximumVectorLength = 0 then
                     true
                   else
-                    maximumVectorLength > numberOfOutboundConnctions
-              else
-                false
+                    maximumVectorLength > numberOfOutboundConnections
+              | _ -> false
             processingNodeRecords
             |> Map.filter determineSensorEligibility
           if (sensorRecordsThatCanHaveAnotherOutput |> Map.isEmpty) then
@@ -418,8 +406,15 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
             let updatedToNode =
               sensorNode
               |> addInboundConnection toNode
+            let updatedSensorNode =
+              let updatedNumberOfOutboundConnections =
+                match sensorNode.NodeType with
+                | NodeRecordType.Sensor numberOfOutboundConnections -> numberOfOutboundConnections+1
+                | _ -> raise <| System.Exception("sensor record is not a sensor node type")
+              { sensorNode with NodeType = NodeRecordType.Sensor updatedNumberOfOutboundConnections }
             processingNodeRecords
             |> Map.add updatedToNode.NodeId updatedToNode
+            |> Map.add updatedSensorNode.NodeId updatedSensorNode
         | AddActuatorLink ->
           let _,fromNode =
             processingNodeRecords
@@ -439,38 +434,80 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
             processingNodeRecords
             |> Map.filter (fun _ record -> record.NodeType |> isRecordASensor)
             |> selectRandomNode
-          let numberOfSensorOutboundConnections = 
+          let numberOfSensorOutboundConnections =
             match sensorRecord.NodeType with
             | NodeRecordType.Sensor x -> x
             | _ -> 0
           if numberOfSensorOutboundConnections <= 1 then
             mutateRandomly()
           else
-            let _, randomNeuron =
+            let sensorOutboundConnections =
               let checkIfRecordHasSensorAsInbound _ nodeRecord =
                 if nodeRecord.NodeType = NodeRecordType.Neuron then
                   nodeRecord.InboundConnections
-                  |> Map.exists(fun _ connection -> connection.NodeId = sensorRecord.NodeId)
+                  |> Map.filter(fun _ connection -> connection.NodeId = sensorRecord.NodeId)
+                  |> Some
                 else
-                  false
+                  None
               processingNodeRecords
               |> Map.filter (fun _ record -> record.NodeType |> isRecordASensor |> not)
-              |> Map.filter checkIfRecordHasSensorAsInbound
-              |> selectRandomNode
+              |> Map.map checkIfRecordHasSensorAsInbound
+              |> Map.filter (fun _ x -> x.IsSome)
+              |> Map.map (fun _ x -> x.Value)
+            let randomNeuron =
+              let randomNodeId =
+                let randomLength = sensorOutboundConnections |> Seq.length
+                let randomIndex = random.Next randomLength
+                sensorOutboundConnections
+                |> Seq.item randomIndex
+                |> (fun x -> x.Key)
+              processingNodeRecords
+              |> Map.find randomNodeId
             let mutatedNeuron =
-              let updatedInboundConnections = 
+              let updatedInboundConnections =
                 let connectionIdToRemove =
                   randomNeuron.InboundConnections
-                  |> Seq.find(fun x -> x.Value.NodeId = sensorRecord.NodeId)
-                  |> (fun x -> x.Key)
+                  |> Map.findKey(fun _ x -> x.NodeId = sensorRecord.NodeId)
                 randomNeuron.InboundConnections
                 |> Map.remove connectionIdToRemove
               { randomNeuron with InboundConnections = updatedInboundConnections}
+            let numberOfSensorOutboundConnections, reorderedConnections =
+              let seqOfSensorOutboundConn = sensorOutboundConnections |> Map.toSeq
+              let updatedNumberOfSensorOutboundConn = (seqOfSensorOutboundConn |> Seq.length) - 1
+              let reorderedConnections =
+                seqOfSensorOutboundConn
+                |> Seq.map (fun (nodeId, inboundConn) -> inboundConn |> Map.toSeq)
+                |> Seq.concat
+                |> Seq.sortBy(fun (connId, conn) -> match conn.ConnectionOrder with | Some x -> x | None -> System.Int32.MaxValue)
+                |> Seq.mapi(fun index (connId,conn) -> connId, { conn with ConnectionOrder = Some index})
+                |> Map.ofSeq
+              updatedNumberOfSensorOutboundConn, reorderedConnections
             let mutatedSensor =
-              { sensorRecord with NodeType = NodeRecordType.Sensor (numberOfSensorOutboundConnections - 1)}
+              { sensorRecord with NodeType = NodeRecordType.Sensor numberOfSensorOutboundConnections}
+            let rec addUpdatedOutboundConnections nodeRecordsToReturn nodeRecordsLeft =
+              if nodeRecordsLeft |> Seq.isEmpty then
+                nodeRecordsToReturn
+              else
+                let updatedNodeRecord =
+                  let updateConnection oldConnId oldConnection =
+                    match reorderedConnections |> Map.tryFind oldConnId with
+                    | Some newConn -> newConn
+                    | None -> oldConnection
+                  let _, nodeRecordToUpdate = nodeRecordsLeft |> Seq.head
+                  let updatedInboundConn =
+                    nodeRecordToUpdate.InboundConnections
+                    |> Map.map updateConnection
+                  { nodeRecordToUpdate with InboundConnections = updatedInboundConn}
+                let tailRecords = nodeRecordsLeft |> Seq.tail
+                let updatedNodeRecordsToReturn =
+                  nodeRecordsToReturn
+                  |> Map.add updatedNodeRecord.NodeId updatedNodeRecord
+                addUpdatedOutboundConnections updatedNodeRecordsToReturn tailRecords
             processingNodeRecords
             |> Map.add mutatedSensor.NodeId mutatedSensor
             |> Map.add mutatedNeuron.NodeId mutatedNeuron
+            |> Map.toSeq
+            |> addUpdatedOutboundConnections processingNodeRecords
        // | RemoveActuatorLink ->
         | AddSensor ->
           let sensorRecords =

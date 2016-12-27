@@ -391,7 +391,7 @@ let ``RemoveSensorLink mutation should remove a sensor connection randomly in th
   neuralNetwork |> synchronizeNN
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should be (greaterThan 0.0))
+  |> (should be (lessThan 100.0))
 
   neuralNetwork |> killNeuralNetwork
 
