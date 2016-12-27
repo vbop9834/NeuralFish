@@ -642,16 +642,18 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
         | RemoveInboundConnection ->
           let eligibleRecords =
             let doesRecordHaveANeuronConnection (_,nodeRecord) =
-              let connections =
-                nodeRecord.InboundConnections
-                |> Map.filter (fun _ connection -> processingNodeRecords |> Map.find connection.NodeId |> (fun x -> x.NodeType) |> isRecordASensor |> not)
-              if connections |> Map.isEmpty then
-                None
-              else
-                Some (nodeRecord, connections)
+              match nodeRecord.NodeType with
+              | NodeRecordType.Neuron ->
+                let connections =
+                  nodeRecord.InboundConnections
+                  |> Map.filter (fun _ connection -> processingNodeRecords |> Map.find connection.NodeId |> (fun x -> x.NodeType) |> isRecordASensor |> not)
+                if connections |> Map.isEmpty then
+                  None
+                else
+                  Some (nodeRecord, connections)
+              | _ -> None
             processingNodeRecords
             |> Map.toSeq
-            |> Seq.filter (fun (_,record) -> record.NodeType = NodeRecordType.Neuron)
             |> Seq.map doesRecordHaveANeuronConnection
             |> Seq.filter (fun x -> x.IsSome)
           if eligibleRecords |> Seq.isEmpty then
