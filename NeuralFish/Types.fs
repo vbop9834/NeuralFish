@@ -221,8 +221,8 @@ type Mutation =
   | RemoveActuatorLink
   | AddSensor
   | AddActuator
-  // | RemoveInboundConnection
-  // | RemoveOutboundConnection
+  | RemoveInboundConnection
+  | RemoveOutboundConnection
   // | RemoveNeuron
   // //Remove neuron then connect inputs to outputs
   // | DespliceOut

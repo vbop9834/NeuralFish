@@ -511,3 +511,253 @@ let ``RemoveActuatorLink mutation should remove an actuator connection randomly 
   neuralNetwork |> killNeuralNetwork
 
   Die |> testHookMailbox.PostAndReply
+
+[<Fact>]
+let ``RemoveInboundConnection mutation should remove some neuron connection randomly in the neural network`` () =
+  //Test setup
+  let (testHook, testHookMailbox) = getTestHook ()
+  let getNodeId = getNumberGenerator()
+  let actuatorId = getNodeId()
+  let outputHookId = 9001
+  let activationFunctionId = 0
+  let activationFunction = id
+  let syncFunctionId = 0
+  let syncFunction =
+    let data =
+      [1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0]
+      |> List.toSeq
+    fakeDataGenerator([data])
+
+  //Create Neurons
+  let actuator =
+    let layer = 4
+    createActuator actuatorId layer testHook outputHookId
+    |> createNeuronInstance
+  let neuron =
+    let bias = 0.0
+    let nodeId = getNodeId()
+    let layer = 2
+    createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
+    |> createNeuronInstance
+  let neuronTwo =
+    let bias = 0.0
+    let nodeId = getNodeId()
+    let layer = 3
+    createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
+    |> createNeuronInstance
+
+  let sensor =
+    let id = getNodeId()
+    createSensor id syncFunction syncFunctionId 1
+    |> createNeuronInstance
+
+  //Connect Neurons
+  let weights =
+    [
+      20.0
+      20.0
+      20.0
+      20.0
+      20.0
+    ]
+  sensor |> connectSensorToNode neuron weights
+  let neuronWeight = 1.0
+  neuron |> connectNodeToNeuron neuronTwo neuronWeight
+  neuron |> connectNodeToNeuron neuronTwo neuronWeight
+  neuronTwo |> connectNodeToActuator actuator
+
+  //Synchronize and Assert!
+  synchronize sensor
+  WaitForData
+  |> testHookMailbox.PostAndReply
+  |> (should (equalWithin 0.001) 200.0)
+
+  let activationFunctions : ActivationFunctions =
+    Map.empty
+    |> Map.add activationFunctionId activationFunction
+  let syncFunctions =
+    Map.empty
+    |> Map.add syncFunctionId syncFunction
+  let outputHooks =
+    Map.empty
+    |> Map.add outputHookId testHook
+
+  let neuronId = neuronTwo |> fst
+  let initialNumberOfNeuronConnections = 2
+  let nodeRecords =
+    let initialNodeRecords =
+      Map.empty
+      |> addNeuronToMap actuator
+      |> addNeuronToMap neuron
+      |> addNeuronToMap neuronTwo
+      |> addNeuronToMap sensor
+      |> constructNodeRecords
+    initialNodeRecords
+    |> Map.find neuronId
+    |> (fun neuronRecord -> neuronRecord.InboundConnections |> Seq.length |> should equal 2)
+    let mutations = [RemoveInboundConnection]
+    {
+      Mutations = mutations
+      ActivationFunctionIds = [activationFunctionId]
+      SyncFunctionIds = [syncFunctionId]
+      OutputHookFunctionIds = [outputHookId]
+      LearningAlgorithm = NoLearning
+      InfoLog = defaultInfoLog
+      NodeRecords = initialNodeRecords
+    } |> mutateNeuralNetwork
+
+  nodeRecords
+  |> Map.find neuronId
+  |> (fun neuronRecord -> neuronRecord.InboundConnections |> Seq.length |> should equal 1)
+
+  [
+    sensor
+    neuron
+    neuronTwo
+    actuator
+  ]
+  |> Map.ofList
+  |> killNeuralNetwork
+
+  let neuralNetwork =
+   {
+     ActivationFunctions = activationFunctions
+     SyncFunctions = syncFunctions
+     OutputHooks = outputHooks
+     NodeRecords = nodeRecords
+     InfoLog = defaultInfoLog
+   } |> constructNeuralNetwork
+
+  neuralNetwork |> synchronizeNN
+  WaitForData
+  |> testHookMailbox.PostAndReply
+  |> (should (equalWithin 0.001) 100.0)
+
+  neuralNetwork |> killNeuralNetwork
+
+  Die |> testHookMailbox.PostAndReply
+
+[<Fact>]
+let ``RemoveOutboundConnection mutation should remove some neuron connection randomly in the neural network`` () =
+  //Test setup
+  let (testHook, testHookMailbox) = getTestHook ()
+  let getNodeId = getNumberGenerator()
+  let actuatorId = getNodeId()
+  let outputHookId = 9001
+  let activationFunctionId = 0
+  let activationFunction = id
+  let syncFunctionId = 0
+  let syncFunction =
+    let data =
+      [1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0; 1.0]
+      |> List.toSeq
+    fakeDataGenerator([data])
+
+  //Create Neurons
+  let actuator =
+    let layer = 4
+    createActuator actuatorId layer testHook outputHookId
+    |> createNeuronInstance
+  let neuron =
+    let bias = 0.0
+    let nodeId = getNodeId()
+    let layer = 2
+    createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
+    |> createNeuronInstance
+  let neuronTwo =
+    let bias = 0.0
+    let nodeId = getNodeId()
+    let layer = 3
+    createNeuron nodeId layer activationFunction activationFunctionId bias NoLearning
+    |> createNeuronInstance
+
+  let sensor =
+    let id = getNodeId()
+    createSensor id syncFunction syncFunctionId 1
+    |> createNeuronInstance
+
+  //Connect Neurons
+  let weights =
+    [
+      20.0
+      20.0
+      20.0
+      20.0
+      20.0
+    ]
+  sensor |> connectSensorToNode neuron weights
+  let neuronWeight = 1.0
+  neuron |> connectNodeToNeuron neuronTwo neuronWeight
+  neuron |> connectNodeToNeuron neuronTwo neuronWeight
+  neuronTwo |> connectNodeToActuator actuator
+
+  //Synchronize and Assert!
+  synchronize sensor
+  WaitForData
+  |> testHookMailbox.PostAndReply
+  |> (should (equalWithin 0.001) 200.0)
+
+  let activationFunctions : ActivationFunctions =
+    Map.empty
+    |> Map.add activationFunctionId activationFunction
+  let syncFunctions =
+    Map.empty
+    |> Map.add syncFunctionId syncFunction
+  let outputHooks =
+    Map.empty
+    |> Map.add outputHookId testHook
+
+  let neuronId = neuronTwo |> fst
+  let initialNumberOfNeuronConnections = 2
+  let nodeRecords =
+    let initialNodeRecords =
+      Map.empty
+      |> addNeuronToMap actuator
+      |> addNeuronToMap neuron
+      |> addNeuronToMap neuronTwo
+      |> addNeuronToMap sensor
+      |> constructNodeRecords
+    initialNodeRecords
+    |> Map.find neuronId
+    |> (fun neuronRecord -> neuronRecord.InboundConnections |> Seq.length |> should equal 2)
+    let mutations = [RemoveOutboundConnection]
+    {
+      Mutations = mutations
+      ActivationFunctionIds = [activationFunctionId]
+      SyncFunctionIds = [syncFunctionId]
+      OutputHookFunctionIds = [outputHookId]
+      LearningAlgorithm = NoLearning
+      InfoLog = defaultInfoLog
+      NodeRecords = initialNodeRecords
+    } |> mutateNeuralNetwork
+
+  nodeRecords
+  |> Map.find neuronId
+  |> (fun neuronRecord -> neuronRecord.InboundConnections |> Seq.length |> should equal 1)
+
+  [
+    sensor
+    neuron
+    neuronTwo
+    actuator
+  ]
+  |> Map.ofList
+  |> killNeuralNetwork
+
+  let neuralNetwork =
+   {
+     ActivationFunctions = activationFunctions
+     SyncFunctions = syncFunctions
+     OutputHooks = outputHooks
+     NodeRecords = nodeRecords
+     InfoLog = defaultInfoLog
+   } |> constructNeuralNetwork
+
+  neuralNetwork |> synchronizeNN
+  WaitForData
+  |> testHookMailbox.PostAndReply
+  |> (should (equalWithin 0.001) 100.0)
+
+  neuralNetwork |> killNeuralNetwork
+
+  Die |> testHookMailbox.PostAndReply

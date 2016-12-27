@@ -516,7 +516,7 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
           let numberOfActuatorInboundConnections =
             randomActuator.InboundConnections
             |> Seq.length
-          if numberOfActuatorInboundConnections = 1 then
+          if numberOfActuatorInboundConnections <= 1 then
             mutateRandomly()
           else
             let updatedInboundConnections =
@@ -638,8 +638,48 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
               |> addInboundConnection blankActuatorRecord
             processingNodeRecords
             |> Map.add newActuatorRecord.NodeId newActuatorRecord
-       // | RemoveInboundConnection ->
-       // | RemoveOutboundConnection ->
+        | RemoveOutboundConnection
+        | RemoveInboundConnection ->
+          let eligibleRecords =
+            let doesRecordHaveANeuronConnection (_,nodeRecord) =
+              let connections =
+                nodeRecord.InboundConnections
+                |> Map.filter (fun _ connection -> processingNodeRecords |> Map.find connection.NodeId |> (fun x -> x.NodeType) |> isRecordASensor |> not)
+              if connections |> Map.isEmpty then
+                None
+              else
+                Some (nodeRecord, connections)
+            processingNodeRecords
+            |> Map.toSeq
+            |> Seq.filter (fun (_,record) -> record.NodeType = NodeRecordType.Neuron)
+            |> Seq.map doesRecordHaveANeuronConnection
+            |> Seq.filter (fun x -> x.IsSome)
+          if eligibleRecords |> Seq.isEmpty then
+            mutateRandomly ()
+          else
+            let nodeToRemoveConnection, inboundConnections =
+              let randomIndex = random.Next (eligibleRecords |> Seq.length)
+              eligibleRecords
+              |> Seq.item randomIndex
+              |> (fun x -> x.Value)
+            let numberOfInboundConnections =
+              inboundConnections
+              |> Seq.length
+            if numberOfInboundConnections <= 1 then
+              mutateRandomly ()
+            else
+              let updatedInboundConnections =
+                let randomIndex = random.Next numberOfInboundConnections
+                let randomConnectionKey =
+                  inboundConnections
+                  |> Seq.item randomIndex
+                  |> (fun x -> x.Key)
+                nodeToRemoveConnection.InboundConnections
+                |> Map.remove randomConnectionKey
+              let updatedNeuron =
+                { nodeToRemoveConnection with InboundConnections = updatedInboundConnections }
+              processingNodeRecords
+              |> Map.add updatedNeuron.NodeId updatedNeuron
        // | RemoveNeuron ->
        // | DespliceOut ->
        // | RemoveSensor ->
