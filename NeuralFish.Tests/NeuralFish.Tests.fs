@@ -310,17 +310,17 @@ let ``Should be able to handle recurrent neural network with three neurons`` () 
   synchronize sensor
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should equal 44320.0)
+  |> (should equal 320.0)
 
   synchronize sensor
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should equal 1810520.0)
+  |> (should equal 50520.0)
 
   synchronize sensor
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should equal 54734520.0)
+  |> (should equal 1934520.0)
 
   [
     sensor

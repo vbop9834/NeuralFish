@@ -202,13 +202,13 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
                 if totalNumberOfMutations = 1 then
                   processingNodeRecords
                 else
-                  sprintf "Neuron %A already has no bias already" neuronToRemoveBias.NodeId|> infoLog
+                  sprintf "Neuron %A already has no bias" neuronToRemoveBias.NodeId|> infoLog
                   mutateRandomly()
             | None ->
               if totalNumberOfMutations = 1 then
                 processingNodeRecords
               else
-                sprintf "Neuron %A already has no bias already" neuronToRemoveBias.NodeId|> infoLog
+                sprintf "Neuron %A already has no bias" neuronToRemoveBias.NodeId|> infoLog
                 mutateRandomly()
         | MutateWeights ->
           let _, neuronToMutateWeights =
@@ -489,51 +489,54 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
                 |> (fun x -> x.Key)
               processingNodeRecords
               |> Map.find randomNodeId
-            let mutatedNeuron =
-              let updatedInboundConnections =
-                let connectionIdToRemove =
+            match randomNeuron.InboundConnections |> Seq.length <= 1 with
+            | true -> mutateRandomly()
+            | false ->
+              let mutatedNeuron =
+                let updatedInboundConnections =
+                  let connectionIdToRemove =
+                    randomNeuron.InboundConnections
+                    |> Map.findKey(fun _ x -> x.NodeId = sensorRecord.NodeId)
                   randomNeuron.InboundConnections
-                  |> Map.findKey(fun _ x -> x.NodeId = sensorRecord.NodeId)
-                randomNeuron.InboundConnections
-                |> Map.remove connectionIdToRemove
-              { randomNeuron with InboundConnections = updatedInboundConnections}
-            let numberOfSensorOutboundConnections, reorderedConnections =
-              let seqOfSensorOutboundConn = sensorOutboundConnections |> Map.toSeq
-              let updatedNumberOfSensorOutboundConn = (seqOfSensorOutboundConn |> Seq.length) - 1
-              let reorderedConnections =
-                seqOfSensorOutboundConn
-                |> Seq.map (fun (nodeId, inboundConn) -> inboundConn |> Map.toSeq)
-                |> Seq.concat
-                |> Seq.sortBy(fun (connId, conn) -> match conn.ConnectionOrder with | Some x -> x | None -> System.Int32.MaxValue)
-                |> Seq.mapi(fun index (connId,conn) -> connId, { conn with ConnectionOrder = Some index})
-                |> Map.ofSeq
-              updatedNumberOfSensorOutboundConn, reorderedConnections
-            let mutatedSensor =
-              { sensorRecord with NodeType = NodeRecordType.Sensor numberOfSensorOutboundConnections}
-            let rec addUpdatedOutboundConnections nodeRecordsToReturn nodeRecordsLeft =
-              if nodeRecordsLeft |> Seq.isEmpty then
-                nodeRecordsToReturn
-              else
-                let updatedNodeRecord =
-                  let updateConnection oldConnId oldConnection =
-                    match reorderedConnections |> Map.tryFind oldConnId with
-                    | Some newConn -> newConn
-                    | None -> oldConnection
-                  let _, nodeRecordToUpdate = nodeRecordsLeft |> Seq.head
-                  let updatedInboundConn =
-                    nodeRecordToUpdate.InboundConnections
-                    |> Map.map updateConnection
-                  { nodeRecordToUpdate with InboundConnections = updatedInboundConn}
-                let tailRecords = nodeRecordsLeft |> Seq.tail
-                let updatedNodeRecordsToReturn =
+                  |> Map.remove connectionIdToRemove
+                { randomNeuron with InboundConnections = updatedInboundConnections}
+              let numberOfSensorOutboundConnections, reorderedConnections =
+                let seqOfSensorOutboundConn = sensorOutboundConnections |> Map.toSeq
+                let updatedNumberOfSensorOutboundConn = (seqOfSensorOutboundConn |> Seq.length) - 1
+                let reorderedConnections =
+                  seqOfSensorOutboundConn
+                  |> Seq.map (fun (nodeId, inboundConn) -> inboundConn |> Map.toSeq)
+                  |> Seq.concat
+                  |> Seq.sortBy(fun (connId, conn) -> match conn.ConnectionOrder with | Some x -> x | None -> System.Int32.MaxValue)
+                  |> Seq.mapi(fun index (connId,conn) -> connId, { conn with ConnectionOrder = Some index})
+                  |> Map.ofSeq
+                updatedNumberOfSensorOutboundConn, reorderedConnections
+              let mutatedSensor =
+                { sensorRecord with NodeType = NodeRecordType.Sensor numberOfSensorOutboundConnections}
+              let rec addUpdatedOutboundConnections nodeRecordsToReturn nodeRecordsLeft =
+                if nodeRecordsLeft |> Seq.isEmpty then
                   nodeRecordsToReturn
-                  |> Map.add updatedNodeRecord.NodeId updatedNodeRecord
-                addUpdatedOutboundConnections updatedNodeRecordsToReturn tailRecords
-            processingNodeRecords
-            |> Map.add mutatedSensor.NodeId mutatedSensor
-            |> Map.add mutatedNeuron.NodeId mutatedNeuron
-            |> Map.toSeq
-            |> addUpdatedOutboundConnections processingNodeRecords
+                else
+                  let updatedNodeRecord =
+                    let updateConnection oldConnId oldConnection =
+                      match reorderedConnections |> Map.tryFind oldConnId with
+                      | Some newConn -> newConn
+                      | None -> oldConnection
+                    let _, nodeRecordToUpdate = nodeRecordsLeft |> Seq.head
+                    let updatedInboundConn =
+                      nodeRecordToUpdate.InboundConnections
+                      |> Map.map updateConnection
+                    { nodeRecordToUpdate with InboundConnections = updatedInboundConn}
+                  let tailRecords = nodeRecordsLeft |> Seq.tail
+                  let updatedNodeRecordsToReturn =
+                    nodeRecordsToReturn
+                    |> Map.add updatedNodeRecord.NodeId updatedNodeRecord
+                  addUpdatedOutboundConnections updatedNodeRecordsToReturn tailRecords
+              processingNodeRecords
+              |> Map.add mutatedSensor.NodeId mutatedSensor
+              |> Map.add mutatedNeuron.NodeId mutatedNeuron
+              |> Map.toSeq
+              |> addUpdatedOutboundConnections processingNodeRecords
         | RemoveActuatorLink ->
           let _, randomActuator =
             processingNodeRecords
@@ -1233,7 +1236,7 @@ let getLiveEvolutionInstance liveEvolutionProperties =
                   starterNodeRecordsId, newActiveCortex
 
                 replyChannel.Reply()
-                return! loop newGeneration newActiveCortexAndId 0 Array.empty updatedScoredGenerationRecords
+                return! loop newGeneration newActiveCortexAndId 0 Array.empty Array.empty
               else
                 let desiredNodeRecordsId = (nodeRecordsId+1)
                 let desiredNodeRecords =

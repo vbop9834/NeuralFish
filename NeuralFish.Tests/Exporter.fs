@@ -523,21 +523,20 @@ let ``Should be able to deconstruct then reconstruct recurrent neural network wi
   neuron_1b |> connectNodeToNeuron neuron_2a 20.0
 
   //Synchronize and Assert!
-  //Since there is a recurrent connection then the output will
   synchronize sensor
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should equal 44320.0)
+  |> (should equal 320.0)
 
   synchronize sensor
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should equal 1810520.0)
+  |> (should equal 50520.0)
 
   synchronize sensor
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should equal 54734520.0)
+  |> (should equal 1934520.0)
 
   let nodeRecords =
     Map.empty
@@ -586,17 +585,17 @@ let ``Should be able to deconstruct then reconstruct recurrent neural network wi
   synchronizeNN neuralNetwork
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should equal 44320.0)
+  |> (should equal 320.0)
 
   synchronizeNN neuralNetwork
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should equal 1810520.0)
+  |> (should equal 50520.0)
 
   synchronizeNN neuralNetwork
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should equal 54734520.0)
+  |> (should equal 1934520.0)
 
   neuralNetwork |> killNeuralNetwork
 
