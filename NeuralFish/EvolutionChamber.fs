@@ -742,6 +742,7 @@ let defaultEvolutionProperties : EvolutionProperties =
     DividePopulationBy = 2
     InfoLog = defaultInfoLog
     AsynchronousScoring = true
+    ThinkTimeout = 5000
   }
 
 let evolveForXGenerations (evolutionProperties : EvolutionProperties)
@@ -871,7 +872,7 @@ let evolveForXGenerations (evolutionProperties : EvolutionProperties)
             InfoLog = infoLog
             NodeRecords = nodeRecords
           } |> constructNeuralNetwork
-          |> createCortex infoLog
+          |> createCortex evolutionProperties.ThinkTimeout infoLog
         (nodeRecordsId,scoreKeeper,cortex)
       let processThinkCycles (liveRecordsWithScoreKeepers : (NodeRecordsId*ScoreKeeperInstance*CortexInstance) array) : ScoredNodeRecords =
         let rec scoreThinkCycles scoredThinkCycles =
@@ -880,7 +881,7 @@ let evolveForXGenerations (evolutionProperties : EvolutionProperties)
           else
             let scoreGenerationThinkCycle =
               let processThink (nodeRecordsId, scoreKeeper, (cortex : CortexInstance)) =
-                ThinkAndAct |> cortex.PostAndReply
+                let thinkCycleState = ThinkAndAct |> cortex.PostAndReply
                 nodeRecordsId, scoreKeeper, cortex
               let processScoring =
                 let scoreNeuralNetworkThinkCycle (nodeRecordsId, (scoreKeeper : ScoreKeeperInstance), (cortex : CortexInstance)) =
@@ -1183,7 +1184,7 @@ let getLiveEvolutionInstance liveEvolutionProperties =
       InfoLog = infoLog
       NodeRecords = nodeRecords
     } |> constructNeuralNetwork
-    |> createCortex infoLog
+    |> createCortex liveEvolutionProperties.ThinkTimeout infoLog
 
   LiveEvolutionInstance.Start(fun inbox ->
     let rec loop (currentGeneration : GenerationRecords)
@@ -1200,16 +1201,22 @@ let getLiveEvolutionInstance liveEvolutionProperties =
           match msg with
           | SynchronizeActiveCortex replyChannel ->
             let nodeRecordsId, activeCortex = activeCortexAndId
-            ThinkAndAct |> activeCortex.PostAndReply
+            let thinkCycleState = ThinkAndAct |> activeCortex.PostAndReply
             let score, thinkCycleOption =
-              liveEvolutionProperties.FitnessFunction nodeRecordsId
+              let fitnessFuncScore, thinkCycleOption =
+                liveEvolutionProperties.FitnessFunction nodeRecordsId thinkCycleState 
+              match thinkCycleState with
+              | ThinkCycleIncomplete -> 
+                fitnessFuncScore, EndThinkCycle
+              | ThinkCycleFinished ->
+                fitnessFuncScore, thinkCycleOption
             let updatedScoresBuffer =
               scoresBuffer
               |> Array.append [|score|]
             let updatedThinkCycleCounter = thinkCycleCounter + 1
             if thinkCycleOption = EndThinkCycle || (liveEvolutionProperties.MaximumThinkCycles.IsSome && updatedThinkCycleCounter >= liveEvolutionProperties.MaximumThinkCycles.Value) then
-              let updatedRecords = KillCortex |> activeCortex.PostAndReply
               let scoreSum = updatedScoresBuffer |> Array.sum
+              let updatedRecords = KillCortex |> activeCortex.PostAndReply
               let updatedScoredGenerationRecords =
                 Array.append scoredGenerationRecords [| (nodeRecordsId, (scoreSum, updatedRecords)) |]
               let amountOfScoredRecords =

@@ -97,9 +97,13 @@ type ConstructNeuralNetworkProperties =
     InfoLog : InfoLogFunction
   }
 
+type ThinkCycleState =
+  | ThinkCycleFinished
+  | ThinkCycleIncomplete
+
 type CortexMessage =
-    | ThinkAndAct of AsyncReplyChannel<unit>
-    | KillCortex of AsyncReplyChannel<NodeRecords>
+  | ThinkAndAct of AsyncReplyChannel<ThinkCycleState>
+  | KillCortex of AsyncReplyChannel<NodeRecords>
 
 type CortexInstance = MailboxProcessor<CortexMessage>
 
@@ -194,7 +198,7 @@ type ThinkCycleOption =
   | EndThinkCycle
   | ContinueThinkCycle
 
-type LiveFitnessFunction = NodeRecordsId -> Score*ThinkCycleOption
+type LiveFitnessFunction = NodeRecordsId -> ThinkCycleState -> Score*ThinkCycleOption
 
 type GenerationRecords = Map<NodeRecordsId, NodeRecords>
 
@@ -265,6 +269,7 @@ type EvolutionProperties =
     DividePopulationBy : int
     InfoLog : InfoLogFunction
     AsynchronousScoring : bool
+    ThinkTimeout : int
   }
 
 type DataGeneratorMsg<'T> =
@@ -324,4 +329,5 @@ type LiveEvolutionProperties =
     EndOfGenerationFunctionOption : EndOfGenerationFunction option
     BeforeGenerationFunctionOption : BeforeGenerationFunction option
     InfoLog : InfoLogFunction
+    ThinkTimeout : int
   }

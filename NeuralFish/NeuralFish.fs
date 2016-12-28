@@ -463,8 +463,15 @@ let createNeuronInstance infoLog neuronType =
               let updatedInboundConnections =
                 inboundConnections
                 |> Seq.map(fun connection -> { connection with Weight = connection.InitialWeight})
+              let rec tossQueuedMessages () =
+                if inbox.CurrentQueueLength = 0 then
+                  ()
+                else
+                  inbox.TryReceive(250) |> Async.RunSynchronously |> ignore
+                  tossQueuedMessages()
+              tossQueuedMessages ()  
               replyChannel.Reply()
-              return! loop Map.empty updatedInboundConnections outboundConnections maximumVectorLength maybeCortex recurrentOutboundConnections overflowBarrier
+              return! loop Map.empty updatedInboundConnections outboundConnections maximumVectorLength maybeCortex recurrentOutboundConnections Map.empty
             | SendRecurrentSignals replyChannel ->
               let sendRecurrentSignalFromConnection (connection : NeuronConnection) =
                 (connection.NodeId, connection.Neuron) |> sendRecurrentSignal ActivateIfNeuronHasOneConnection connection.NeuronConnectionId
