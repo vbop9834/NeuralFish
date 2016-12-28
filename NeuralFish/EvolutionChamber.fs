@@ -21,6 +21,27 @@ let minimalMutationSequence : MutationSequence =
     AddActuatorLink
   ] |> List.toSeq
 
+let defaultMutationSequence : MutationSequence =
+  [
+    MutateActivationFunction
+    AddBias
+    RemoveBias
+    MutateWeights
+    ResetWeights
+    AddInboundConnection
+    AddOutboundConnection
+    AddNeuron
+    AddNeuronOutSplice
+    AddSensor
+    AddActuator
+    AddSensorLink
+    AddActuatorLink
+    RemoveSensorLink
+    RemoveActuatorLink
+    RemoveInboundConnection
+    RemoveOutboundConnection
+  ] |> List.toSeq
+
 let private isRecordASensor nodeRecordToCheck =
   match nodeRecordToCheck with
   | NodeRecordType.Sensor _ -> true
@@ -444,9 +465,14 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
             let sensorOutboundConnections =
               let checkIfRecordHasSensorAsInbound _ nodeRecord =
                 if nodeRecord.NodeType = NodeRecordType.Neuron then
-                  nodeRecord.InboundConnections
-                  |> Map.filter(fun _ connection -> connection.NodeId = sensorRecord.NodeId)
-                  |> Some
+                  let inboundConnections =
+                    nodeRecord.InboundConnections
+                    |> Map.filter(fun _ connection -> connection.NodeId = sensorRecord.NodeId)
+                  if inboundConnections |> Map.isEmpty then
+                    None
+                  else
+                    inboundConnections
+                    |> Some
                 else
                   None
               processingNodeRecords
@@ -680,8 +706,12 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
                 |> Map.remove randomConnectionKey
               let updatedNeuron =
                 { nodeToRemoveConnection with InboundConnections = updatedInboundConnections }
-              processingNodeRecords
-              |> Map.add updatedNeuron.NodeId updatedNeuron
+              if (updatedInboundConnections |> Seq.length) <= 1 then
+                //This is to keep recurrent loops from being created
+                processingNodeRecords
+              else
+                processingNodeRecords
+                |> Map.add updatedNeuron.NodeId updatedNeuron
        // | RemoveNeuron ->
        // | DespliceOut ->
        // | RemoveSensor ->

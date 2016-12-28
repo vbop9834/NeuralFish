@@ -564,13 +564,14 @@ let ``RemoveInboundConnection mutation should remove some neuron connection rand
   let neuronWeight = 1.0
   neuron |> connectNodeToNeuron neuronTwo neuronWeight
   neuron |> connectNodeToNeuron neuronTwo neuronWeight
+  neuron |> connectNodeToNeuron neuronTwo neuronWeight
   neuronTwo |> connectNodeToActuator actuator
 
   //Synchronize and Assert!
   synchronize sensor
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should (equalWithin 0.001) 200.0)
+  |> (should (equalWithin 0.001) 300.0)
 
   let activationFunctions : ActivationFunctions =
     Map.empty
@@ -583,7 +584,7 @@ let ``RemoveInboundConnection mutation should remove some neuron connection rand
     |> Map.add outputHookId testHook
 
   let neuronId = neuronTwo |> fst
-  let initialNumberOfNeuronConnections = 2
+  let initialNumberOfNeuronConnections = 3
   let nodeRecords =
     let initialNodeRecords =
       Map.empty
@@ -594,7 +595,7 @@ let ``RemoveInboundConnection mutation should remove some neuron connection rand
       |> constructNodeRecords
     initialNodeRecords
     |> Map.find neuronId
-    |> (fun neuronRecord -> neuronRecord.InboundConnections |> Seq.length |> should equal 2)
+    |> (fun neuronRecord -> neuronRecord.InboundConnections |> Seq.length |> should equal initialNumberOfNeuronConnections)
     let mutations = [RemoveInboundConnection]
     {
       Mutations = mutations
@@ -608,7 +609,7 @@ let ``RemoveInboundConnection mutation should remove some neuron connection rand
 
   nodeRecords
   |> Map.find neuronId
-  |> (fun neuronRecord -> neuronRecord.InboundConnections |> Seq.length |> should equal 1)
+  |> (fun neuronRecord -> neuronRecord.InboundConnections |> Seq.length |> should equal 2)
 
   [
     sensor
@@ -631,7 +632,7 @@ let ``RemoveInboundConnection mutation should remove some neuron connection rand
   neuralNetwork |> synchronizeNN
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should (equalWithin 0.001) 100.0)
+  |> (should (equalWithin 0.001) 200.0)
 
   neuralNetwork |> killNeuralNetwork
 
@@ -689,13 +690,14 @@ let ``RemoveOutboundConnection mutation should remove some neuron connection ran
   let neuronWeight = 1.0
   neuron |> connectNodeToNeuron neuronTwo neuronWeight
   neuron |> connectNodeToNeuron neuronTwo neuronWeight
+  neuron |> connectNodeToNeuron neuronTwo neuronWeight
   neuronTwo |> connectNodeToActuator actuator
 
   //Synchronize and Assert!
   synchronize sensor
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should (equalWithin 0.001) 200.0)
+  |> (should (equalWithin 0.001) 300.0)
 
   let activationFunctions : ActivationFunctions =
     Map.empty
@@ -708,7 +710,7 @@ let ``RemoveOutboundConnection mutation should remove some neuron connection ran
     |> Map.add outputHookId testHook
 
   let neuronId = neuronTwo |> fst
-  let initialNumberOfNeuronConnections = 2
+  let initialNumberOfNeuronConnections = 3
   let nodeRecords =
     let initialNodeRecords =
       Map.empty
@@ -719,7 +721,7 @@ let ``RemoveOutboundConnection mutation should remove some neuron connection ran
       |> constructNodeRecords
     initialNodeRecords
     |> Map.find neuronId
-    |> (fun neuronRecord -> neuronRecord.InboundConnections |> Seq.length |> should equal 2)
+    |> (fun neuronRecord -> neuronRecord.InboundConnections |> Seq.length |> should equal initialNumberOfNeuronConnections)
     let mutations = [RemoveOutboundConnection]
     {
       Mutations = mutations
@@ -733,7 +735,7 @@ let ``RemoveOutboundConnection mutation should remove some neuron connection ran
 
   nodeRecords
   |> Map.find neuronId
-  |> (fun neuronRecord -> neuronRecord.InboundConnections |> Seq.length |> should equal 1)
+  |> (fun neuronRecord -> neuronRecord.InboundConnections |> Seq.length |> should equal 2)
 
   [
     sensor
@@ -756,7 +758,7 @@ let ``RemoveOutboundConnection mutation should remove some neuron connection ran
   neuralNetwork |> synchronizeNN
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should (equalWithin 0.001) 100.0)
+  |> (should (equalWithin 0.001) 200.0)
 
   neuralNetwork |> killNeuralNetwork
 
