@@ -14,8 +14,8 @@ let assertNodeRecordsContainsNode (nodeRecords : NodeRecords) (neuronId, (_, liv
   let liveNeuronNodeRecord = GetNodeRecord |> liveNeuron.PostAndReply
   let getNodeRecord nodeId = nodeRecords |> Map.find nodeId
   let assertRecordConnectionIsIdenticalTo (nodeRecordConnections : NodeRecordConnections)  =
-    (fun index (nodeConnection : InactiveNeuronConnection) ->
-      match nodeRecordConnections |> Seq.tryItem index with
+    (fun nodeConnectionId (nodeConnection : InactiveNeuronConnection) ->
+      match nodeRecordConnections |> Map.tryFind nodeConnectionId with
       | None -> "Node record does not have the connection" |> should equal ""
       | Some inactiveConnection -> 
         nodeConnection.NodeId |> should equal inactiveConnection.NodeId
@@ -36,7 +36,7 @@ let assertNodeRecordsContainsNode (nodeRecords : NodeRecords) (neuronId, (_, liv
       nodeRecord.InboundConnections |> Seq.isEmpty |> should equal false
 
       liveNeuronNodeRecord.InboundConnections
-      |> Seq.iteri (assertRecordConnectionIsIdenticalTo nodeRecord.InboundConnections)
+      |> Map.iter (assertRecordConnectionIsIdenticalTo nodeRecord.InboundConnections)
 
     | NodeRecordType.Sensor _ ->
       let nodeRecord =
@@ -51,7 +51,7 @@ let assertNodeRecordsContainsNode (nodeRecords : NodeRecords) (neuronId, (_, liv
       nodeRecord.InboundConnections |> Seq.isEmpty |> should equal true
 
       liveNeuronNodeRecord.InboundConnections
-      |> Seq.iteri (assertRecordConnectionIsIdenticalTo nodeRecord.InboundConnections)
+      |> Map.iter (assertRecordConnectionIsIdenticalTo nodeRecord.InboundConnections)
     | NodeRecordType.Actuator ->
       let nodeRecord =
         liveNeuronNodeRecord.NodeId
@@ -523,21 +523,20 @@ let ``Should be able to deconstruct then reconstruct recurrent neural network wi
   neuron_1b |> connectNodeToNeuron neuron_2a 20.0
 
   //Synchronize and Assert!
-  //Since there is a recurrent connection then the output will
   synchronize sensor
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should equal 44320.0)
+  |> (should equal 320.0)
 
   synchronize sensor
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should equal 1810520.0)
+  |> (should equal 50520.0)
 
   synchronize sensor
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should equal 54734520.0)
+  |> (should equal 1934520.0)
 
   let nodeRecords =
     Map.empty
@@ -586,17 +585,17 @@ let ``Should be able to deconstruct then reconstruct recurrent neural network wi
   synchronizeNN neuralNetwork
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should equal 44320.0)
+  |> (should equal 320.0)
 
   synchronizeNN neuralNetwork
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should equal 1810520.0)
+  |> (should equal 50520.0)
 
   synchronizeNN neuralNetwork
   WaitForData
   |> testHookMailbox.PostAndReply
-  |> (should equal 54734520.0)
+  |> (should equal 1934520.0)
 
   neuralNetwork |> killNeuralNetwork
 

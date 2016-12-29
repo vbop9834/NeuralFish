@@ -48,7 +48,7 @@ type AxonHillockBarrier = Map<NeuronConnectionId, Synapse>
 
 type IncomingSynapses = Map<NeuronConnectionId, Synapse>
 
-type InactiveNeuronConnection = 
+type InactiveNeuronConnection =
   {
     NodeId : NeuronId
     Weight : Weight
@@ -62,7 +62,7 @@ type NodeRecordType =
   | Sensor of NumberOfOutboundConnections
   | Actuator
 
-type NodeRecordConnections = seq<InactiveNeuronConnection>
+type NodeRecordConnections = Map<NeuronConnectionId,InactiveNeuronConnection>
 
 type LearningRateCoefficient = float
 
@@ -97,9 +97,13 @@ type ConstructNeuralNetworkProperties =
     InfoLog : InfoLogFunction
   }
 
+type ThinkCycleState =
+  | ThinkCycleFinished
+  | ThinkCycleIncomplete
+
 type CortexMessage =
-    | ThinkAndAct of AsyncReplyChannel<unit>
-    | KillCortex of AsyncReplyChannel<NodeRecords>
+  | ThinkAndAct of AsyncReplyChannel<ThinkCycleState>
+  | KillCortex of AsyncReplyChannel<NodeRecords>
 
 type CortexInstance = MailboxProcessor<CortexMessage>
 
@@ -165,9 +169,10 @@ type NeuronConnection =
 type NeuronConnections = seq<NeuronConnection>
 type RecurrentNeuronConnections = NeuronConnections
 
-type InboundNeuronConnections = seq<InboundNeuronConnection> 
+type InboundNeuronConnections = seq<InboundNeuronConnection>
 
 type NeuralNetwork = Map<NeuronId, NeuronLayerId*NeuronInstance>
+type NeuralNetworkSeq = seq<NeuronId*(NeuronLayerId*NeuronInstance)>
 
 type Score = float
 
@@ -194,7 +199,7 @@ type ThinkCycleOption =
   | EndThinkCycle
   | ContinueThinkCycle
 
-type LiveFitnessFunction = NodeRecordsId -> Score*ThinkCycleOption
+type LiveFitnessFunction = NodeRecordsId -> ThinkCycleState -> Score*ThinkCycleOption
 
 type GenerationRecords = Map<NodeRecordsId, NodeRecords>
 
@@ -209,26 +214,20 @@ type Mutation =
   | AddBias
   | RemoveBias
   | MutateWeights
-  // //Choose random neuron, perturb each weight with probability of
-  // //1/sqrt(# of weights)
-  // //Intensity chosen randomly between -pi/2 and pi/2
-  // | ResetWeights
-  // //Choose random neuron, reset all weights to random values
-  // // ranging between -pi/2 and pi/2
+  | ResetWeights
   | AddInboundConnection
-  // //Choose a random neuron A, node B, and add a connection
   | AddOutboundConnection
   | AddNeuron
   | AddNeuronOutSplice
   | AddNeuronInSplice
   | AddSensorLink
   | AddActuatorLink
-  // | RemoveSensorLink
-  // | RemoveActuatorLink
+  | RemoveSensorLink
+  | RemoveActuatorLink
   | AddSensor
   | AddActuator
-  // | RemoveInboundConnection
-  // | RemoveOutboundConnection
+  | RemoveInboundConnection
+  | RemoveOutboundConnection
   // | RemoveNeuron
   // //Remove neuron then connect inputs to outputs
   // | DespliceOut
@@ -271,6 +270,7 @@ type EvolutionProperties =
     DividePopulationBy : int
     InfoLog : InfoLogFunction
     AsynchronousScoring : bool
+    ThinkTimeout : int
   }
 
 type DataGeneratorMsg<'T> =
@@ -330,4 +330,5 @@ type LiveEvolutionProperties =
     EndOfGenerationFunctionOption : EndOfGenerationFunction option
     BeforeGenerationFunctionOption : BeforeGenerationFunction option
     InfoLog : InfoLogFunction
+    ThinkTimeout : int
   }

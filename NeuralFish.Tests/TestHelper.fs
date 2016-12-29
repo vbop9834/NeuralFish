@@ -4,7 +4,8 @@ open NeuralFish.Core
 open NeuralFish.Cortex
 
 let createNeuronInstance = createNeuronInstance defaultInfoLog
-let createCortex = createCortex defaultInfoLog
+let defaultThinkTimeout = 500
+let createCortex = createCortex defaultThinkTimeout defaultInfoLog
 
 type GeneratorMsg =
   | GetData of AsyncReplyChannel<float seq>

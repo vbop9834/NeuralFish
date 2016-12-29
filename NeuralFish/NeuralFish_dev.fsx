@@ -1,5 +1,4 @@
 #I __SOURCE_DIRECTORY__
-#I "../NeuralFish.Tests"
 
 #load "Types.fs"
 #load "Exceptions.fs"
@@ -7,6 +6,8 @@
 #load "Exporter.fs"
 #load "Cortex.fs"
 #load "EvolutionChamber.fs"
+
+#I "../NeuralFish.Tests"
 #load "TestHelper.fs"
 
 open NeuralFish.Types
