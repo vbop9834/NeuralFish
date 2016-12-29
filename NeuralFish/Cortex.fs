@@ -65,8 +65,8 @@ let createCortex thinkTimeout infoLog liveNeurons : CortexInstance =
             "Cortex - Starting think cycle" |> infoLog
             liveNeurons |> synchronizeNN
             //Sleep to give the NN a chance to process initial messages
-            //TODO Think of a better way to handle this intermittent startup
-            System.Threading.Thread.Sleep(200)
+            //TODO synchronize should post back after finishing
+            System.Threading.Thread.Sleep(100)
             "Cortex - Waiting on Neural Network to finish" |> infoLog
             stopwatch.Restart()
             let shouldActivateActuators = liveNeurons |> waitOnAcutuators stopwatch
