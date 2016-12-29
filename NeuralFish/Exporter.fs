@@ -14,7 +14,7 @@ let constructNeuralNetwork (neuralNetProperties : ConstructNeuralNetworkProperti
   let outputHooks = neuralNetProperties.OutputHooks
   let nodeRecords = neuralNetProperties.NodeRecords
   let infoLog = neuralNetProperties.InfoLog
-  let createNeuronFromRecord nodeId (nodeRecord : NodeRecord) =
+  let createNeuronFromRecord (nodeRecord : NodeRecord) =
     let (neuronId, neuronInstance) =
       match nodeRecord.NodeType with
       | NodeRecordType.Neuron ->
@@ -44,7 +44,7 @@ let constructNeuralNetwork (neuralNetProperties : ConstructNeuralNetworkProperti
     neuronInstance
 
   let connectNeurons (liveNeurons : NeuralNetwork) =
-    let connectNode targetNodeId (targetLayer : NeuronLayerId, targetNode : NeuronInstance) =
+    let connectNode (targetNodeId,(targetLayer : NeuronLayerId, targetNode : NeuronInstance)) =
       let processRecordConnections node =
         let findNeuronAndAddToOutboundConnections (inboundConnection : InactiveNeuronConnection) (targetNodeId : NeuronId) =
           if not <| (liveNeurons |> Map.containsKey targetNodeId) then
@@ -64,12 +64,13 @@ let constructNeuralNetwork (neuralNetProperties : ConstructNeuralNetworkProperti
 
         sprintf "%A has inbound connections %A" targetNodeId node.InboundConnections |> infoLog
         node.InboundConnections
-        |> Map.iter (fun _ inboundConnection -> findNeuronAndAddToOutboundConnections inboundConnection node.NodeId)
+        |> Map.toArray
+        |> Array.Parallel.iter (fun (_,inboundConnection) -> findNeuronAndAddToOutboundConnections inboundConnection node.NodeId)
       nodeRecords
       |> Map.find targetNodeId
       |> processRecordConnections
 
-    liveNeurons |> Map.iter connectNode
+    liveNeurons |> Map.toArray |> Array.Parallel.iter connectNode
     liveNeurons
 
   let rec waitOnNeuralNetwork neuralNetworkToWaitOn : NeuralNetwork =
@@ -78,14 +79,15 @@ let constructNeuralNetwork (neuralNetProperties : ConstructNeuralNetworkProperti
       neuralNetwork
       |> Map.forall(fun i (_,neuron) -> neuron.CurrentQueueLength <> 0)
     if neuralNetworkToWaitOn |> checkIfNeuralNetworkIsActive then
-      //200 milliseconds of sleep seems plenty while waiting on the NN
-      System.Threading.Thread.Sleep(200)
+      //TODO make this configurable
+      System.Threading.Thread.Sleep(50)
       waitOnNeuralNetwork neuralNetworkToWaitOn
     else
       neuralNetworkToWaitOn
 
   nodeRecords
-  |> Map.map createNeuronFromRecord
+  |> Seq.map (fun keyValue -> keyValue.Key, keyValue.Value |> createNeuronFromRecord)
+  |> Map.ofSeq
   |> connectNeurons
   |> waitOnNeuralNetwork
 

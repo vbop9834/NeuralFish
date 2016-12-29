@@ -172,6 +172,7 @@ type RecurrentNeuronConnections = NeuronConnections
 type InboundNeuronConnections = seq<InboundNeuronConnection>
 
 type NeuralNetwork = Map<NeuronId, NeuronLayerId*NeuronInstance>
+type NeuralNetworkSeq = seq<NeuronId*(NeuronLayerId*NeuronInstance)>
 
 type Score = float
 

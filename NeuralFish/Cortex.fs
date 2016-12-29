@@ -24,9 +24,8 @@ let createCortex thinkTimeout infoLog liveNeurons : CortexInstance =
       if timeIsUp then
         false
       else
-      //200 milliseconds of sleep seems plenty while waiting on the NN
       //TODO make this configurable
-        System.Threading.Thread.Sleep(200)
+        System.Threading.Thread.Sleep(50)
         waitOnAcutuators stopwatch neuralNetworkToWaitOn
     else
       true

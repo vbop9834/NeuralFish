@@ -16,9 +16,8 @@ let killNeuralNetwork (liveNeurons : NeuralNetwork) =
       neuralNetwork
       |> Map.exists(fun i (nodeRecordId,neuron) -> neuron.CurrentQueueLength <> 0)
     if neuralNetworkToWaitOn |> checkIfNeuralNetworkIsActive then
-      //200 milliseconds of sleep seems plenty while waiting on the NN
       //TODO make this configurable
-      System.Threading.Thread.Sleep(200)
+      System.Threading.Thread.Sleep(50)
       waitOnNeuralNetwork neuralNetworkToWaitOn
     else
       neuralNetworkToWaitOn
