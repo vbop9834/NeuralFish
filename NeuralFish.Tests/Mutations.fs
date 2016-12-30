@@ -75,10 +75,10 @@ let ``AddNeuronOutSplice mutation should add a neuron in a new layer, increasing
 
   let nodeRecords =
     let initialNodeRecords =
-      Map.empty
-      |> addNeuronToMap actuator
-      |> addNeuronToMap neuron
-      |> addNeuronToMap sensor
+      Array.empty
+      |> addNeuronToNN actuator
+      |> addNeuronToNN neuron
+      |> addNeuronToNN sensor
       |> constructNodeRecords
     let mutations = [AddNeuronOutSplice]
     {
@@ -91,13 +91,12 @@ let ``AddNeuronOutSplice mutation should add a neuron in a new layer, increasing
       NodeRecords = initialNodeRecords
     } |> mutateNeuralNetwork
 
-  [
+  [|
     sensor
     neuron
     actuator
-  ]
-  |> Map.ofList
-  |> killNeuralNetwork
+  |]
+  |> killNeuralNetworkArray
 
   let neuronRecords =
     nodeRecords
@@ -119,13 +118,8 @@ let ``AddNeuronOutSplice mutation should add a neuron in a new layer, increasing
      NodeRecords = nodeRecords
      InfoLog = defaultInfoLog
    } |> constructNeuralNetwork
-  let newSensor =
-    let sensorId = (fst sensor)
-    (sensorId,
-     neuralNetwork
-     |> Map.find sensorId)
 
-  synchronize newSensor
+  synchronizeNN neuralNetwork
   WaitForData
   |> testHookMailbox.PostAndReply
   |> (should be (greaterThan 0.0))
@@ -193,10 +187,10 @@ let ``ResetWeights mutation should mutate the weights of all inbound connections
 
   let nodeRecords =
     let initialNodeRecords =
-      Map.empty
-      |> addNeuronToMap actuator
-      |> addNeuronToMap neuron
-      |> addNeuronToMap sensor
+      Array.empty
+      |> addNeuronToNN actuator
+      |> addNeuronToNN neuron
+      |> addNeuronToNN sensor
       |> constructNodeRecords
 
     let neuronConnection =
@@ -225,13 +219,12 @@ let ``ResetWeights mutation should mutate the weights of all inbound connections
       NodeRecords = initialNodeRecords
     } |> mutateNeuralNetwork
 
-  [
+  [|
     sensor
     neuron
     actuator
-  ]
-  |> Map.ofList
-  |> killNeuralNetwork
+  |]
+  |> killNeuralNetworkArray
 
   let neuralNetwork =
    {
@@ -243,38 +236,31 @@ let ``ResetWeights mutation should mutate the weights of all inbound connections
    } |> constructNeuralNetwork
 
   let sensorId = (fst sensor)
-  let newSensor =
-    (sensorId,
-     neuralNetwork
-     |> Map.find sensorId)
 
-  let newWeight =
-    let neuronId = neuron |> fst
-    let neuron =
-      nodeRecords
-      |> Map.find neuronId
+  let neuronId = neuron |> fst
+  let neuron =
+    nodeRecords
+    |> Map.find neuronId
 
-    let neuronConnection =
-      neuron.InboundConnections
-      |> Seq.length
-      |> should equal 1
+  let neuronConnection =
+    neuron.InboundConnections
+    |> Seq.length
+    |> should equal 1
 
-      neuron.InboundConnections
-      |> Seq.head
-      |> (fun x -> x.Value)
-    
-    neuronConnection.Weight
-    |> should not' (equal 20.0)
+    neuron.InboundConnections
+    |> Seq.head
+    |> (fun x -> x.Value)
+  
+  neuronConnection.Weight
+  |> should not' (equal 20.0)
 
-    neuronConnection.Weight
-    |> should not' (equal 1.0)
+  neuronConnection.Weight
+  |> should not' (equal 1.0)
 
-    neuronConnection.Weight
-    |> should not' (equal 0.0)
+  neuronConnection.Weight
+  |> should not' (equal 0.0)
 
-    neuronConnection.Weight
-
-  synchronize newSensor
+  synchronizeNN neuralNetwork
   WaitForData
   |> testHookMailbox.PostAndReply
   |> (should not' (equal 0.0))
@@ -348,10 +334,10 @@ let ``RemoveSensorLink mutation should remove a sensor connection randomly in th
   let initialNumberOfNeuronConnections = weights |> List.length
   let nodeRecords =
     let initialNodeRecords =
-      Map.empty
-      |> addNeuronToMap actuator
-      |> addNeuronToMap neuron
-      |> addNeuronToMap sensor
+      Array.empty
+      |> addNeuronToNN actuator
+      |> addNeuronToNN neuron
+      |> addNeuronToNN sensor
       |> constructNodeRecords
     initialNodeRecords
     |> Map.find neuronId
@@ -371,13 +357,12 @@ let ``RemoveSensorLink mutation should remove a sensor connection randomly in th
   |> Map.find neuronId
   |> (fun neuronRecord -> neuronRecord.InboundConnections |> Seq.length |> should be (lessThan initialNumberOfNeuronConnections))
 
-  [
+  [|
     sensor
     neuron
     actuator
-  ]
-  |> Map.ofList
-  |> killNeuralNetwork
+  |]
+  |> killNeuralNetworkArray
 
   let neuralNetwork =
    {
@@ -463,10 +448,10 @@ let ``RemoveActuatorLink mutation should remove an actuator connection randomly 
   let initialNumberOfNeuronConnections = 2
   let nodeRecords =
     let initialNodeRecords =
-      Map.empty
-      |> addNeuronToMap actuator
-      |> addNeuronToMap neuron
-      |> addNeuronToMap sensor
+      Array.empty
+      |> addNeuronToNN actuator
+      |> addNeuronToNN neuron
+      |> addNeuronToNN sensor
       |> constructNodeRecords
     initialNodeRecords
     |> Map.find actuatorId
@@ -486,13 +471,12 @@ let ``RemoveActuatorLink mutation should remove an actuator connection randomly 
   |> Map.find actuatorId
   |> (fun actuatorRecord -> actuatorRecord.InboundConnections |> Seq.length |> should equal 1)
 
-  [
+  [|
     sensor
     neuron
     actuator
-  ]
-  |> Map.ofList
-  |> killNeuralNetwork
+  |]
+  |> killNeuralNetworkArray
 
   let neuralNetwork =
    {
@@ -587,11 +571,11 @@ let ``RemoveInboundConnection mutation should remove some neuron connection rand
   let initialNumberOfNeuronConnections = 3
   let nodeRecords =
     let initialNodeRecords =
-      Map.empty
-      |> addNeuronToMap actuator
-      |> addNeuronToMap neuron
-      |> addNeuronToMap neuronTwo
-      |> addNeuronToMap sensor
+      Array.empty
+      |> addNeuronToNN actuator
+      |> addNeuronToNN neuron
+      |> addNeuronToNN neuronTwo
+      |> addNeuronToNN sensor
       |> constructNodeRecords
     initialNodeRecords
     |> Map.find neuronId
@@ -611,14 +595,13 @@ let ``RemoveInboundConnection mutation should remove some neuron connection rand
   |> Map.find neuronId
   |> (fun neuronRecord -> neuronRecord.InboundConnections |> Seq.length |> should equal 2)
 
-  [
+  [|
     sensor
     neuron
     neuronTwo
     actuator
-  ]
-  |> Map.ofList
-  |> killNeuralNetwork
+  |]
+  |> killNeuralNetworkArray
 
   let neuralNetwork =
    {
@@ -713,11 +696,11 @@ let ``RemoveOutboundConnection mutation should remove some neuron connection ran
   let initialNumberOfNeuronConnections = 3
   let nodeRecords =
     let initialNodeRecords =
-      Map.empty
-      |> addNeuronToMap actuator
-      |> addNeuronToMap neuron
-      |> addNeuronToMap neuronTwo
-      |> addNeuronToMap sensor
+      Array.empty
+      |> addNeuronToNN actuator
+      |> addNeuronToNN neuron
+      |> addNeuronToNN neuronTwo
+      |> addNeuronToNN sensor
       |> constructNodeRecords
     initialNodeRecords
     |> Map.find neuronId
@@ -737,14 +720,13 @@ let ``RemoveOutboundConnection mutation should remove some neuron connection ran
   |> Map.find neuronId
   |> (fun neuronRecord -> neuronRecord.InboundConnections |> Seq.length |> should equal 2)
 
-  [
+  [|
     sensor
     neuron
     neuronTwo
     actuator
-  ]
-  |> Map.ofList
-  |> killNeuralNetwork
+  |]
+  |> killNeuralNetworkArray
 
   let neuralNetwork =
    {
@@ -824,10 +806,10 @@ let ``RemoveSensorLink mutation should not remove a sensor connection when a nod
   let initialNumberOfNeuronConnections = weights |> List.length
   let nodeRecords =
     let initialNodeRecords =
-      Map.empty
-      |> addNeuronToMap actuator
-      |> addNeuronToMap neuron
-      |> addNeuronToMap sensor
+      Array.empty
+      |> addNeuronToNN actuator
+      |> addNeuronToNN neuron
+      |> addNeuronToNN sensor
       |> constructNodeRecords
     initialNodeRecords
     |> Map.find neuronId
@@ -847,13 +829,12 @@ let ``RemoveSensorLink mutation should not remove a sensor connection when a nod
   |> Map.find neuronId
   |> (fun neuronRecord -> neuronRecord.InboundConnections |> Seq.length |> should equal initialNumberOfNeuronConnections)
 
-  [
+  [|
     sensor
     neuron
     actuator
-  ]
-  |> Map.ofList
-  |> killNeuralNetwork
+  |]
+  |> killNeuralNetworkArray
 
   let neuralNetwork =
    {
@@ -932,10 +913,10 @@ let ``ChangeNeuronLayer mutation should change a neuron's layer randomly`` () =
   let neuronId = neuron |> fst
   let nodeRecords =
     let initialNodeRecords =
-      Map.empty
-      |> addNeuronToMap actuator
-      |> addNeuronToMap neuron
-      |> addNeuronToMap sensor
+      Array.empty
+      |> addNeuronToNN actuator
+      |> addNeuronToNN neuron
+      |> addNeuronToNN sensor
       |> constructNodeRecords
     initialNodeRecords
     |> Map.find neuronId
@@ -955,13 +936,12 @@ let ``ChangeNeuronLayer mutation should change a neuron's layer randomly`` () =
   |> Map.find neuronId
   |> (fun neuronRecord -> neuronRecord.Layer |> should not' (equal 1))
 
-  [
+  [|
     sensor
     neuron
     actuator
-  ]
-  |> Map.ofList
-  |> killNeuralNetwork
+  |]
+  |> killNeuralNetworkArray
 
   let neuralNetwork =
    {

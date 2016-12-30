@@ -4,11 +4,15 @@ open NeuralFish.Core
 open NeuralFish.Types
 open NeuralFish.Exceptions
 
-let constructNodeRecords (liveNeurons : NeuralNetwork) : NodeRecords =
+let constructNodeRecords (liveNeurons : LiveNeuralNetwork) : NodeRecords =
+  let getNodeRecord (neuronInstance : NeuronInstance) : NeuronId*NodeRecord =
+    let record = GetNodeRecord |> neuronInstance.PostAndReply
+    record.NodeId, record
   liveNeurons
-  |> Map.map(fun nodeRecordId (_,neuronInstance) -> GetNodeRecord |> neuronInstance.PostAndReply)
+  |> Array.Parallel.map getNodeRecord
+  |> Map.ofArray
 
-let constructNeuralNetwork (neuralNetProperties : ConstructNeuralNetworkProperties) : NeuralNetwork =
+let constructNeuralNetwork (neuralNetProperties : ConstructNeuralNetworkProperties) : LiveNeuralNetwork =
   let activationFunctions = neuralNetProperties.ActivationFunctions
   let syncFunctions = neuralNetProperties.SyncFunctions
   let outputHooks = neuralNetProperties.OutputHooks
@@ -43,7 +47,7 @@ let constructNeuralNetwork (neuralNetProperties : ConstructNeuralNetworkProperti
         |> createNeuronInstance infoLog
     neuronInstance
 
-  let connectNeurons (liveNeurons : NeuralNetwork) =
+  let connectNeurons (liveNeurons : NeuralNetwork) : LiveNeuralNetwork =
     let connectNode (targetNodeId,(targetLayer : NeuronLayerId, targetNode : NeuronInstance)) =
       let processRecordConnections node =
         let findNeuronAndAddToOutboundConnections (inboundConnection : InactiveNeuronConnection) (targetNodeId : NeuronId) =
@@ -70,34 +74,23 @@ let constructNeuralNetwork (neuralNetProperties : ConstructNeuralNetworkProperti
       |> Map.find targetNodeId
       |> processRecordConnections
 
-    liveNeurons |> Map.toArray |> Array.Parallel.iter connectNode
-    liveNeurons
-
-  let rec waitOnNeuralNetwork neuralNetworkToWaitOn : NeuralNetwork =
-    let checkIfNeuralNetworkIsActive (neuralNetwork : NeuralNetwork) =
-      //returns true if active
-      neuralNetwork
-      |> Map.forall(fun i (_,neuron) -> neuron.CurrentQueueLength <> 0)
-    if neuralNetworkToWaitOn |> checkIfNeuralNetworkIsActive then
-      //TODO make this configurable
-      System.Threading.Thread.Sleep(50)
-      waitOnNeuralNetwork neuralNetworkToWaitOn
-    else
-      neuralNetworkToWaitOn
+    let neuralNetworkArray = 
+      liveNeurons 
+      |> Map.toArray
+    neuralNetworkArray |> Array.Parallel.iter connectNode
+    neuralNetworkArray |> Array.Parallel.map(fun (_,(_,neuronInstance)) -> neuronInstance)
 
   nodeRecords
   |> Seq.map (fun keyValue -> keyValue.Key, keyValue.Value |> createNeuronFromRecord)
   |> Map.ofSeq
   |> connectNeurons
-  |> waitOnNeuralNetwork
+  |> (fun x -> x |> waitOnNeuralNetwork false None |> ignore; x)
 
 let getDefaultNodeRecords activationFunctions
   outputHookFunctionIds
     syncFunctionId
       learningAlgorithm
         infoLog : NodeRecords =
-  let addNeuronToMap (neuronId, neuronInstance) =
-    Map.add neuronId neuronInstance
   let actuator =
     let layer = 0
     let fakeOutputHook = (fun x -> ())
@@ -128,11 +121,15 @@ let getDefaultNodeRecords activationFunctions
   sensor |> connectSensorToNode neuron [weight]
   neuron |> connectNodeToActuator actuator
 
-  let neuralNetwork =
-    Map.empty
-    |> addNeuronToMap actuator
-    |> addNeuronToMap neuron
-    |> addNeuronToMap sensor
+  let createLiveNeuralNetwork nodes =
+    nodes
+    |> Array.Parallel.map(fun (_,(_,neuronInstance : NeuronInstance)) -> neuronInstance)
+  let neuralNetwork : LiveNeuralNetwork =
+    [|
+      actuator
+      neuron
+      sensor
+    |] |> createLiveNeuralNetwork
   let nodeRecords =
     neuralNetwork
     |> constructNodeRecords

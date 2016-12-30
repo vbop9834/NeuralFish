@@ -142,8 +142,12 @@ type NeuronActivationOption =
   | ActivateIfNeuronHasOneConnection
   | DoNotActivate
 
+type NodeStatus =
+  | NodeIsBusy
+  | NodeIsReady
+
 type NeuronActions =
-  | Sync
+  | Sync of AsyncReplyChannel<unit>
   | ReceiveInput of NeuronConnectionId*Synapse*NeuronActivationOption
   | AddOutboundConnection of (NodeRecordType*MailboxProcessor<NeuronActions>*NeuronLayerId*PartialOutboundConnection)*AsyncReplyChannel<unit>
   | AddInboundConnection of InboundNeuronConnection*AsyncReplyChannel<unit>
@@ -151,7 +155,7 @@ type NeuronActions =
   | Die of AsyncReplyChannel<unit>
   | RegisterCortex of CortexInstance*AsyncReplyChannel<unit>
   | ActivateActuator of AsyncReplyChannel<unit>
-  | CheckActuatorStatus of AsyncReplyChannel<bool>
+  | GetNodeStatus of bool*AsyncReplyChannel<NodeStatus>
   | ResetNeuron of AsyncReplyChannel<unit>
   | SendRecurrentSignals of AsyncReplyChannel<unit>
 
@@ -172,6 +176,7 @@ type RecurrentNeuronConnections = NeuronConnections
 type InboundNeuronConnections = seq<InboundNeuronConnection>
 
 type NeuralNetwork = Map<NeuronId, NeuronLayerId*NeuronInstance>
+type LiveNeuralNetwork = array<NeuronInstance>
 type NeuralNetworkSeq = seq<NeuronId*(NeuronLayerId*NeuronInstance)>
 
 type Score = float

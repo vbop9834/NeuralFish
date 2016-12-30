@@ -5,55 +5,32 @@ open NeuralFish.Exceptions
 open NeuralFish.Core
 open NeuralFish.Exporter
 
-let createCortex thinkTimeout infoLog liveNeurons : CortexInstance =
-  let rec waitOnAcutuators (stopwatch : System.Diagnostics.Stopwatch) neuralNetworkToWaitOn =
-    let checkIfActuatorsAreReady (neuralNetwork : NeuralNetwork) =
-      //returns true if active
-      let actuatorIsActive (neuron : NeuronInstance) =
-        let maybeActuatorStatus =
-          CheckActuatorStatus
-          |> neuron.TryPostAndReply
-        match maybeActuatorStatus with
-        | None -> raise <| NeuronInstanceUnavailableException "Cortex - Neuron instance is not available when trying to check actuators"
-        | Some actuatorReady -> actuatorReady
-      let checkIfNeuronIsBusy (neuron : NeuronInstance) = neuron.CurrentQueueLength <> 0
-      neuralNetwork
-      |> Map.exists(fun i (_,neuron) -> neuron |> checkIfNeuronIsBusy || not <| actuatorIsActive neuron  )
-    if neuralNetworkToWaitOn |> checkIfActuatorsAreReady then
-      let timeIsUp = System.BitConverter.DoubleToInt64Bits(stopwatch.Elapsed.TotalMilliseconds) >= (int64 thinkTimeout)
-      if timeIsUp then
-        false
-      else
-      //TODO make this configurable
-        System.Threading.Thread.Sleep(50)
-        waitOnAcutuators stopwatch neuralNetworkToWaitOn
-    else
-      true
-
-  let registerCortex (neuralNetwork : NeuralNetwork) cortex =
-    let sendCortexToActuatorAsync (neuronInstance : NeuronInstance) =
-      (fun r -> RegisterCortex (cortex,r)) |> neuronInstance.PostAndAsyncReply
+let createCortex thinkTimeout infoLog (liveNeurons : LiveNeuralNetwork) : CortexInstance =
+  let registerCortex (neuralNetwork : LiveNeuralNetwork) cortex =
+    let sendCortexToNodes (neuronInstance : NeuronInstance) =
+      (fun r -> RegisterCortex (cortex,r)) |> neuronInstance.PostAndReply
     neuralNetwork
-    |> Seq.map (fun keyValue -> keyValue.Value |> snd |> sendCortexToActuatorAsync)
-    |> Seq.toArray
-    |> Async.Parallel
-    |> ignore
+    |> Array.Parallel.iter sendCortexToNodes
     cortex
-  let resetNeuralNetwork (neuralNetwork : NeuralNetwork) cortex =
+  let resetNeuralNetwork (neuralNetwork : LiveNeuralNetwork) cortex =
     let resetNeuron (neuronInstance : NeuronInstance) =
       ResetNeuron |> neuronInstance.PostAndReply
     neuralNetwork
-    |> Seq.iter (fun keyValue -> keyValue.Value |> snd |> resetNeuron)
-    cortex
-
-  let sendRecurrentSignals neuralNetwork cortex =
-    neuralNetwork
-    |> Map.iter(fun _ (_, neuronInstance : NeuronInstance) -> SendRecurrentSignals |> neuronInstance.PostAndReply)
+    |> Array.Parallel.iter (fun neuron -> neuron |> resetNeuron)
     cortex
 
   let stopwatch = System.Diagnostics.Stopwatch()
+  let sendRecurrentSignals (neuralNetwork : LiveNeuralNetwork) cortex =
+    neuralNetwork
+    |> Array.Parallel.iter(fun (neuronInstance : NeuronInstance) -> SendRecurrentSignals |> neuronInstance.PostAndReply)
+    liveNeurons 
+    |> waitOnNeuralNetwork false None
+    |> ignore
+    stopwatch.Stop()
+    cortex
+
   CortexInstance.Start(fun inbox ->
-    let rec loop liveNeurons =
+    let rec loop (liveNeurons : LiveNeuralNetwork) =
       async {
         let! someMsg = inbox.TryReceive 250
         match someMsg with
@@ -64,12 +41,14 @@ let createCortex thinkTimeout infoLog liveNeurons : CortexInstance =
           | ThinkAndAct replyChannel ->
             "Cortex - Starting think cycle" |> infoLog
             liveNeurons |> synchronizeNN
-            //Sleep to give the NN a chance to process initial messages
-            //TODO synchronize should post back after finishing
-            System.Threading.Thread.Sleep(100)
+            //This is still sadly necessary
+            //Allows the NN to process initial messages
+            //TODO Need to find a better solution
+            System.Threading.Thread.Sleep(50)
             "Cortex - Waiting on Neural Network to finish" |> infoLog
             stopwatch.Restart()
-            let shouldActivateActuators = liveNeurons |> waitOnAcutuators stopwatch
+            let someStopwatch = Some (thinkTimeout,stopwatch)
+            let shouldActivateActuators = liveNeurons |> waitOnNeuralNetwork true someStopwatch
             stopwatch.Stop()
             if shouldActivateActuators then
               "Cortex - Think cycle finished. Activating Actuators" |> infoLog

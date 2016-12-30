@@ -104,23 +104,22 @@ let ``Should be able to export a simple neural network to a map of node records`
   sensor |> connectSensorToNode neuron weights
 
   let nodeRecords =
-    Map.empty
-    |> addNeuronToMap actuator
-    |> addNeuronToMap neuron
-    |> addNeuronToMap sensor
+    Array.empty
+    |> addNeuronToNN actuator
+    |> addNeuronToNN neuron
+    |> addNeuronToNN sensor
     |> constructNodeRecords
 
   actuator |> assertNodeRecordsContainsNode nodeRecords
   neuron |> assertNodeRecordsContainsNode nodeRecords
   sensor |> assertNodeRecordsContainsNode nodeRecords
 
-  [
+  [|
     sensor
     neuron
     actuator
-  ]
-  |> Map.ofList
-  |> killNeuralNetwork
+  |]
+  |> killNeuralNetworkArray
 
 [<Fact>]
 let ``Should be able to construct a simple neural network from a map of node records`` () =
@@ -178,10 +177,10 @@ let ``Should be able to construct a simple neural network from a map of node rec
 
   //create Node records
   let nodeRecords =
-    Map.empty
-    |> addNeuronToMap actuator
-    |> addNeuronToMap neuron
-    |> addNeuronToMap sensor
+    Array.empty
+    |> addNeuronToNN actuator
+    |> addNeuronToNN neuron
+    |> addNeuronToNN sensor
     |> constructNodeRecords
 
   //Create Neural Network from Node Records
@@ -199,13 +198,12 @@ let ``Should be able to construct a simple neural network from a map of node rec
     Map.empty
     |> Map.add outputHookId testHook
 
-  [
+  [|
     sensor
     neuron
     actuator
-  ]
-  |> Map.ofList
-  |> killNeuralNetwork
+  |]
+  |> killNeuralNetworkArray
 
   let neuralNetwork =
    {
@@ -216,13 +214,7 @@ let ``Should be able to construct a simple neural network from a map of node rec
      InfoLog = defaultInfoLog
    } |> constructNeuralNetwork 
 
-  let sensor =
-    let sensorId = (fst sensor)
-    (sensorId,
-     neuralNetwork
-     |> Map.find sensorId)
-
-  synchronize sensor
+  synchronizeNN neuralNetwork
 
   WaitForData
   |> testHookMailbox.PostAndReply
@@ -320,13 +312,13 @@ let ``Should be able to solve the XNOR problem with predefined weights, convert 
 
   //create Node records
   let nodeRecords =
-    Map.empty
-    |> addNeuronToMap actuator
-    |> addNeuronToMap neuron_a2_1
-    |> addNeuronToMap neuron_a2_2
-    |> addNeuronToMap neuron_a3_1
-    |> addNeuronToMap sensor_x1
-    |> addNeuronToMap sensor_x2
+    Array.empty
+    |> addNeuronToNN actuator
+    |> addNeuronToNN neuron_a2_1
+    |> addNeuronToNN neuron_a2_2
+    |> addNeuronToNN neuron_a3_1
+    |> addNeuronToNN sensor_x1
+    |> addNeuronToNN sensor_x2
     |> constructNodeRecords
 
   //Create Neural Network from Node Records
@@ -382,16 +374,15 @@ let ``Should be able to solve the XNOR problem with predefined weights, convert 
   |> testHookMailbox.PostAndReply
   |> (should be (greaterThan 0.99))
 
-  [
+  [|
     sensor_x1
     sensor_x2
     neuron_a2_1
     neuron_a2_2
     neuron_a3_1
     actuator
-  ]
-  |> Map.ofList
-  |> killNeuralNetwork
+  |]
+  |> killNeuralNetworkArray
 
   neuralNetwork |> killNeuralNetwork
 
@@ -439,23 +430,22 @@ let ``Should be able to export a recurrent neural network to a map of node recor
   neuron |> connectNodeToNeuron neuron 20.0
 
   let nodeRecords =
-    Map.empty
-    |> addNeuronToMap actuator
-    |> addNeuronToMap neuron
-    |> addNeuronToMap sensor
+    Array.empty
+    |> addNeuronToNN actuator
+    |> addNeuronToNN neuron
+    |> addNeuronToNN sensor
     |> constructNodeRecords
 
   actuator |> assertNodeRecordsContainsNode nodeRecords
   neuron |> assertNodeRecordsContainsNode nodeRecords
   sensor |> assertNodeRecordsContainsNode nodeRecords
 
-  [
+  [|
     sensor
     neuron
     actuator
-  ]
-  |> Map.ofList
-  |> killNeuralNetwork
+  |]
+  |> killNeuralNetworkArray
 
 [<Fact>]
 let ``Should be able to deconstruct then reconstruct recurrent neural network with three neurons`` () =
@@ -539,12 +529,12 @@ let ``Should be able to deconstruct then reconstruct recurrent neural network wi
   |> (should equal 1934520.0)
 
   let nodeRecords =
-    Map.empty
-    |> addNeuronToMap actuator
-    |> addNeuronToMap neuron_1a
-    |> addNeuronToMap neuron_1b
-    |> addNeuronToMap neuron_2a
-    |> addNeuronToMap sensor
+    Array.empty
+    |> addNeuronToNN actuator
+    |> addNeuronToNN neuron_1a
+    |> addNeuronToNN neuron_1b
+    |> addNeuronToNN neuron_2a
+    |> addNeuronToNN sensor
     |> constructNodeRecords
 
   actuator |> assertNodeRecordsContainsNode nodeRecords
@@ -553,15 +543,14 @@ let ``Should be able to deconstruct then reconstruct recurrent neural network wi
   neuron_2a |> assertNodeRecordsContainsNode nodeRecords
   sensor |> assertNodeRecordsContainsNode nodeRecords
 
-  [
+  [|
     sensor
     neuron_1a
     neuron_1b
     neuron_2a
     actuator
-  ]
-  |> Map.ofList
-  |> killNeuralNetwork
+  |]
+  |> killNeuralNetworkArray
 
   let activationFunctions : ActivationFunctions =
     Map.empty
@@ -665,11 +654,11 @@ let ``After reconstruction, Sensor should inflate data if there is not enough da
   |> (should equal 30.0)
 
   let nodeRecords =
-    Map.empty
-    |> addNeuronToMap actuator
-    |> addNeuronToMap neuron_1a
-    |> addNeuronToMap neuron_1b
-    |> addNeuronToMap sensor
+    Array.empty
+    |> addNeuronToNN actuator
+    |> addNeuronToNN neuron_1a
+    |> addNeuronToNN neuron_1b
+    |> addNeuronToNN sensor
     |> constructNodeRecords
 
   actuator |> assertNodeRecordsContainsNode nodeRecords
@@ -677,14 +666,13 @@ let ``After reconstruction, Sensor should inflate data if there is not enough da
   neuron_1b |> assertNodeRecordsContainsNode nodeRecords
   sensor |> assertNodeRecordsContainsNode nodeRecords
 
-  [
+  [|
     sensor
     neuron_1a
     neuron_1b
     actuator
-  ]
-  |> Map.ofList
-  |> killNeuralNetwork
+  |]
+  |> killNeuralNetworkArray
 
   let activationFunctions : ActivationFunctions =
     Map.empty
