@@ -1,11 +1,30 @@
 module NeuralFish.Tests.TestHelper
 
 open NeuralFish.Core
+open NeuralFish.Types
 open NeuralFish.Cortex
 
 let createNeuronInstance = createNeuronInstance defaultInfoLog
 let defaultThinkTimeout = 500
 let createCortex = createCortex defaultThinkTimeout defaultInfoLog
+let synchronize (_,(_, neuronInstance)) = synchronize neuronInstance
+let addNeuronToNN (_,(_,neuronInstance)) neuronArray = Array.append neuronArray [|neuronInstance|]
+//This is lazy
+let synchronizeNNMap (neuralNetworkMap : NeuralNetwork) =
+  neuralNetworkMap
+  |> Seq.map (fun keyValue -> keyValue.Value |> snd)
+  |> Seq.toArray
+  |> synchronizeNN
+let killNeuralNetworkMap (neuralNetworkMap : NeuralNetwork) =
+  neuralNetworkMap
+  |> Seq.map (fun keyValue -> keyValue.Value |> snd)
+  |> Seq.toArray
+  |> killNeuralNetwork
+
+let killNeuralNetworkArray neuralNetworkArray = 
+  neuralNetworkArray
+  |> Array.Parallel.map(fun (_,(_,neuronInstance)) -> neuronInstance )
+  |> killNeuralNetwork
 
 type GeneratorMsg =
   | GetData of AsyncReplyChannel<float seq>
@@ -109,7 +128,3 @@ let getNumberGenerator () =
       loop 0
     ) |> (fun x -> x.Error.Add(fun err -> printfn "%A" err); x)
   (fun () -> GetIntId |> generator.PostAndReply)
-
-
-let addNeuronToMap (neuronId, neuronInstance) =
-  Map.add neuronId neuronInstance

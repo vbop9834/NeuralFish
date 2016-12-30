@@ -55,10 +55,10 @@ let ``Cortex should be able to synchronize neural activity`` () =
   sensor |> connectSensorToNode neuron weights
 
   let neuralNetwork = 
-    Map.empty
-    |> addNeuronToMap actuator
-    |> addNeuronToMap neuron
-    |> addNeuronToMap sensor
+    Array.empty
+    |> addNeuronToNN actuator
+    |> addNeuronToNN neuron
+    |> addNeuronToNN sensor
 
   let cortex = neuralNetwork |> createCortex
 
@@ -121,10 +121,10 @@ let ``Cortex should shutdown a think cycle if time exceeds timeout value`` () =
   sensor |> connectSensorToNode neuron weights
 
   let neuralNetwork = 
-    Map.empty
-    |> addNeuronToMap actuator
-    |> addNeuronToMap neuron
-    |> addNeuronToMap sensor
+    Array.empty
+    |> addNeuronToNN actuator
+    |> addNeuronToNN neuron
+    |> addNeuronToNN sensor
 
   let cortex = neuralNetwork |> createCortex
 
