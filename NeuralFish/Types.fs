@@ -228,6 +228,7 @@ type Mutation =
   | AddActuator
   | RemoveInboundConnection
   | RemoveOutboundConnection
+  | ChangeNeuronLayer
   // | RemoveNeuron
   // //Remove neuron then connect inputs to outputs
   // | DespliceOut
