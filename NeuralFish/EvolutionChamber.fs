@@ -40,6 +40,7 @@ let defaultMutationSequence : MutationSequence =
     RemoveActuatorLink
     RemoveInboundConnection
     RemoveOutboundConnection
+    ChangeNeuronLayer
   ] |> List.toSeq
 
 let private isRecordASensor nodeRecordToCheck =
@@ -715,6 +716,26 @@ let mutateNeuralNetwork (mutationProperties : MutationProperties) : NodeRecords 
               else
                 processingNodeRecords
                 |> Map.add updatedNeuron.NodeId updatedNeuron
+        | ChangeNeuronLayer ->
+          let neuronRecords =
+            processingNodeRecords
+            |> Map.filter (fun _ record -> record.NodeType = NodeRecordType.Neuron)
+          let _, randomNeuron =
+            neuronRecords
+            |> selectRandomNode
+          let mutatedNeuron =
+            let newLayer =
+              let maxLayer =
+                neuronRecords
+                |> Seq.maxBy(fun keyValue -> keyValue.Value.Layer)
+                |> (fun keyValue -> keyValue.Value.Layer)
+              //1 + maxLayer so that there's a chance of a new layer being created
+              random.Next (maxLayer+1)
+              |> (fun x -> x + 1)
+              //To keep it from every being 0
+            { randomNeuron with Layer = newLayer }
+          processingNodeRecords
+          |> Map.add mutatedNeuron.NodeId mutatedNeuron
        // | RemoveNeuron ->
        // | DespliceOut ->
        // | RemoveSensor ->
