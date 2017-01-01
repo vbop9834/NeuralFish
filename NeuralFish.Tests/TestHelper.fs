@@ -26,6 +26,13 @@ let killNeuralNetworkArray neuralNetworkArray =
   |> Array.Parallel.map(fun (_,(_,neuronInstance)) -> neuronInstance )
   |> killNeuralNetwork
 
+let sendRecurrentSignals neuralNetwork =
+  neuralNetwork
+  |> Array.iter(fun (_,(_,neuron : NeuronInstance)) -> SendRecurrentSignals |> neuron.PostAndReply)
+let sendRecurrentSignalsNN neuralNetwork =
+  neuralNetwork
+  |> Array.iter(fun (neuron : NeuronInstance) -> SendRecurrentSignals |> neuron.PostAndReply)
+
 type GeneratorMsg =
   | GetData of AsyncReplyChannel<float seq>
   | KillGenerator of AsyncReplyChannel<unit>

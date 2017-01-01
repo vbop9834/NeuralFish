@@ -467,6 +467,7 @@ let ``AddOutboundConnection mutation should mutate connect a neuron to a neuron 
      InfoLog = defaultInfoLog
    } |> constructNeuralNetwork
 
+  neuralNetwork |> sendRecurrentSignalsNN
   synchronizeNN neuralNetwork
   WaitForData
   |> testHookMailbox.PostAndReply
@@ -578,6 +579,8 @@ let ``AddNeuron mutation should add a new neuron and connect it randomly in the 
   |> Map.toSeq
   |> Seq.length
   |> should be (greaterThan 1)
+
+  neuralNetwork |> sendRecurrentSignalsNN
 
   synchronizeNN neuralNetwork
   WaitForData

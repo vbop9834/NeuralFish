@@ -211,6 +211,8 @@ let ``Should be able to handle recurrent neural connections`` () =
   neuron |> connectNodeToActuator actuator
   neuron |> connectNodeToNeuron neuron 20.0
 
+  [|sensor; neuron; actuator|] |> sendRecurrentSignals
+
   //Synchronize and Assert!
   //Since there is a recurrent connection then the output will
   synchronize sensor
@@ -301,6 +303,8 @@ let ``Should be able to handle recurrent neural network with three neurons`` () 
   neuron_1a |> connectNodeToNeuron neuron_1b 20.0
   neuron_1b |> connectNodeToNeuron neuron_1b 20.0
   neuron_1b |> connectNodeToNeuron neuron_2a 20.0
+
+  [|sensor; neuron_1a; neuron_1b; neuron_2a; actuator|] |> sendRecurrentSignals
 
   //Synchronize and Assert!
   //Since there is a recurrent connection then the output will
