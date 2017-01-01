@@ -164,7 +164,7 @@ let createNeuronInstance infoLog neuronType =
         props.Record.NodeId, props.Record.Layer
   let isBarrierSatisifed (inboundNeuronConnections : InboundNeuronConnections) (barrier : IncomingSynapses) =
     inboundNeuronConnections
-    |> Seq.forall(fun (connection) -> barrier |> Map.containsKey connection.NeuronConnectionId)
+    |> Array.forall(fun (connection) -> barrier |> Map.containsKey connection.NeuronConnectionId)
   let addBias bias outputVal =
     outputVal + bias
   let sendRecurrentSignal activationOption neuronConnectionId (toNodeId, toNode : NeuronInstance) =
@@ -179,7 +179,7 @@ let createNeuronInstance infoLog neuronType =
         |> ReceiveInput
         |> outputNeuronConnection.Neuron.Post
       outputNeurons
-      |> Seq.iter (sendSynapseToNeuron outputValue)
+      |> Array.iter (sendSynapseToNeuron outputValue)
       outputValue
     let logNeuronOutput nodeId activationFunctionId bias outputValue =
       sprintf "Neuron %A is outputting %A after activation %A and bias %A" nodeId outputValue activationFunctionId bias
@@ -283,6 +283,7 @@ let createNeuronInstance infoLog neuronType =
                   }
               weightedSynapses
               |> Seq.map processLearningForConnection
+              |> Seq.toArray
 
             let updatedOverflowBarrier, (updatedBarrier : AxonHillockBarrier) =
               if barrier |> Map.containsKey neuronConnectionId then
@@ -360,7 +361,7 @@ let createNeuronInstance infoLog neuronType =
                 }
               let updatedOutboundConnections =
                 outboundConnections
-                |> Seq.append [newOutboundConnection]
+                |> Array.append [|newOutboundConnection|]
 
               ({
                 ConnectionOrder = match neuronType with | Sensor _ -> Some connectionOrder | _ -> None
@@ -372,27 +373,19 @@ let createNeuronInstance infoLog neuronType =
               |> NeuronActions.AddInboundConnection
               |> toNode.Post
 
-              let isRecurrentConnection = nodeLayer >= outboundLayer
-              let checkAndSendRecurrentSignal () =
-                match toNodeType with
-                | NodeRecordType.Neuron ->
-                  if isRecurrentConnection then
-                    (partialOutboundConnection.ToNodeId, toNode) |> sendRecurrentSignal DoNotActivate neuronConnectionId
-                | _ -> ()
-
-              //queue up blank synapses for recurrent connections
-              match maybeCortex with
-              | Some x ->
-                if x |> not then checkAndSendRecurrentSignal ()
-              | None ->
-                match neuronType with
-                | Neuron _ -> checkAndSendRecurrentSignal ()
-                | _ -> ()
+              let isRecurrentConnection = 
+                let isNeuron =
+                  match neuronType with
+                  | Neuron _ -> true
+                  | _ -> false
+                toNodeType = NodeRecordType.Neuron 
+                && isNeuron 
+                && nodeLayer >= outboundLayer
 
               let updatedRecurrentOutboundConnections =
                 if isRecurrentConnection then
                   recurrentOutboundConnections
-                  |> Seq.append [newOutboundConnection]
+                  |> Array.append [|newOutboundConnection|]
                 else
                   recurrentOutboundConnections
 
@@ -401,7 +394,7 @@ let createNeuronInstance infoLog neuronType =
               return! loop barrier inboundConnections updatedOutboundConnections maximumVectorLength maybeCortex updatedRecurrentOutboundConnections overflowBarrier
             | NeuronActions.AddInboundConnection (inboundConnection, replyChannel) ->
               let updatedInboundConnections =
-                Seq.append inboundConnections [inboundConnection]
+                Array.append inboundConnections [|inboundConnection|]
               replyChannel.Reply()
               sprintf "Node %A Added inbound neuron %A connection %A" nodeId inboundConnection.FromNodeId inboundConnection.NeuronConnectionId
               |> infoLog
@@ -490,7 +483,7 @@ let createNeuronInstance infoLog neuronType =
             | ResetNeuron replyChannel ->
               let updatedInboundConnections =
                 inboundConnections
-                |> Seq.map(fun connection -> { connection with Weight = connection.InitialWeight})
+                |> Array.map(fun connection -> { connection with Weight = connection.InitialWeight})
               let rec tossQueuedMessages () =
                 if inbox.CurrentQueueLength = 0 then
                   ()
@@ -504,11 +497,11 @@ let createNeuronInstance infoLog neuronType =
               let sendRecurrentSignalFromConnection (connection : NeuronConnection) =
                 (connection.NodeId, connection.Neuron) |> sendRecurrentSignal ActivateIfNeuronHasOneConnection connection.NeuronConnectionId
               recurrentOutboundConnections
-              |> Seq.iter sendRecurrentSignalFromConnection
+              |> Array.iter sendRecurrentSignalFromConnection
               replyChannel.Reply ()
               return! loop barrier inboundConnections outboundConnections maximumVectorLength maybeCortex recurrentOutboundConnections overflowBarrier
       }
-    loop Map.empty Seq.empty Seq.empty 0 None Seq.empty Map.empty
+    loop Map.empty Array.empty Array.empty 0 None Array.empty Map.empty
   )
 
   //Add exception logging

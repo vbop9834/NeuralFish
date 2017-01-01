@@ -170,10 +170,10 @@ type NeuronConnection =
     NodeId: NeuronId
   }
 
-type NeuronConnections = seq<NeuronConnection>
+type NeuronConnections = NeuronConnection array
 type RecurrentNeuronConnections = NeuronConnections
 
-type InboundNeuronConnections = seq<InboundNeuronConnection>
+type InboundNeuronConnections = InboundNeuronConnection array
 
 type NeuralNetwork = Map<NeuronId, NeuronLayerId*NeuronInstance>
 type LiveNeuralNetwork = array<NeuronInstance>

@@ -512,6 +512,8 @@ let ``Should be able to deconstruct then reconstruct recurrent neural network wi
   neuron_1b |> connectNodeToNeuron neuron_1b 20.0
   neuron_1b |> connectNodeToNeuron neuron_2a 20.0
 
+  [|sensor; neuron_1a; neuron_1b; neuron_2a; actuator|] |> sendRecurrentSignals
+
   //Synchronize and Assert!
   synchronize sensor
   WaitForData
@@ -570,6 +572,8 @@ let ``Should be able to deconstruct then reconstruct recurrent neural network wi
      NodeRecords = nodeRecords
      InfoLog = defaultInfoLog
    } |> constructNeuralNetwork 
+
+  neuralNetwork |> sendRecurrentSignalsNN
 
   synchronizeNN neuralNetwork
   WaitForData
