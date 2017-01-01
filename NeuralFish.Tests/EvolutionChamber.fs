@@ -580,6 +580,8 @@ let ``AddNeuron mutation should add a new neuron and connect it randomly in the 
   |> Seq.length
   |> should be (greaterThan 1)
 
+  neuralNetwork |> sendRecurrentSignalsNN
+
   synchronizeNN neuralNetwork
   WaitForData
   |> testHookMailbox.PostAndReply

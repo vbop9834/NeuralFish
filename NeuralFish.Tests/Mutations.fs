@@ -119,6 +119,7 @@ let ``AddNeuronOutSplice mutation should add a neuron in a new layer, increasing
      InfoLog = defaultInfoLog
    } |> constructNeuralNetwork
 
+  neuralNetwork |> sendRecurrentSignalsNN
   synchronizeNN neuralNetwork
   WaitForData
   |> testHookMailbox.PostAndReply
